@@ -8,6 +8,12 @@ export enum SettingKey {
   HapticsOn = 'al:settings:haptics_on',
   AnalyticsEnabled = 'al:settings:analytics_enabled',
   LocalCacheEnabled = 'al:settings:local_cache_enabled',
+  // 对话参数设置
+  ChatTemperature = 'al:settings:chat_temperature',
+  ChatMaxTokens = 'al:settings:chat_max_tokens',
+  ChatContextCount = 'al:settings:chat_context_count',
+  ChatSystemPrompt = 'al:settings:chat_system_prompt',
+  ChatStreamOutput = 'al:settings:chat_stream_output',
 }
 
 const p = prefixer('settings'); // For clearNamespace use if needed

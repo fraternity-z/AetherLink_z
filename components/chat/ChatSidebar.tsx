@@ -3,6 +3,7 @@ import { Animated, Pressable, StyleSheet, useWindowDimensions, View } from 'reac
 import { Surface, Text, SegmentedButtons, List, TouchableRipple, useTheme, Avatar, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { ChatSettings } from './ChatSettings';
 
 type TabKey = 'assistants' | 'settings';
 
@@ -107,14 +108,7 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
                 ))}
               </View>
             ) : (
-              <View>
-                <Text variant="titleSmall" style={{ marginBottom: 8 }}>
-                  对话参数设置（占位）
-                </Text>
-                <List.Item title="Temperature" description="占位" right={() => <Text>0.7</Text>} />
-                <List.Item title="Max tokens" description="占位" right={() => <Text>2048</Text>} />
-                <List.Item title="System prompt" description="占位" right={() => <Text>编辑</Text>} />
-              </View>
+              <ChatSettings />
             )}
           </View>
 

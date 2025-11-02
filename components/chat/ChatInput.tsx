@@ -34,7 +34,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
     if (!message.trim()) return;
     let cid = conversationId;
     if (!cid) {
-      const c = await ChatRepository.createConversation();
+      const c = await ChatRepository.createConversation('新话题');
       cid = c.id;
       onConversationChange(c.id);
     }
@@ -45,23 +45,48 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
     const controller = new AbortController();
     abortRef.current = controller;
 
+    // 获取聊天设置参数
+    const sr = SettingsRepository();
+    const temperature = (await sr.get<number>(SettingKey.ChatTemperature)) ?? 0.7;
+    const maxTokens = (await sr.get<number>(SettingKey.ChatMaxTokens)) ?? 2048;
+    const contextCount = (await sr.get<number>(SettingKey.ChatContextCount)) ?? 10;
+    const systemPrompt = (await sr.get<string>(SettingKey.ChatSystemPrompt)) ?? 'You are a helpful assistant.';
+
+    // 获取历史消息（上下文）
+    const historyMessages = await MessageRepository.listMessages(cid!, { limit: contextCount * 2 });
+
+    // 构建消息数组：系统提示词 + 历史消息 + 当前消息
     const msgs: CoreMessage[] = [
-      { role: 'system', content: 'You are a helpful assistant.' },
-      { role: 'user', content: message },
+      { role: 'system', content: systemPrompt },
     ];
+
+    // 添加历史消息（只取最近的 contextCount 条对话，每条对话包含 user 和 assistant）
+    const recentHistory = historyMessages.slice(-contextCount * 2);
+    for (const msg of recentHistory) {
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        msgs.push({
+          role: msg.role,
+          content: msg.text ?? '',
+        });
+      }
+    }
+
+    // 添加当前用户消息
+    msgs.push({ role: 'user', content: message });
 
     let acc = '';
     try {
-      const sr = SettingsRepository();
       const provider = ((await sr.get<string>(SettingKey.DefaultProvider)) ?? 'openai') as Provider;
       const model = (await sr.get<string>(SettingKey.DefaultModel)) ?? (provider === 'openai' ? 'gpt-4o-mini' : provider === 'anthropic' ? 'claude-3-5-haiku-latest' : 'gemini-1.5-flash');
 
-      console.log('[ChatInput] Sending message', { provider, model, messagesCount: msgs.length });
+      console.log('[ChatInput] Sending message', { provider, model, messagesCount: msgs.length, temperature, maxTokens });
 
       await streamCompletion({
         provider,
         model,
         messages: msgs,
+        temperature,
+        maxTokens,
         abortSignal: controller.signal,
         onToken: async (d) => {
           acc += d;

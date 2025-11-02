@@ -1,0 +1,215 @@
+/**
+ * 💬 聊天参数设置组件
+ *
+ * 功能：
+ * - 模型温度（Temperature）调节
+ * - 最大令牌数（Max tokens）设置
+ * - 上下文数目（Context count）设置
+ * - 系统提示词（System prompt）编辑
+ * - 流式输出（Stream output）开关
+ */
+
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { Text, List, Switch, Button, Dialog, Portal, TextInput, useTheme } from 'react-native-paper';
+import Slider from '@react-native-community/slider';
+import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
+
+export function ChatSettings() {
+  const theme = useTheme();
+  const sr = SettingsRepository();
+
+  // 状态管理
+  const [temperature, setTemperature] = useState(0.7);
+  const [maxTokens, setMaxTokens] = useState(2048);
+  const [contextCount, setContextCount] = useState(10);
+  const [streamOutput, setStreamOutput] = useState(true);
+  const [systemPrompt, setSystemPrompt] = useState('You are a helpful assistant.');
+  const [showPromptDialog, setShowPromptDialog] = useState(false);
+  const [tempPrompt, setTempPrompt] = useState('');
+
+  // 加载设置
+  useEffect(() => {
+    (async () => {
+      const temp = await sr.get<number>(SettingKey.ChatTemperature);
+      const tokens = await sr.get<number>(SettingKey.ChatMaxTokens);
+      const context = await sr.get<number>(SettingKey.ChatContextCount);
+      const stream = await sr.get<boolean>(SettingKey.ChatStreamOutput);
+      const prompt = await sr.get<string>(SettingKey.ChatSystemPrompt);
+
+      if (temp !== null) setTemperature(temp);
+      if (tokens !== null) setMaxTokens(tokens);
+      if (context !== null) setContextCount(context);
+      if (stream !== null) setStreamOutput(stream);
+      if (prompt !== null) setSystemPrompt(prompt);
+    })();
+  }, []);
+
+  // 保存设置
+  const saveTemperature = async (value: number) => {
+    setTemperature(value);
+    await sr.set(SettingKey.ChatTemperature, value);
+  };
+
+  const saveMaxTokens = async (value: number) => {
+    setMaxTokens(value);
+    await sr.set(SettingKey.ChatMaxTokens, value);
+  };
+
+  const saveContextCount = async (value: number) => {
+    setContextCount(value);
+    await sr.set(SettingKey.ChatContextCount, value);
+  };
+
+  const saveStreamOutput = async (value: boolean) => {
+    setStreamOutput(value);
+    await sr.set(SettingKey.ChatStreamOutput, value);
+  };
+
+  const saveSystemPrompt = async () => {
+    setSystemPrompt(tempPrompt);
+    await sr.set(SettingKey.ChatSystemPrompt, tempPrompt);
+    setShowPromptDialog(false);
+  };
+
+  const openPromptDialog = () => {
+    setTempPrompt(systemPrompt);
+    setShowPromptDialog(true);
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+      <Text variant="titleSmall" style={{ marginBottom: 8, paddingHorizontal: 8 }}>
+        对话参数设置（占位）
+      </Text>
+
+      {/* Temperature 设置 */}
+      <View style={styles.settingItem}>
+        <View style={styles.settingHeader}>
+          <Text variant="bodyMedium">Temperature</Text>
+          <Text variant="bodyMedium" style={{ color: theme.colors.primary }}>{temperature.toFixed(1)}</Text>
+        </View>
+        <Text variant="bodySmall" style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
+          占位
+        </Text>
+        <Slider
+          value={temperature}
+          onValueChange={saveTemperature}
+          minimumValue={0}
+          maximumValue={2}
+          step={0.1}
+          style={styles.slider}
+        />
+      </View>
+
+      {/* Max tokens 设置 */}
+      <View style={styles.settingItem}>
+        <View style={styles.settingHeader}>
+          <Text variant="bodyMedium">Max tokens</Text>
+          <Text variant="bodyMedium" style={{ color: theme.colors.primary }}>{maxTokens}</Text>
+        </View>
+        <Text variant="bodySmall" style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
+          占位
+        </Text>
+        <Slider
+          value={maxTokens}
+          onValueChange={saveMaxTokens}
+          minimumValue={256}
+          maximumValue={8192}
+          step={256}
+          style={styles.slider}
+        />
+      </View>
+
+      {/* Context count 设置 */}
+      <View style={styles.settingItem}>
+        <View style={styles.settingHeader}>
+          <Text variant="bodyMedium">上下文数目</Text>
+          <Text variant="bodyMedium" style={{ color: theme.colors.primary }}>{contextCount}</Text>
+        </View>
+        <Text variant="bodySmall" style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
+          占位
+        </Text>
+        <Slider
+          value={contextCount}
+          onValueChange={saveContextCount}
+          minimumValue={1}
+          maximumValue={50}
+          step={1}
+          style={styles.slider}
+        />
+      </View>
+
+      {/* System prompt 设置 */}
+      <List.Item
+        title="System prompt"
+        description="占位"
+        right={() => <Text>编辑</Text>}
+        onPress={openPromptDialog}
+        style={styles.listItem}
+      />
+
+      {/* Stream output 开关 */}
+      <View style={styles.settingItem}>
+        <View style={styles.settingHeader}>
+          <View style={{ flex: 1 }}>
+            <Text variant="bodyMedium">流式输出</Text>
+            <Text variant="bodySmall" style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
+              占位
+            </Text>
+          </View>
+          <Switch value={streamOutput} onValueChange={saveStreamOutput} />
+        </View>
+      </View>
+
+      {/* System Prompt 编辑对话框 */}
+      <Portal>
+        <Dialog visible={showPromptDialog} onDismiss={() => setShowPromptDialog(false)}>
+          <Dialog.Title>编辑系统提示词</Dialog.Title>
+          <Dialog.Content>
+            <TextInput
+              value={tempPrompt}
+              onChangeText={setTempPrompt}
+              multiline
+              numberOfLines={6}
+              mode="outlined"
+              placeholder="输入系统提示词..."
+              style={{ maxHeight: 200 }}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowPromptDialog(false)}>取消</Button>
+            <Button onPress={saveSystemPrompt}>保存</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  settingItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  settingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  description: {
+    marginBottom: 8,
+    fontSize: 12,
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  listItem: {
+    paddingHorizontal: 16,
+  },
+});

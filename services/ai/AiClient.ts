@@ -11,6 +11,8 @@ export interface StreamOptions {
   model: string;
   messages: CoreMessage[];
   abortSignal?: AbortSignal;
+  temperature?: number;
+  maxTokens?: number;
   onToken?: (delta: string) => void;
   onDone?: () => void;
   onError?: (e: unknown) => void;
@@ -54,6 +56,9 @@ export async function streamCompletion(opts: StreamOptions) {
     model: factory()(opts.model),
     messages: opts.messages,
     abortSignal: opts.abortSignal,
+    temperature: opts.temperature,
+    // 兼容 AI SDK v5：部分模型使用 maxOutputTokens 字段
+    maxOutputTokens: opts.maxTokens,
   });
 
   try {
