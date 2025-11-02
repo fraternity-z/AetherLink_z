@@ -48,6 +48,43 @@ export const MessageRepository = {
     };
   },
 
+  async addMessageWithId(input: {
+    id: string;
+    conversationId: string;
+    role: Role;
+    text?: string;
+    createdAt: number;
+    status?: 'pending' | 'sent' | 'failed';
+    parentId?: string | null;
+    extra?: any;
+  }): Promise<Message> {
+    const status = input.status ?? 'sent';
+    await execute(
+      `INSERT INTO messages (id, conversation_id, role, text, created_at, status, parent_id, extra)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        input.id,
+        input.conversationId,
+        input.role,
+        input.text ?? null,
+        input.createdAt,
+        status,
+        input.parentId ?? null,
+        input.extra ? JSON.stringify(input.extra) : null,
+      ]
+    );
+    return {
+      id: input.id,
+      conversationId: input.conversationId,
+      role: input.role,
+      text: input.text ?? null,
+      createdAt: input.createdAt,
+      status,
+      parentId: input.parentId ?? null,
+      extra: input.extra,
+    };
+  },
+
   async listMessages(conversationId: string, opts?: { limit?: number; before?: number }): Promise<Message[]> {
     const limit = Math.max(1, opts?.limit ?? 50);
     const before = opts?.before ?? Number.MAX_SAFE_INTEGER;
@@ -72,5 +109,21 @@ export const MessageRepository = {
 
   async deleteMessage(id: string): Promise<void> {
     await execute(`DELETE FROM messages WHERE id = ?`, [id]);
+  },
+
+  async getAllMessages(): Promise<Message[]> {
+    const rows = await queryAll<any>(
+      `SELECT id, conversation_id as conversationId, role, text, created_at as createdAt, status, parent_id as parentId
+       FROM messages
+       ORDER BY created_at ASC`
+    );
+    return rows;
+  },
+
+  async getMessageCountByRole(): Promise<{ role: Role; count: number }[]> {
+    const rows = await queryAll<any>(
+      `SELECT role, COUNT(*) as count FROM messages GROUP BY role`
+    );
+    return rows;
   },
 };

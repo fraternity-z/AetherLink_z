@@ -20,8 +20,7 @@
 ## 分层架构概览
 
 - 键值层（设置/密钥）
-  - 非敏感：`@react-native-async-storage/async-storage`
-  - 敏感：`expo-secure-store`（Web 端默认不落盘，仅内存或提示风险）
+  - 统一使用：`@react-native-async-storage/async-storage`（跨平台兼容）
 - 结构化层（会话/消息/关系）
   - `expo-sqlite`（移动端使用原生 SQLite，Web 由 WASM/sql.js 提供后端，需通过 Provider 包裹）
 - 文件层（附件二进制）
@@ -34,19 +33,18 @@ UI Components
 Hooks (useConversations/useMessages/useSetting)
    │
    ▼
-Repositories (Chat/Message/Attachment/Settings/Secrets)
+Repositories (Chat/Message/Attachment/Settings/Providers)
    │                     │                 │
-   ├── KeyValue Store ───┘                 │
-   │   (AsyncStorage/SecureStore/Web)      │
-   ├── SQLite (expo-sqlite + migrations) ──┘
+   ├── KeyValue Store ───┴─────────────────┘
+   │   (AsyncStorage/Web)
+   ├── SQLite (expo-sqlite + migrations)
    └── FileSystem (attachments/*)
 ```
 
 ## 目录结构建议
 
 - `storage/core.ts`：接口与公共工具（前缀、JSON、平台判断）
-- `storage/adapters/async-storage.ts`：AsyncStorage 适配
-- `storage/adapters/secure-store.ts`：SecureStore 适配（含可用性检测/降级）
+- `storage/adapters/async-storage.ts`：AsyncStorage 适配（统一的键值存储）
 - `storage/adapters/web-local.ts`：Web fallback（localStorage/内存）
 - `storage/sqlite/db.ts`：SQLiteProvider、打开数据库、事务与通用执行器
 - `storage/sqlite/migrations/0001_init.ts`：首个迁移（建表与索引）
@@ -54,7 +52,7 @@ Repositories (Chat/Message/Attachment/Settings/Secrets)
 - `storage/repositories/messages.ts`：消息读写与分页
 - `storage/repositories/attachments.ts`：附件保存/引用计数/GC
 - `storage/repositories/settings.ts`：设置读写（键枚举）
-- `storage/repositories/secrets.ts`：密钥读写（安全存储）
+- `storage/repositories/providers.ts`：提供商配置与 API Key 管理
 - `hooks/use-conversations.ts`、`hooks/use-messages.ts`、`hooks/use-setting.ts`
 
 ## 数据模型（SQLite）
@@ -142,8 +140,8 @@ IAttachmentRepository：
 - `enum SettingKey { Theme='al:settings:theme', DefaultModel='al:settings:default_model', ... }`
 - `SettingsRepository.get<T>(key: SettingKey): Promise<T|null>`
 - `SettingsRepository.set<T>(key: SettingKey, value: T): Promise<void>`
-- `SecretsRepository.get(key: string): Promise<string|null>`（SecureStore）
-- `SecretsRepository.set(key: string, value: string): Promise<void>`
+- `ProvidersRepository.getApiKey(id: ProviderId): Promise<string|null>`（统一使用 AsyncStorage）
+- `ProvidersRepository.setApiKey(id: ProviderId, value: string): Promise<void>`
 
 键值适配器（IKeyValueStore）：
 - `get<T>(key: string): Promise<T|null>`
@@ -200,18 +198,20 @@ IAttachmentRepository：
 
 ## 安全与隐私
 
-- 密钥：仅 `SecureStore`；Web 端默认仅内存
-- 附件与消息：默认不加密（YAGNI）；可演进为 AES-GCM 本地加密，密钥存 `SecureStore`
-- 清理：删除会话/消息时清理孤儿附件；提供“一键清空”入口（谨慎暴露）
+- 密钥：统一存储于 `AsyncStorage`；考虑到跨平台兼容性（特别是 Web 端），暂不使用加密存储
+- 附件与消息：默认不加密（YAGNI）；可演进为 AES-GCM 本地加密
+- 清理：删除会话/消息时清理孤儿附件；提供"一键清空"入口（谨慎暴露）
+
+**注意**：生产环境建议评估敏感数据的安全需求，必要时可引入加密存储方案。
 
 ## 实施步骤（最小落地）
 
 1. 安装依赖：
-   - `expo-sqlite`、`expo-file-system`、`@react-native-async-storage/async-storage`、`expo-secure-store`
+   - `expo-sqlite`、`expo-file-system`、`@react-native-async-storage/async-storage`
 2. 新建 `storage/` 与 `hooks/` 目录，编写 `core.ts` 与 KV 适配器
 3. `storage/sqlite/db.ts`：集成 `SQLiteProvider`、通用执行器与事务封装
 4. `migrations/0001_init.ts`：创建 4 张表与索引
-5. 编写 `repositories`：`chat.ts`、`messages.ts`、`attachments.ts`、`settings.ts`、`secrets.ts`
+5. 编写 `repositories`：`chat.ts`、`messages.ts`、`attachments.ts`、`settings.ts`、`providers.ts`
 6. Hooks：`use-conversations.ts` 与 `use-messages.ts`（分页+刷新），`use-setting.ts`
 7. 打通 UI：在聊天输入与消息列表接入仓储（先支持“新建会话+发带图消息”）
 8. 基础清理逻辑：删除消息/会话联动清理附件与文件

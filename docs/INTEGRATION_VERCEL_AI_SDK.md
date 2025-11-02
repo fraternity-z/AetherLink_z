@@ -63,7 +63,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import type { Message as UIMessage } from 'ai';
-import { SecretsRepository } from '@/storage/repositories/secrets';
+import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 
 export type Provider = 'openai' | 'anthropic' | 'google';
 
@@ -78,10 +78,7 @@ export interface StreamOptions {
 }
 
 async function getApiKey(provider: Provider) {
-  const secrets = SecretsRepository();
-  if (provider === 'openai') return (await secrets.get('openai_api_key')) ?? '';
-  if (provider === 'anthropic') return (await secrets.get('anthropic_api_key')) ?? '';
-  return (await secrets.get('google_api_key')) ?? '';
+  return (await ProvidersRepository.getApiKey(provider as ProviderId)) ?? '';
 }
 
 export async function streamCompletion(opts: StreamOptions) {

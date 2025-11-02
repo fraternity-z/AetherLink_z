@@ -1,5 +1,4 @@
 import { AsyncKVStore } from '@/storage/adapters/async-storage';
-import { SecretsRepository } from '@/storage/repositories/secrets';
 
 export type ProviderId = 'openai' | 'anthropic' | 'gemini' | 'google' | 'deepseek' | 'volc' | 'zhipu';
 
@@ -9,9 +8,7 @@ export interface ProviderConfig {
   baseURL?: string | null;
 }
 
-// AsyncStorage keys可以包含冒号，便于命名空间；SecureStore不允许（仅 [A-Za-z0-9_.-]）。
-const key = (id: ProviderId, name: string) => `al:provider:${id}:${name}`; // for AsyncStorage
-const secureKey = (id: ProviderId, name: string) => `al_provider_${id}_${name}`; // for SecureStore
+const key = (id: ProviderId, name: string) => `al:provider:${id}:${name}`;
 
 export const ProvidersRepository = {
   async getConfig(id: ProviderId): Promise<ProviderConfig> {
@@ -29,12 +26,10 @@ export const ProvidersRepository = {
   },
 
   async getApiKey(id: ProviderId): Promise<string | null> {
-    const secrets = SecretsRepository();
-    return secrets.get(secureKey(id, 'api_key'));
+    return await AsyncKVStore.get<string>(key(id, 'api_key'));
   },
 
   async setApiKey(id: ProviderId, value: string): Promise<void> {
-    const secrets = SecretsRepository();
-    await secrets.set(secureKey(id, 'api_key'), value);
+    await AsyncKVStore.set(key(id, 'api_key'), value);
   },
 };

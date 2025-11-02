@@ -14,6 +14,26 @@ export const ChatRepository = {
     return { id, title: title ?? null, createdAt, updatedAt, archived };
   },
 
+  async createConversationWithId(input: {
+    id: string;
+    title?: string | null;
+    createdAt: number;
+    updatedAt: number;
+    archived: boolean;
+  }): Promise<Conversation> {
+    await execute(
+      `INSERT INTO conversations (id, title, created_at, updated_at, archived, extra) VALUES (?, ?, ?, ?, ?, NULL)`,
+      [input.id, input.title ?? null, input.createdAt, input.updatedAt, input.archived ? 1 : 0]
+    );
+    return {
+      id: input.id,
+      title: input.title ?? null,
+      createdAt: input.createdAt,
+      updatedAt: input.updatedAt,
+      archived: input.archived,
+    };
+  },
+
   async listConversations(opts?: { archived?: boolean; limit?: number; offset?: number }): Promise<Conversation[]> {
     const archived = opts?.archived;
     const limit = Math.max(0, opts?.limit ?? 50);

@@ -2,7 +2,6 @@ import { streamText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { SecretsRepository } from '@/storage/repositories/secrets';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 
 export type Provider = 'openai' | 'anthropic' | 'google' | 'gemini' | 'deepseek' | 'volc' | 'zhipu';
@@ -24,18 +23,9 @@ export interface StreamOptions {
 }
 
 async function getApiKey(provider: Provider): Promise<string> {
-  if (provider === 'gemini') provider = 'google';
-  if (provider === 'openai' || provider === 'anthropic' || provider === 'google') {
-    const secrets = SecretsRepository();
-    const map: Record<string, string> = {
-      openai: 'openai_api_key',
-      anthropic: 'anthropic_api_key',
-      google: 'google_api_key',
-    };
-    return (await secrets.get(map[provider])) ?? '';
-  }
-  // other vendors use provider-specific key stored via ProvidersRepository
-  return (await ProvidersRepository.getApiKey(provider as ProviderId)) ?? '';
+  // 统一使用 ProvidersRepository 获取所有提供商的 API Key
+  const normalizedProvider = provider === 'gemini' ? 'google' : provider;
+  return (await ProvidersRepository.getApiKey(normalizedProvider as ProviderId)) ?? '';
 }
 
 export async function streamCompletion(opts: StreamOptions) {

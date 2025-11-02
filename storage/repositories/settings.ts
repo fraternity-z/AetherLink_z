@@ -6,6 +6,8 @@ export enum SettingKey {
   DefaultModel = 'al:settings:default_model',
   DefaultProvider = 'al:settings:default_provider',
   HapticsOn = 'al:settings:haptics_on',
+  AnalyticsEnabled = 'al:settings:analytics_enabled',
+  LocalCacheEnabled = 'al:settings:local_cache_enabled',
 }
 
 const p = prefixer('settings'); // For clearNamespace use if needed

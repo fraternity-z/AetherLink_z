@@ -81,6 +81,50 @@ export const AttachmentRepository = {
     );
   },
 
+  async addAttachmentWithId(input: {
+    id: string;
+    kind: string;
+    name: string | null;
+    size: number | null;
+    createdAt: number;
+  }): Promise<Attachment> {
+    const attachment: Attachment = {
+      id: input.id,
+      kind: input.kind as any,
+      mime: null,
+      name: input.name,
+      uri: null,
+      size: input.size,
+      width: null,
+      height: null,
+      durationMs: null,
+      sha256: null,
+      createdAt: input.createdAt,
+      extra: undefined,
+    };
+
+    await execute(
+      `INSERT INTO attachments (id, kind, mime, name, uri, size, width, height, duration_ms, sha256, created_at, extra)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        attachment.id,
+        attachment.kind,
+        attachment.mime,
+        attachment.name,
+        attachment.uri,
+        attachment.size,
+        attachment.width,
+        attachment.height,
+        attachment.durationMs,
+        attachment.sha256,
+        attachment.createdAt,
+        null,
+      ]
+    );
+
+    return attachment;
+  },
+
   async removeAttachmentIfOrphan(attachmentId: string): Promise<void> {
     const rows = await queryAll<{ c: number }>(
       `SELECT COUNT(*) as c FROM message_attachments WHERE attachment_id = ?`,
@@ -99,5 +143,26 @@ export const AttachmentRepository = {
       } catch {}
     }
     await execute(`DELETE FROM attachments WHERE id = ?`, [attachmentId]);
+  },
+
+  async getAllAttachments(): Promise<Attachment[]> {
+    const rows = await queryAll<any>(
+      `SELECT id, kind, mime, name, uri, size, width, height, duration_ms as durationMs, sha256, created_at as createdAt, extra
+       FROM attachments
+       ORDER BY created_at DESC`
+    );
+    return rows.map(r => ({
+      ...r,
+      extra: r.extra ? JSON.parse(r.extra) : undefined,
+    }));
+  },
+
+  async getAttachmentCountByKind(): Promise<{ kind: string; count: number; totalSize: number }[]> {
+    const rows = await queryAll<any>(
+      `SELECT kind, COUNT(*) as count, SUM(COALESCE(size, 0)) as totalSize
+       FROM attachments
+       GROUP BY kind`
+    );
+    return rows;
   },
 };
