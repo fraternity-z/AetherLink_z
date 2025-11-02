@@ -1,0 +1,82 @@
+import { Platform } from 'react-native';
+
+export interface IKeyValueStore {
+  get<T = any>(key: string): Promise<T | null>;
+  set<T = any>(key: string, value: T): Promise<void>;
+  remove(key: string): Promise<void>;
+  multiGet(keys: string[]): Promise<Record<string, any>>;
+  multiSet(entries: Record<string, any>): Promise<void>;
+  clearNamespace(prefix: string): Promise<void>;
+}
+
+export const prefixer = (ns: string) => (k: string) => `al:${ns}:${k}`;
+
+export const safeJSON = {
+  parse<T = any>(input: string | null): T | null {
+    if (!input) return null;
+    try {
+      return JSON.parse(input) as T;
+    } catch (e) {
+      return null;
+    }
+  },
+  stringify(input: any): string {
+    try {
+      return JSON.stringify(input);
+    } catch (e) {
+      return 'null';
+    }
+  },
+};
+
+export const isWeb = Platform.OS === 'web';
+export const now = () => Date.now();
+
+export type Role = 'user' | 'assistant' | 'system';
+
+export interface Conversation {
+  id: string;
+  title: string | null;
+  createdAt: number;
+  updatedAt: number;
+  archived: boolean;
+  extra?: any;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  role: Role;
+  text?: string | null;
+  createdAt: number;
+  status: 'pending' | 'sent' | 'failed';
+  parentId?: string | null;
+  extra?: any;
+}
+
+export type AttachmentKind = 'image' | 'file' | 'audio' | 'video';
+
+export interface Attachment {
+  id: string;
+  kind: AttachmentKind;
+  mime?: string | null;
+  name?: string | null;
+  uri: string; // local/private uri
+  size?: number | null;
+  width?: number | null;
+  height?: number | null;
+  durationMs?: number | null;
+  sha256?: string | null;
+  createdAt: number;
+  extra?: any;
+}
+
+export function uuid(): string {
+  // RFC4122 v4-like uuid (non-crypto)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
