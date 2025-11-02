@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, Stack } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, StyleSheet } from 'react-native';
 import { Avatar, Button, HelperText, List, SegmentedButtons, Surface, Switch, Text, TextInput, useTheme } from 'react-native-paper';
-import { SettingScreen } from '@/components/settings/SettingScreen';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 
 type VendorMeta = {
@@ -35,6 +35,7 @@ export default function ProviderConfig() {
   const [tab, setTab] = useState<'key' | 'base'>('key');
   const [baseUrl, setBaseUrl] = useState('');
 
+  const loadedRef = useRef(false);
   useEffect(() => {
     (async () => {
       const id = meta.id as ProviderId;
@@ -43,31 +44,45 @@ export default function ProviderConfig() {
       setBaseUrl(cfg.baseURL ?? '');
       const key = await ProvidersRepository.getApiKey(id);
       setApiKey(key ?? '');
+      loadedRef.current = true;
     })();
   }, [meta.id]);
 
-  const HeaderRight = useMemo(() => {
-    const Comp = () => (
-      <Button
-        mode="contained"
-        compact
-        onPress={async () => {
-          const id = meta.id as ProviderId;
-          await ProvidersRepository.setEnabled(id, enabled);
-          await ProvidersRepository.setBaseURL(id, baseUrl);
-          if (apiKey) await ProvidersRepository.setApiKey(id, apiKey);
-        }}
-      >
-        保存
-      </Button>
-    );
-    Comp.displayName = 'ProviderSaveButton';
-    return Comp;
-  }, [meta.id, enabled, baseUrl, apiKey]);
+  // 持久化封装（防止丢失）
+  const persist = async () => {
+    const id = meta.id as ProviderId;
+    await ProvidersRepository.setEnabled(id, enabled);
+    await ProvidersRepository.setBaseURL(id, baseUrl);
+    if (apiKey && apiKey.trim().length > 0) {
+      await ProvidersRepository.setApiKey(id, apiKey.trim());
+    }
+  };
+
+  // 页面离开时自动保存（避免忘点保存导致丢失）
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        void persist();
+      };
+    }, [meta.id, enabled, baseUrl, apiKey])
+  );
+
+  // 输入实时保存：对 apiKey/baseUrl 变化做轻量去抖，避免频繁 IO
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!loadedRef.current) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => { void persist(); }, 600);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [apiKey, baseUrl]);
+
+  // 取消右上角保存按钮：改为实时保存
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: meta.name, headerRight: HeaderRight }} />
+      <Stack.Screen options={{ title: meta.name }} />
 
       {/* 顶部名片 */}
       <Surface style={[styles.card, { backgroundColor: theme.colors.surface }]}
@@ -85,7 +100,7 @@ export default function ProviderConfig() {
       {/* API配置 */}
       <Surface style={[styles.card, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <List.Subheader>API 配置</List.Subheader>
-        <List.Item title="启用状态" right={() => <Switch value={enabled} onValueChange={setEnabled} />} />
+        <List.Item title="启用状态" right={() => <Switch value={enabled} onValueChange={async (v) => { setEnabled(v); await ProvidersRepository.setEnabled(meta.id as ProviderId, v); }} />} />
         <List.Item
           title="API Key 管理模式"
           description={singleKey ? '单 Key 模式（传统）' : '多 Key 模式（占位）'}
@@ -108,6 +123,7 @@ export default function ProviderConfig() {
               secureTextEntry={!showKey}
               right={<TextInput.Icon icon={showKey ? 'eye-off' : 'eye'} onPress={() => setShowKey((v) => !v)} />}
               style={{ marginTop: 8 }}
+              onBlur={() => { if (apiKey && apiKey.trim()) { void ProvidersRepository.setApiKey(meta.id as ProviderId, apiKey.trim()); } }}
             />
             <HelperText type="info">已写入安全存储（设备本地 SecureStore）</HelperText>
           </>
@@ -120,6 +136,7 @@ export default function ProviderConfig() {
               onChangeText={setBaseUrl}
               autoCapitalize="none"
               style={{ marginTop: 8 }}
+              onBlur={() => { void ProvidersRepository.setBaseURL(meta.id as ProviderId, baseUrl); }}
             />
             <HelperText type="info">为该提供商设置自定义 Base URL（OpenAI 兼容厂商如 DeepSeek/火山/智谱 可填其兼容地址）</HelperText>
           </>

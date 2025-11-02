@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Surface, Text, SegmentedButtons, List, TouchableRipple, useTheme, Avatar, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 
 type TabKey = 'assistants' | 'settings';
 
@@ -41,7 +42,10 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
   );
 
   return (
-    <View pointerEvents={visible ? 'auto' : 'none'} style={StyleSheet.absoluteFill}>
+    <View
+      pointerEvents={visible ? 'auto' : 'none'}
+      style={[StyleSheet.absoluteFill, { zIndex: 1000, elevation: 1000 }]}
+    >
       {/* 背景遮罩 */}
       <Pressable
         onPress={onClose}
@@ -57,9 +61,13 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
           bottom: 0,
           width: drawerWidth,
           transform: [{ translateX }],
+          zIndex: 1001,
         }}
+        // 侧边栏整体拦截触摸，避免空白区域透传
+        pointerEvents="auto"
       >
-        <Surface style={[
+        <Surface
+          style={[
             styles.drawer,
             {
               backgroundColor: theme.colors.surface,
@@ -67,7 +75,8 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
               paddingBottom: Math.max(insets.bottom, 8),
             },
           ]}
-          elevation={3}
+          elevation={5}
+          pointerEvents="auto"
         >
           {/* 顶部 Tabs */}
           <View style={styles.header}>
@@ -120,24 +129,40 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
                 bottom: Math.max(insets.bottom, 8) + 12,
               },
             ]}
+            // 底部卡片区域应拦截触摸
+            pointerEvents="auto"
           >
-            <View style={styles.bottomRow}>
-              <TouchableRipple style={{ borderRadius: 28 }} onPress={() => console.log('打开个人信息')}> 
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Avatar.Icon size={40} icon="account" />
-                  <View style={{ marginLeft: 10 }}>
-                    <Text variant="labelLarge">访客</Text>
-                    <Text variant="bodySmall" style={{ opacity: 0.7 }}>guest@example.com</Text>
-                  </View>
+            <View
+              style={styles.bottomRow}
+              pointerEvents="auto"
+              onStartShouldSetResponder={() => true}
+            >
+              {/* 左侧资料区：用 Pressable 吞掉触摸，防止下穿到输入框 */}
+              <Pressable
+                onPress={() => {}}
+                style={{ flexDirection: 'row', alignItems: 'center', flex: 1, paddingVertical: 4 }}
+                android_ripple={undefined}
+              >
+                <Avatar.Icon size={40} icon="account" />
+                <View style={{ marginLeft: 10 }}>
+                  <Text variant="labelLarge">访客</Text>
+                  <Text variant="bodySmall" style={{ opacity: 0.7 }}>guest@example.com</Text>
                 </View>
-              </TouchableRipple>
+              </Pressable>
 
-              <IconButton
-                icon="cog"
-                size={22}
-                onPress={() => setTab('settings')}
-                style={{ margin: 0 }}
-              />
+              <View pointerEvents="auto">
+                <IconButton
+                  icon="cog"
+                  size={22}
+                  onPress={() => {
+                    onClose();
+                    setTimeout(() => {
+                      router.push('/settings');
+                    }, 50);
+                  }}
+                  style={{ margin: 0 }}
+                />
+              </View>
             </View>
           </Surface>
         </Surface>

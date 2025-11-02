@@ -15,7 +15,6 @@ import { ChatRepository } from '@/storage/repositories/chat';
 import { MessageRepository } from '@/storage/repositories/messages';
 import { streamCompletion, type CoreMessage, type Provider } from '@/services/ai/AiClient';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
-import { ProvidersRepository } from '@/storage/repositories/providers';
 
 export function ChatInput({ conversationId, onConversationChange }: { conversationId: string | null; onConversationChange: (id: string) => void; }) {
   const theme = useTheme();
