@@ -8,8 +8,8 @@
  */
 
 import React from 'react';
-import { ScrollView, View, StyleSheet } from 'react-native';
-import { List, Divider, useTheme } from 'react-native-paper';
+import { ScrollView, View, StyleSheet, useWindowDimensions } from 'react-native';
+import { Text, Avatar, TouchableRipple, useTheme } from 'react-native-paper';
 import { router } from 'expo-router';
 
 // 设置项数据结构
@@ -67,17 +67,71 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         color: '#4f46e5',
       },
       {
+        id: 'prompt-collections',
+        title: '智能体提示词集合',
+        description: '浏览和使用常用提示词模板',
+        icon: 'lightbulb',
+        color: '#60a5fa',
+      },
+      {
         id: 'web-search',
         title: '网络搜索',
         description: '配置网络搜索和相关服务',
         icon: 'web',
         color: '#3b82f6',
       },
+      {
+        id: 'model-combine',
+        title: '模型组合',
+        description: '创建和管理多模型组合',
+        icon: 'merge',
+        color: '#f472b6',
+      },
+      {
+        id: 'mcp-server',
+        title: 'MCP 服务端',
+        description: '高级服务器配置管理',
+        icon: 'server',
+        color: '#22c55e',
+      },
+    ],
+  },
+  {
+    title: '快捷方式',
+    items: [
+      {
+        id: 'quick-helper',
+        title: '快捷助手',
+        description: '自定义快捷动作快捷键',
+        icon: 'flash',
+        color: '#f59e0b',
+      },
+      {
+        id: 'quick-phrases',
+        title: '快捷短语',
+        description: '创建常用提示模板',
+        icon: 'message-text',
+        color: '#f97316',
+      },
     ],
   },
   {
     title: '其他设置',
     items: [
+      {
+        id: 'workspace',
+        title: '工作区管理',
+        description: '创建管理帐户文件工作区',
+        icon: 'folder-cog',
+        color: '#fbbf24',
+      },
+      {
+        id: 'knowledge',
+        title: '知识库设置',
+        description: '管理知识库配置和嵌入模型',
+        icon: 'database-search',
+        color: '#34d399',
+      },
       {
         id: 'data-settings',
         title: '数据设置',
@@ -93,6 +147,20 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         color: '#8b5cf6',
       },
       {
+        id: 'modules',
+        title: '功能模块',
+        description: '启用或禁用应用功能',
+        icon: 'puzzle',
+        color: '#a78bfa',
+      },
+      {
+        id: 'notion',
+        title: 'Notion 集成',
+        description: '配置 Notion 数据库导出设置',
+        icon: 'notebook-outline',
+        color: '#60a5fa',
+      },
+      {
         id: 'about',
         title: '关于我们',
         description: '应用信息和技术支持',
@@ -103,8 +171,24 @@ const SETTINGS_GROUPS: SettingGroup[] = [
   },
 ];
 
+// 将十六进制颜色转为带透明度的 rgba
+function withOpacity(hex: string, opacity = 0.12) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
 export function SettingsList() {
   const theme = useTheme();
+  const { width } = useWindowDimensions();
+
+  // 响应式列数：手机1列、平板2列、桌面3列
+  const columns = width >= 1200 ? 3 : width >= 768 ? 2 : 1;
+  const horizontalPadding = 16;
+  const gap = 12;
+  const cardWidth = Math.floor((width - horizontalPadding * 2 - gap * (columns - 1)) / columns);
 
   const handleItemPress = (item: SettingItem) => {
     if (item.route) {
@@ -117,41 +201,89 @@ export function SettingsList() {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={styles.contentContainer}
+      style={[styles.container, { backgroundColor: theme.colors.surfaceVariant }]}
+      contentContainerStyle={[styles.contentContainer, { paddingHorizontal: horizontalPadding }]}
     >
       {SETTINGS_GROUPS.map((group, groupIndex) => (
         <View key={groupIndex} style={styles.group}>
-          <List.Subheader>{group.title}</List.Subheader>
-          <List.Section>
-            {group.items.map((item, itemIndex) => (
-              <React.Fragment key={item.id}>
-                <List.Item
-                  title={item.title}
-                  description={item.description}
-                  left={(props) => (
-                    <List.Icon
-                      {...props}
-                      icon={item.icon}
-                      color={item.color}
-                    />
-                  )}
-                  right={(props) => <List.Icon {...props} icon="chevron-right" />}
-                  onPress={() => handleItemPress(item)}
-                />
-                {itemIndex < group.items.length - 1 && <Divider />}
-              </React.Fragment>
-            ))}
-          </List.Section>
+          <Text
+            variant="labelLarge"
+            style={{
+              marginBottom: 10,
+              color: theme.colors.onSurfaceVariant,
+            }}
+          >
+            {group.title}
+          </Text>
+
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {group.items.map((item, idx) => {
+              const isLastInRow = (idx + 1) % columns === 0;
+              return (
+                <View
+                  key={item.id}
+                  style={{
+                    width: cardWidth,
+                    marginRight: isLastInRow ? 0 : gap,
+                    marginBottom: gap,
+                  }}
+                >
+                  <TouchableRipple
+                    borderless={false}
+                    style={{ borderRadius: 14 }}
+                    onPress={() => handleItemPress(item)}
+                  >
+                    <View
+                      style={{
+                        borderRadius: 14,
+                        backgroundColor: theme.colors.surface,
+                        borderWidth: StyleSheet.hairlineWidth,
+                        borderColor: theme.dark ? '#2A2A2A' : '#E5E7EB',
+                        paddingHorizontal: 14,
+                        paddingVertical: 14,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <View style={{ marginRight: 12 }}>
+                        <Avatar.Icon
+                          size={36}
+                          icon={item.icon as any}
+                          color={item.color}
+                          style={{ backgroundColor: withOpacity(item.color, 0.15) }}
+                        />
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>
+                          {item.title}
+                        </Text>
+                        <Text
+                          variant="bodySmall"
+                          style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}
+                          numberOfLines={1}
+                        >
+                          {item.description}
+                        </Text>
+                      </View>
+
+                      <View style={{ marginLeft: 8 }}>
+                        <Text style={{ color: theme.colors.onSurfaceVariant }}>{'>'}</Text>
+                      </View>
+                    </View>
+                  </TouchableRipple>
+                </View>
+              );
+            })}
+          </View>
         </View>
       ))}
 
       {/* TODO 提示 */}
       <View style={styles.todoHint}>
-        <List.Item
-          title="💡 TODO: 实现各项设置功能"
-          titleStyle={{ fontSize: 12, color: theme.colors.onSurfaceVariant }}
-        />
+        <Text style={{ fontSize: 12, color: theme.colors.onSurfaceVariant }}>
+          💡 TODO: 实现各项设置功能
+        </Text>
       </View>
     </ScrollView>
   );
@@ -165,7 +297,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   group: {
-    marginBottom: 8,
+    marginBottom: 16,
   },
   todoHint: {
     marginTop: 16,
