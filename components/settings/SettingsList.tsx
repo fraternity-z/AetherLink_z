@@ -46,6 +46,7 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         description: '消息发送和通知设置',
         icon: 'cog',
         color: '#8b5cf6',
+        route: '/settings/behavior',
       },
     ],
   },
@@ -58,6 +59,7 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         description: '管理AI模型和API密钥',
         icon: 'robot',
         color: '#ec4899',
+        route: '/settings/default-model',
       },
       {
         id: 'topic-naming',
@@ -65,6 +67,7 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         description: '配置话题自动命名功能',
         icon: 'tune',
         color: '#4f46e5',
+        route: '/settings/topic-naming',
       },
       {
         id: 'prompt-collections',
@@ -72,6 +75,7 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         description: '浏览和使用常用提示词模板',
         icon: 'lightbulb',
         color: '#60a5fa',
+        route: '/settings/prompt-collections',
       },
       {
         id: 'web-search',
@@ -79,13 +83,15 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         description: '配置网络搜索和相关服务',
         icon: 'web',
         color: '#3b82f6',
+        route: '/settings/web-search',
       },
       {
         id: 'model-combine',
         title: '模型组合',
         description: '创建和管理多模型组合',
-        icon: 'merge',
+        icon: 'source-merge',
         color: '#f472b6',
+        route: '/settings/model-combine',
       },
       {
         id: 'mcp-server',
@@ -93,6 +99,7 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         description: '高级服务器配置管理',
         icon: 'server',
         color: '#22c55e',
+        route: '/settings/mcp-server',
       },
     ],
   },
@@ -100,18 +107,12 @@ const SETTINGS_GROUPS: SettingGroup[] = [
     title: '快捷方式',
     items: [
       {
-        id: 'quick-helper',
-        title: '快捷助手',
-        description: '自定义快捷动作快捷键',
-        icon: 'flash',
-        color: '#f59e0b',
-      },
-      {
         id: 'quick-phrases',
         title: '快捷短语',
         description: '创建常用提示模板',
         icon: 'message-text',
         color: '#f97316',
+        route: '/settings/quick-phrases',
       },
     ],
   },
@@ -124,6 +125,7 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         description: '创建管理帐户文件工作区',
         icon: 'folder-cog',
         color: '#fbbf24',
+        route: '/settings/workspace',
       },
       {
         id: 'knowledge',
@@ -131,6 +133,7 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         description: '管理知识库配置和嵌入模型',
         icon: 'database-search',
         color: '#34d399',
+        route: '/settings/knowledge',
       },
       {
         id: 'data-settings',
@@ -138,6 +141,7 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         description: '管理数据存储和隐私选项',
         icon: 'database',
         color: '#0ea5e9',
+        route: '/settings/data-settings',
       },
       {
         id: 'voice-settings',
@@ -145,20 +149,15 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         description: '语音识别和文本转语音设置',
         icon: 'microphone',
         color: '#8b5cf6',
+        route: '/settings/voice-settings',
       },
-      {
-        id: 'modules',
-        title: '功能模块',
-        description: '启用或禁用应用功能',
-        icon: 'puzzle',
-        color: '#a78bfa',
-      },
-      {
+            {
         id: 'notion',
         title: 'Notion 集成',
         description: '配置 Notion 数据库导出设置',
         icon: 'notebook-outline',
         color: '#60a5fa',
+        route: '/settings/notion',
       },
       {
         id: 'about',
@@ -166,6 +165,7 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         description: '应用信息和技术支持',
         icon: 'information',
         color: '#64748b',
+        route: '/settings/about',
       },
     ],
   },

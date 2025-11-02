@@ -10,10 +10,19 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, TextInput as RNTextInput } from 'react-native';
 import { IconButton, useTheme } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export function ChatInput() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const [message, setMessage] = useState('');
+
+  // 🎯 优化：动态计算键盘偏移量，适配不同设备（包括刘海屏）
+  const keyboardVerticalOffset = Platform.select({
+    ios: insets.bottom + 50, // iOS: 底部安全区 + Header 高度
+    android: 0, // Android: height 模式不需要偏移
+    default: 0,
+  });
 
   const handleSend = () => {
     if (!message.trim()) return;
@@ -38,7 +47,7 @@ export function ChatInput() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={100}
+      keyboardVerticalOffset={keyboardVerticalOffset}
     >
       <View style={styles.outerContainer}>
         {/* 圆角悬浮方框容器 */}
