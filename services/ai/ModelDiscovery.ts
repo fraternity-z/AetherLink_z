@@ -23,14 +23,46 @@ export async function fetchProviderModels(provider: ProviderId): Promise<Discove
   }
 
   if (provider === 'openai' || provider === 'deepseek' || provider === 'volc' || provider === 'zhipu') {
-    const base = cfg.baseURL || 'https://api.openai.com/v1';
-    const data = await j(`${base.replace(/\/$/, '')}/models`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    const items: any[] = Array.isArray(data?.data) ? data.data : [];
-    return items
-      .map((m) => ({ id: m.id as string, label: m.id as string }))
-      .filter((m) => typeof m.id === 'string');
+    const base = (cfg.baseURL || 'https://api.openai.com/v1').replace(/\/$/, '');
+    const origin = (() => {
+      try { return new URL(base).origin; } catch { return base; }
+    })().replace(/\/$/, '');
+
+    const headers: Record<string, string> = { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
+
+    // Try multiple common endpoints in order
+    const candidates = [
+      `${base}/models`, // OpenAI-compatible
+      `${origin}/api/models`, // aggregator style (your gateway)
+    ];
+
+    const tried: string[] = [];
+    for (const url of candidates) {
+      tried.push(url);
+      try {
+        // Try GET
+        let data = await j(url, { headers });
+        let arr: any[] = Array.isArray(data?.data)
+          ? data.data
+          : Array.isArray(data?.models)
+          ? data.models
+          : [];
+        if (!arr.length && /get-available-models-list\/?$/.test(url)) {
+          // some gateways require POST
+          data = await j(url, { method: 'POST', headers, body: JSON.stringify({}) } as any);
+          arr = Array.isArray(data?.data) ? data.data : Array.isArray(data?.models) ? data.models : [];
+        }
+        if (arr.length) {
+          return arr
+            .map((m) => ({ id: String(m.id || m.model || m.name), label: String(m.label || m.display_name || m.name || m.id) }))
+            .filter((x) => x.id);
+        }
+      } catch (_) {
+        // skip to next
+      }
+    }
+
+    throw new Error(`未能从以下地址获取模型列表：\n${tried.join('\n')}\n请确认网关支持其中一种，并确保设备可解析 ${origin}`);
   }
 
   if (provider === 'anthropic') {
@@ -58,4 +90,3 @@ export async function fetchProviderModels(provider: ProviderId): Promise<Discove
 
   throw new Error('不支持的提供商');
 }
-

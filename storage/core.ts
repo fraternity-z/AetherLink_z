@@ -61,7 +61,7 @@ export interface Attachment {
   kind: AttachmentKind;
   mime?: string | null;
   name?: string | null;
-  uri: string; // local/private uri
+  uri: string | null; // local/private uri; null for restored attachments without files
   size?: number | null;
   width?: number | null;
   height?: number | null;
