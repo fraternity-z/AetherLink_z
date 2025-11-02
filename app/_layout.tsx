@@ -18,7 +18,9 @@ export default function RootLayout() {
           {/* 设置页（指向 app/settings/index.tsx） */}
           <Stack.Screen name="settings/index" options={{ title: '设置' }} />
           {/* 外观设置页 */}
-          <Stack.Screen name="settings/appearance" options={{ title: '外观设置' }} />
+          <Stack.Screen name="settings/appearance" options={{ headerShown: false }} />
+          {/* 行为设置页 */}
+          <Stack.Screen name="settings/behavior" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="auto" />
