@@ -12,9 +12,10 @@ import { Appbar, useTheme } from 'react-native-paper';
 
 interface ChatHeaderProps {
   onMenuPress?: () => void;
+  onTopicsPress?: () => void;
 }
 
-export function ChatHeader({ onMenuPress }: ChatHeaderProps) {
+export function ChatHeader({ onMenuPress, onTopicsPress }: ChatHeaderProps) {
   const theme = useTheme();
 
   return (
@@ -28,6 +29,13 @@ export function ChatHeader({ onMenuPress }: ChatHeaderProps) {
         }}
       />
       <Appbar.Content title="新的对话" />
+      <Appbar.Action
+        icon="message-text-outline"
+        onPress={() => {
+          onTopicsPress?.();
+        }}
+        accessibilityLabel="话题列表"
+      />
     </Appbar.Header>
   );
 }

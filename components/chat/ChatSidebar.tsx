@@ -40,6 +40,7 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
     ],
     []
   );
+  
 
   return (
     <View

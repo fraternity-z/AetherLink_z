@@ -22,9 +22,11 @@ export default function RootLayout() {
           {/* 外观设置页 */}
             <Stack.Screen name="settings/appearance" options={{ headerShown: false }} />
           {/* 行为设置页 */}
-            <Stack.Screen name="settings/behavior" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          </Stack>
+          <Stack.Screen name="settings/behavior" options={{ headerShown: false }} />
+          {/* 话题列表 */}
+          <Stack.Screen name="topics/index" options={{ title: '话题列表' }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        </Stack>
           <StatusBar style="auto" />
         </ThemeProvider>
       </AppDataProvider>
