@@ -13,9 +13,10 @@ import { Appbar, useTheme } from 'react-native-paper';
 interface ChatHeaderProps {
   onMenuPress?: () => void;
   onTopicsPress?: () => void;
+  onModelPickerPress?: () => void;
 }
 
-export function ChatHeader({ onMenuPress, onTopicsPress }: ChatHeaderProps) {
+export function ChatHeader({ onMenuPress, onTopicsPress, onModelPickerPress }: ChatHeaderProps) {
   const theme = useTheme();
 
   return (
@@ -35,6 +36,11 @@ export function ChatHeader({ onMenuPress, onTopicsPress }: ChatHeaderProps) {
           onTopicsPress?.();
         }}
         accessibilityLabel="话题列表"
+      />
+      <Appbar.Action
+        icon="tune-variant"
+        onPress={() => onModelPickerPress?.()}
+        accessibilityLabel="模型选择器"
       />
     </Appbar.Header>
   );

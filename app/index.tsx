@@ -11,11 +11,13 @@ import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import { router, useLocalSearchParams } from 'expo-router';
 import { TopicsSidebar } from '@/components/chat/TopicsSidebar';
+import { ModelPickerDialog } from '@/components/chat/ModelPickerDialog';
 
 export default function ChatScreen() {
   const theme = useTheme();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [topicsOpen, setTopicsOpen] = useState(false);
+  const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const params = useLocalSearchParams<{ cid?: string }>();
 
@@ -35,6 +37,7 @@ export default function ChatScreen() {
       <ChatHeader
         onMenuPress={handleMenuPress}
         onTopicsPress={() => setTopicsOpen(true)}
+        onModelPickerPress={() => setModelPickerOpen(true)}
       />
 
       {/* 消息列表 */}
@@ -50,6 +53,7 @@ export default function ChatScreen() {
         onClose={() => setTopicsOpen(false)}
         onSelectTopic={(id) => setConversationId(id)}
       />
+      <ModelPickerDialog visible={modelPickerOpen} onDismiss={() => setModelPickerOpen(false)} />
       {/* TODO: 实现消息上下文菜单（长按操作） */}
       {/* TODO: 实现消息加载更多功能 */}
     </View>
