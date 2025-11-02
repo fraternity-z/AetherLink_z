@@ -62,6 +62,10 @@ export const MessageRepository = {
     return rows;
   },
 
+  async updateMessageText(id: string, text: string): Promise<void> {
+    await execute(`UPDATE messages SET text = ? WHERE id = ?`, [text, id]);
+  },
+
   async updateMessageStatus(id: string, status: 'pending' | 'sent' | 'failed'): Promise<void> {
     await execute(`UPDATE messages SET status = ? WHERE id = ?`, [status, id]);
   },
@@ -70,4 +74,3 @@ export const MessageRepository = {
     await execute(`DELETE FROM messages WHERE id = ?`, [id]);
   },
 };
-

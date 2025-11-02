@@ -7,15 +7,21 @@
  * - 完全按照设计图样式实现
  */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, TextInput as RNTextInput } from 'react-native';
 import { IconButton, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChatRepository } from '@/storage/repositories/chat';
+import { MessageRepository } from '@/storage/repositories/messages';
+import { streamCompletion, type CoreMessage, type Provider } from '@/services/ai/AiClient';
+import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
+import { ProvidersRepository } from '@/storage/repositories/providers';
 
-export function ChatInput() {
+export function ChatInput({ conversationId, onConversationChange }: { conversationId: string | null; onConversationChange: (id: string) => void; }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [message, setMessage] = useState('');
+  const abortRef = useRef<AbortController | null>(null);
 
   // 🎯 优化：动态计算键盘偏移量，适配不同设备（包括刘海屏）
   const keyboardVerticalOffset = Platform.select({
@@ -24,13 +30,51 @@ export function ChatInput() {
     default: 0,
   });
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!message.trim()) return;
+    let cid = conversationId;
+    if (!cid) {
+      const c = await ChatRepository.createConversation();
+      cid = c.id;
+      onConversationChange(c.id);
+    }
 
-    // TODO: 实现消息发送逻辑
-    console.log('发送消息:', message);
+    await MessageRepository.addMessage({ conversationId: cid!, role: 'user', text: message, status: 'sent' });
+    const assistant = await MessageRepository.addMessage({ conversationId: cid!, role: 'assistant', text: '', status: 'pending' });
 
-    // 清空输入框
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const msgs: CoreMessage[] = [
+      { role: 'system', content: [{ type: 'text', text: 'You are a helpful assistant.' }] },
+      { role: 'user', content: [{ type: 'text', text: message }] },
+    ];
+
+    let acc = '';
+    try {
+      const sr = SettingsRepository();
+      const provider = ((await sr.get<string>(SettingKey.DefaultProvider)) ?? 'openai') as Provider;
+      const model = (await sr.get<string>(SettingKey.DefaultModel)) ?? (provider === 'openai' ? 'gpt-4o-mini' : provider === 'anthropic' ? 'claude-3-5-haiku-latest' : 'gemini-1.5-flash');
+      await streamCompletion({
+        provider,
+        model,
+        messages: msgs,
+        abortSignal: controller.signal,
+        onToken: async (d) => {
+          acc += d;
+          await MessageRepository.updateMessageText(assistant.id, acc);
+        },
+        onDone: async () => {
+          await MessageRepository.updateMessageStatus(assistant.id, 'sent');
+        },
+        onError: async () => {
+          await MessageRepository.updateMessageStatus(assistant.id, 'failed');
+        },
+      });
+    } finally {
+      abortRef.current = null;
+    }
+
     setMessage('');
   };
 

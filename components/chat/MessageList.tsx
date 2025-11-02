@@ -11,12 +11,11 @@ import React from 'react';
 import { ScrollView, View, StyleSheet } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { MessageBubble } from './MessageBubble';
+import { useMessages } from '@/hooks/use-messages';
 
-// 示例消息数据（空数组表示新对话）
-const EXAMPLE_MESSAGES: any[] = [];
-
-export function MessageList() {
+export function MessageList({ conversationId }: { conversationId: string | null }) {
   const theme = useTheme();
+  const { items } = useMessages(conversationId ?? null, 50);
 
   return (
     <ScrollView
@@ -24,7 +23,7 @@ export function MessageList() {
       contentContainerStyle={styles.contentContainer}
     >
       {/* 空状态欢迎提示 */}
-      {EXAMPLE_MESSAGES.length === 0 && (
+      {(items.length === 0) && (
         <View style={styles.emptyStateContainer}>
           <Text
             variant="bodyLarge"
@@ -36,14 +35,13 @@ export function MessageList() {
       )}
 
       {/* 消息列表 */}
-      {EXAMPLE_MESSAGES.length > 0 && (
+      {items.length > 0 && (
         <View style={styles.messagesContainer}>
-          {EXAMPLE_MESSAGES.map((message) => (
+          {items.map((m) => (
             <MessageBubble
-              key={message.id}
-              content={message.content}
-              isUser={message.isUser}
-              timestamp={message.timestamp}
+              key={m.id}
+              content={m.text ?? ''}
+              isUser={m.role === 'user'}
             />
           ))}
         </View>

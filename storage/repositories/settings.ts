@@ -4,6 +4,7 @@ import { AsyncKVStore } from '@/storage/adapters/async-storage';
 export enum SettingKey {
   Theme = 'al:settings:theme',
   DefaultModel = 'al:settings:default_model',
+  DefaultProvider = 'al:settings:default_provider',
   HapticsOn = 'al:settings:haptics_on',
 }
 
@@ -20,4 +21,3 @@ export const SettingsRepository = (store: IKeyValueStore = AsyncKVStore) => ({
     await store.clearNamespace('al:settings:');
   },
 });
-

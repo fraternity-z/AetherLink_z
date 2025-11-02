@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { Avatar, Button, HelperText, List, SegmentedButtons, Surface, Switch, Text, TextInput, useTheme } from 'react-native-paper';
 import { SettingScreen } from '@/components/settings/SettingScreen';
+import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 
 type VendorMeta = {
   id: string;
@@ -34,18 +35,39 @@ export default function ProviderConfig() {
   const [tab, setTab] = useState<'key' | 'base'>('key');
   const [baseUrl, setBaseUrl] = useState('');
 
-  const headerRight = useMemo(
-    () => () => (
-      <Button mode="contained" compact onPress={() => console.log('保存配置', meta.id)}>
+  useEffect(() => {
+    (async () => {
+      const id = meta.id as ProviderId;
+      const cfg = await ProvidersRepository.getConfig(id);
+      setEnabled(cfg.enabled);
+      setBaseUrl(cfg.baseURL ?? '');
+      const key = await ProvidersRepository.getApiKey(id);
+      setApiKey(key ?? '');
+    })();
+  }, [meta.id]);
+
+  const HeaderRight = useMemo(() => {
+    const Comp = () => (
+      <Button
+        mode="contained"
+        compact
+        onPress={async () => {
+          const id = meta.id as ProviderId;
+          await ProvidersRepository.setEnabled(id, enabled);
+          await ProvidersRepository.setBaseURL(id, baseUrl);
+          if (apiKey) await ProvidersRepository.setApiKey(id, apiKey);
+        }}
+      >
         保存
       </Button>
-    ),
-    [meta.id]
-  );
+    );
+    Comp.displayName = 'ProviderSaveButton';
+    return Comp;
+  }, [meta.id, enabled, baseUrl, apiKey]);
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: meta.name, headerRight }} />
+      <Stack.Screen options={{ title: meta.name, headerRight: HeaderRight }} />
 
       {/* 顶部名片 */}
       <Surface style={[styles.card, { backgroundColor: theme.colors.surface }]}
@@ -87,7 +109,7 @@ export default function ProviderConfig() {
               right={<TextInput.Icon icon={showKey ? 'eye-off' : 'eye'} onPress={() => setShowKey((v) => !v)} />}
               style={{ marginTop: 8 }}
             />
-            <HelperText type="info">占位：不做持久化与校验</HelperText>
+            <HelperText type="info">已写入安全存储（设备本地 SecureStore）</HelperText>
           </>
         ) : (
           <>
@@ -99,7 +121,7 @@ export default function ProviderConfig() {
               autoCapitalize="none"
               style={{ marginTop: 8 }}
             />
-            <HelperText type="info">为该提供商设置自定义 Base URL（占位）</HelperText>
+            <HelperText type="info">为该提供商设置自定义 Base URL（OpenAI 兼容厂商如 DeepSeek/火山/智谱 可填其兼容地址）</HelperText>
           </>
         )}
       </Surface>

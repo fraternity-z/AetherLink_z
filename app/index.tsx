@@ -13,6 +13,7 @@ import { ChatSidebar } from '@/components/chat/ChatSidebar';
 export default function ChatScreen() {
   const theme = useTheme();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
 
   const handleMenuPress = () => {
     setDrawerOpen((v) => !v);
@@ -24,10 +25,10 @@ export default function ChatScreen() {
       <ChatHeader onMenuPress={handleMenuPress} />
 
       {/* 消息列表 */}
-      <MessageList />
+      <MessageList conversationId={conversationId} />
 
       {/* 底部输入框 */}
-      <ChatInput />
+      <ChatInput conversationId={conversationId} onConversationChange={setConversationId} />
 
       {/* 侧边栏 */}
       <ChatSidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
