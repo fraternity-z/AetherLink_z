@@ -13,8 +13,9 @@ import { IconButton, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChatRepository } from '@/storage/repositories/chat';
 import { MessageRepository } from '@/storage/repositories/messages';
-import { streamCompletion, type CoreMessage, type Provider } from '@/services/ai/AiClient';
+import { streamCompletion, type Provider } from '@/services/ai/AiClient';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
+import type { CoreMessage } from 'ai';
 
 export function ChatInput({ conversationId, onConversationChange }: { conversationId: string | null; onConversationChange: (id: string) => void; }) {
   const theme = useTheme();
@@ -45,8 +46,8 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
     abortRef.current = controller;
 
     const msgs: CoreMessage[] = [
-      { role: 'system', content: [{ type: 'text', text: 'You are a helpful assistant.' }] },
-      { role: 'user', content: [{ type: 'text', text: message }] },
+      { role: 'system', content: 'You are a helpful assistant.' },
+      { role: 'user', content: message },
     ];
 
     let acc = '';
@@ -54,6 +55,9 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       const sr = SettingsRepository();
       const provider = ((await sr.get<string>(SettingKey.DefaultProvider)) ?? 'openai') as Provider;
       const model = (await sr.get<string>(SettingKey.DefaultModel)) ?? (provider === 'openai' ? 'gpt-4o-mini' : provider === 'anthropic' ? 'claude-3-5-haiku-latest' : 'gemini-1.5-flash');
+
+      console.log('[ChatInput] Sending message', { provider, model, messagesCount: msgs.length });
+
       await streamCompletion({
         provider,
         model,
@@ -66,10 +70,20 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         onDone: async () => {
           await MessageRepository.updateMessageStatus(assistant.id, 'sent');
         },
-        onError: async () => {
+        onError: async (e: any) => {
+          console.error('[ChatInput] Stream error', e);
           await MessageRepository.updateMessageStatus(assistant.id, 'failed');
         },
       });
+    } catch (error: any) {
+      console.error('[ChatInput] Fatal error', {
+        error,
+        message: error?.message,
+        cause: error?.cause,
+        statusCode: error?.statusCode,
+        responseBody: error?.responseBody,
+      });
+      await MessageRepository.updateMessageStatus(assistant.id, 'failed');
     } finally {
       abortRef.current = null;
     }

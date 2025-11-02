@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
+import { View, StyleSheet, FlatList, Alert } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { Button, List, Surface, Text, useTheme } from 'react-native-paper';
+import { Button, List, Surface, Text, useTheme, IconButton } from 'react-native-paper';
 import { useConversations } from '@/hooks/use-conversations';
 import { ChatRepository } from '@/storage/repositories/chat';
 
@@ -10,7 +10,7 @@ export default function TopicsScreen() {
   const { items, reload } = useConversations({ limit: 100 });
 
   const createTopic = async () => {
-    const conv = await ChatRepository.createConversation();
+    const conv = await ChatRepository.createConversation('新话题');
     router.replace({ pathname: '/', params: { cid: conv.id } });
   };
 
@@ -31,6 +31,25 @@ export default function TopicsScreen() {
                 title={item.title || '未命名话题'}
                 description={new Date(item.updatedAt).toLocaleString()}
                 left={(p) => <List.Icon {...p} icon="chat-processing-outline" />}
+                right={(p) => (
+                  <IconButton
+                    {...p}
+                    icon="delete-outline"
+                    onPress={() =>
+                      Alert.alert('删除话题', '删除后不可恢复，确认删除？', [
+                        { text: '取消', style: 'cancel' },
+                        {
+                          text: '删除',
+                          style: 'destructive',
+                          onPress: async () => {
+                            await ChatRepository.deleteConversation(item.id);
+                            await reload();
+                          },
+                        },
+                      ])
+                    }
+                  />
+                )}
                 onPress={() => router.replace({ pathname: '/', params: { cid: item.id } })}
               />
             )}

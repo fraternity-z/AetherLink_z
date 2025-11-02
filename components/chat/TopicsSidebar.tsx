@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { Surface, Text, List, TouchableRipple, useTheme, Button } from 'react-native-paper';
+import { Animated, Pressable, StyleSheet, useWindowDimensions, View, Alert } from 'react-native';
+import { Surface, Text, List, TouchableRipple, useTheme, Button, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConversations } from '@/hooks/use-conversations';
 import { ChatRepository } from '@/storage/repositories/chat';
@@ -17,7 +17,7 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic }: TopicsSidebar
   const drawerWidth = Math.min(360, Math.max(280, Math.floor(width * 0.85)));
   const insets = useSafeAreaInsets();
   const translateX = useRef(new Animated.Value(drawerWidth)).current; // from right
-  const { items: convs } = useConversations({ limit: 100 });
+  const { items: convs, reload } = useConversations({ limit: 100 });
 
   useEffect(() => {
     Animated.timing(translateX, {
@@ -78,6 +78,25 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic }: TopicsSidebar
                   title={c.title || '未命名话题'}
                   description={new Date(c.updatedAt).toLocaleString()}
                   left={(p) => <List.Icon {...p} icon="chat-processing-outline" />}
+                  right={(p) => (
+                    <IconButton
+                      {...p}
+                      icon="delete-outline"
+                      onPress={() =>
+                        Alert.alert('删除话题', '删除后不可恢复，确认删除？', [
+                          { text: '取消', style: 'cancel' },
+                          {
+                            text: '删除',
+                            style: 'destructive',
+                            onPress: async () => {
+                              await ChatRepository.deleteConversation(c.id);
+                              await reload();
+                            },
+                          },
+                        ])
+                      }
+                    />
+                  )}
                 />
               </TouchableRipple>
             ))}
@@ -87,6 +106,7 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic }: TopicsSidebar
                 mode="outlined"
                 onPress={async () => {
                   const conv = await ChatRepository.createConversation('新话题');
+                  await reload();
                   onSelectTopic?.(conv.id);
                   onClose();
                 }}
