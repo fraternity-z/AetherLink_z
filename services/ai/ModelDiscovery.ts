@@ -23,69 +23,95 @@ export async function fetchProviderModels(provider: ProviderId): Promise<Discove
   }
 
   if (provider === 'openai' || provider === 'deepseek' || provider === 'volc' || provider === 'zhipu') {
+    // 使用标准 OpenAI API 格式
     const base = (cfg.baseURL || 'https://api.openai.com/v1').replace(/\/$/, '');
-    const origin = (() => {
-      try { return new URL(base).origin; } catch { return base; }
-    })().replace(/\/$/, '');
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    };
 
-    const headers: Record<string, string> = { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
+    // 标准 OpenAI 兼容端点：GET /v1/models
+    const url = `${base}/models`;
 
-    // Try multiple common endpoints in order
-    const candidates = [
-      `${base}/models`, // OpenAI-compatible
-      `${origin}/api/models`, // aggregator style (your gateway)
-    ];
+    try {
+      const data = await j(url, { headers });
 
-    const tried: string[] = [];
-    for (const url of candidates) {
-      tried.push(url);
-      try {
-        // Try GET
-        let data = await j(url, { headers });
-        let arr: any[] = Array.isArray(data?.data)
-          ? data.data
-          : Array.isArray(data?.models)
-          ? data.models
-          : [];
-        if (!arr.length && /get-available-models-list\/?$/.test(url)) {
-          // some gateways require POST
-          data = await j(url, { method: 'POST', headers, body: JSON.stringify({}) } as any);
-          arr = Array.isArray(data?.data) ? data.data : Array.isArray(data?.models) ? data.models : [];
-        }
-        if (arr.length) {
-          return arr
-            .map((m) => ({ id: String(m.id || m.model || m.name), label: String(m.label || m.display_name || m.name || m.id) }))
-            .filter((x) => x.id);
-        }
-      } catch (_) {
-        // skip to next
+      // 标准 OpenAI API 响应格式：{ "data": [...], "object": "list" }
+      const arr: any[] = Array.isArray(data?.data) ? data.data : [];
+
+      if (arr.length === 0) {
+        throw new Error('API 返回的模型列表为空');
       }
-    }
 
-    throw new Error(`未能从以下地址获取模型列表：\n${tried.join('\n')}\n请确认网关支持其中一种，并确保设备可解析 ${origin}`);
+      return arr
+        .map((m) => ({
+          id: String(m.id || m.model || ''),
+          label: String(m.id || m.model || '')
+        }))
+        .filter((x) => x.id);
+    } catch (err: any) {
+      throw new Error(`获取模型列表失败：${err.message || err}\n请求地址：${url}\n请确认 Base URL 和 API Key 配置正确`);
+    }
   }
 
   if (provider === 'anthropic') {
-    const base = 'https://api.anthropic.com';
-    const data = await j(`${base}/v1/models`, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-      },
-    });
-    const items: any[] = Array.isArray(data?.data) ? data.data : [];
-    return items.map((m) => ({ id: m.id as string, label: m.display_name || m.id }));
+    // Anthropic API 标准端点
+    const base = cfg.baseURL || 'https://api.anthropic.com';
+    const url = `${base}/v1/models`;
+
+    try {
+      const data = await j(url, {
+        headers: {
+          'x-api-key': apiKey,
+          'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01',
+        },
+      });
+
+      // Anthropic API 响应格式：{ "data": [...] }
+      const items: any[] = Array.isArray(data?.data) ? data.data : [];
+
+      if (items.length === 0) {
+        throw new Error('API 返回的模型列表为空');
+      }
+
+      return items.map((m) => ({
+        id: String(m.id || ''),
+        label: String(m.display_name || m.id || '')
+      }));
+    } catch (err: any) {
+      throw new Error(`获取 Anthropic 模型列表失败：${err.message || err}\n请求地址：${url}`);
+    }
   }
 
   if (provider === 'google' || provider === 'gemini') {
-    // Gemini uses API key in query
+    // Gemini API 使用查询参数传递 API Key
     const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`;
-    const data = await j(url);
-    const items: any[] = Array.isArray(data?.models) ? data.models : [];
-    return items
-      .filter((m) => typeof m?.name === 'string')
-      .map((m) => ({ id: String(m.name).split('/').pop() as string, label: m.displayName || m.name }));
+
+    try {
+      const data = await j(url);
+
+      // Gemini API 响应格式：{ "models": [...] }
+      const items: any[] = Array.isArray(data?.models) ? data.models : [];
+
+      if (items.length === 0) {
+        throw new Error('API 返回的模型列表为空');
+      }
+
+      return items
+        .filter((m) => typeof m?.name === 'string')
+        .map((m) => {
+          // Gemini 模型名称格式：models/gemini-pro，需要提取最后部分
+          const modelId = String(m.name).split('/').pop() || '';
+          return {
+            id: modelId,
+            label: String(m.displayName || modelId)
+          };
+        })
+        .filter((x) => x.id);
+    } catch (err: any) {
+      throw new Error(`获取 Gemini 模型列表失败：${err.message || err}\n请求地址：${url}`);
+    }
   }
 
   throw new Error('不支持的提供商');

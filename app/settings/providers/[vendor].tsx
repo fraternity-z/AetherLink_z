@@ -38,7 +38,6 @@ export default function ProviderConfig() {
   const [baseUrl, setBaseUrl] = useState('');
   const [saveStatus, setSaveStatus] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
   const [models, setModels] = useState<{ id: string; label: string }[]>([]);
-  const [modelsLoading, setModelsLoading] = useState(false);
   const [addDialog, setAddDialog] = useState<{ visible: boolean; id: string; label: string }>({ visible: false, id: '', label: '' });
   const [discoverDialog, setDiscoverDialog] = useState<{ visible: boolean; items: DiscoveredModel[]; selected: Record<string, boolean>; loading: boolean }>({ visible: false, items: [], selected: {}, loading: false });
 
@@ -211,16 +210,18 @@ export default function ProviderConfig() {
             <Button
               mode="text"
               onPress={async () => {
+                // 立即弹窗，显示加载状态
+                setDiscoverDialog({ visible: true, items: [], selected: {}, loading: true });
+
                 try {
-                  setModelsLoading(true);
                   const discovered = await fetchProviderModels(meta.id as ProviderId);
                   const selected: Record<string, boolean> = {};
                   for (const d of discovered) selected[d.id] = true; // 默认全选
                   setDiscoverDialog({ visible: true, items: discovered, selected, loading: false });
                 } catch (e: any) {
+                  // 关闭弹窗并显示错误提示
+                  setDiscoverDialog({ visible: false, items: [], selected: {}, loading: false });
                   setSaveStatus({ visible: true, message: `✗ 获取失败：${e?.message || e}` });
-                } finally {
-                  setModelsLoading(false);
                 }
               }}
             >
@@ -258,8 +259,12 @@ export default function ProviderConfig() {
         {/* 自动获取 → 选择添加 */}
         <Dialog visible={discoverDialog.visible} onDismiss={() => setDiscoverDialog({ visible: false, items: [], selected: {}, loading: false })}>
           <Dialog.Title>从接口获取的模型</Dialog.Title>
-          <Dialog.ScrollArea>
-            {discoverDialog.items.length === 0 ? (
+          <Dialog.ScrollArea style={{ maxHeight: 400 }}>
+            {discoverDialog.loading ? (
+              <View style={{ padding: 24, alignItems: 'center' }}>
+                <Text style={{ opacity: 0.7 }}>正在加载模型列表...</Text>
+              </View>
+            ) : discoverDialog.items.length === 0 ? (
               <Text style={{ margin: 12, opacity: 0.7 }}>没有获取到可用模型</Text>
             ) : (
               discoverDialog.items.map((m) => (
@@ -285,12 +290,14 @@ export default function ProviderConfig() {
                   return { ...s, selected: all };
                 })
               }
+              disabled={discoverDialog.loading || discoverDialog.items.length === 0}
             >
               全选
             </Button>
             <Button onPress={() => setDiscoverDialog({ visible: false, items: [], selected: {}, loading: false })}>取消</Button>
             <Button
               mode="contained"
+              disabled={discoverDialog.loading}
               onPress={async () => {
                 const picks = discoverDialog.items.filter((m) => discoverDialog.selected[m.id]);
                 for (const m of picks) {
