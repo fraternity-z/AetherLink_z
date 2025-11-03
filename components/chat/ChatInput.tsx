@@ -88,14 +88,13 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       const provider = ((await sr.get<string>(SettingKey.DefaultProvider)) ?? 'openai') as Provider;
       const model = (await sr.get<string>(SettingKey.DefaultModel)) ?? (provider === 'openai' ? 'gpt-4o-mini' : provider === 'anthropic' ? 'claude-3-5-haiku-latest' : 'gemini-1.5-flash');
 
-      console.log('[ChatInput] Sending message', {
-        provider,
-        model,
-        messagesCount: msgs.length,
-        temperature,
-        maxTokens: maxTokens || '自动',
-        maxTokensEnabled,
-        contextCount
+      console.log('[ChatInput] 发送消息', {
+        提供商: provider,
+        模型: model,
+        温度: parseFloat(temperature.toFixed(1)),
+        最大令牌: maxTokens || '自动',
+        上下文轮数: contextCount,
+        消息构成: `共 ${msgs.length} 条 = ${contextCount > 0 ? '系统提示(1) + ' : ''}历史消息(${msgs.length - (contextCount > 0 ? 2 : 1)}) + 当前(1)`
       });
 
       let acc = '';

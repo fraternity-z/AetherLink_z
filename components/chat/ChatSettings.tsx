@@ -50,8 +50,10 @@ export function ChatSettings() {
 
   // 保存设置
   const saveTemperature = async (value: number) => {
-    setTemperature(value);
-    await sr.set(SettingKey.ChatTemperature, value);
+    // 修正浮点数精度问题，保留1位小数
+    const roundedValue = parseFloat(value.toFixed(1));
+    setTemperature(roundedValue);
+    await sr.set(SettingKey.ChatTemperature, roundedValue);
   };
 
   const saveMaxTokens = async (value: number) => {
