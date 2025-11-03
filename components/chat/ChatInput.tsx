@@ -8,7 +8,7 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, TextInput as RNTextInput, Alert } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, TextInput as RNTextInput, Alert, ScrollView, TouchableOpacity } from 'react-native';
 import { IconButton, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChatRepository } from '@/storage/repositories/chat';
@@ -17,12 +17,18 @@ import { streamCompletion, type Provider } from '@/services/ai/AiClient';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import type { CoreMessage } from 'ai';
 import { autoNameConversation } from '@/services/ai/TopicNaming';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import { AttachmentRepository } from '@/storage/repositories/attachments';
+import type { Attachment } from '@/storage/core';
+import { Image } from 'expo-image';
 
 export function ChatInput({ conversationId, onConversationChange }: { conversationId: string | null; onConversationChange: (id: string) => void; }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [message, setMessage] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedAttachments, setSelectedAttachments] = useState<Attachment[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
   // 🎯 优化：动态计算键盘偏移量，适配不同设备（包括刘海屏）
@@ -32,8 +38,23 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
     default: 0,
   });
 
+  const supportsVision = (provider: Provider, model: string) => {
+    const m = (model || '').toLowerCase();
+    switch (provider) {
+      case 'openai':
+        return m.includes('gpt-4o') || m.includes('4.1') || m.includes('o1');
+      case 'anthropic':
+        return m.includes('claude-3');
+      case 'google':
+      case 'gemini':
+        return m.includes('gemini');
+      default:
+        return false;
+    }
+  };
+
   const handleSend = async () => {
-    if (!message.trim() || isGenerating) return;
+    if ((!message.trim() && selectedAttachments.length === 0) || isGenerating) return;
 
     setIsGenerating(true);
     const userMessage = message;
@@ -53,7 +74,9 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       // 判断是否首轮对话：在写入用户消息前检查是否已有历史
       const __prev = await MessageRepository.listMessages(cid!, { limit: 1 });
       isFirstTurn = __prev.length === 0;
-      await MessageRepository.addMessage({ conversationId: cid!, role: 'user', text: userMessage, status: 'sent' });
+      // 先创建用户消息，并关联所选附件
+      const attachmentIds = selectedAttachments.map(a => a.id);
+      await MessageRepository.addMessage({ conversationId: cid!, role: 'user', text: userMessage, status: 'sent', attachmentIds });
       assistant = await MessageRepository.addMessage({ conversationId: cid!, role: 'assistant', text: '', status: 'pending' });
 
       const controller = new AbortController();
@@ -88,10 +111,32 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       }
 
       // 添加当前用户消息（当 contextCount === 0 时，不包含上文和系统提示）
-      msgs.push({ role: 'user', content: userMessage });
-
+      // 若包含图片附件且模型支持多模态，则构造为多段内容
       const provider = ((await sr.get<string>(SettingKey.DefaultProvider)) ?? 'openai') as Provider;
       const model = (await sr.get<string>(SettingKey.DefaultModel)) ?? (provider === 'openai' ? 'gpt-4o-mini' : provider === 'anthropic' ? 'claude-3-5-haiku-latest' : 'gemini-1.5-flash');
+
+      const images = selectedAttachments.filter(a => a.kind === 'image' && a.uri);
+      if (images.length > 0 && supportsVision(provider, model)) {
+        const parts: any[] = [];
+        if (userMessage.trim()) parts.push({ type: 'text', text: userMessage });
+        // 读取图片为 data URL 片段
+        for (const img of images) {
+          try {
+            const base64 = await FileSystem.readAsStringAsync(img.uri as string, { encoding: 'base64' as any });
+            const mime = img.mime || 'image/png';
+            parts.push({ type: 'image', image: `data:${mime};base64,${base64}` });
+          } catch (e) {
+            console.warn('[ChatInput] 读取图片失败，跳过该图片: ', img.uri, e);
+          }
+        }
+        msgs.push({ role: 'user', content: parts });
+      } else {
+        // 不支持多模态或无图片，仅发送文本，同时提示附带了文件
+        const fileSuffix = selectedAttachments.length > 0 && !userMessage.trim()
+          ? `(已附加 ${selectedAttachments.length} 个附件)`
+          : (selectedAttachments.length > 0 ? `\n(附加 ${selectedAttachments.length} 个附件)` : '');
+        msgs.push({ role: 'user', content: (userMessage + fileSuffix).trim() });
+      }
 
       console.log('[ChatInput] 发送消息', {
         提供商: provider,
@@ -116,6 +161,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         onDone: async () => {
           await MessageRepository.updateMessageStatus(assistant.id, 'sent');
           setIsGenerating(false);
+          setSelectedAttachments([]);
           if (isFirstTurn) {
             try { void autoNameConversation(cid!); } catch (e) { console.warn('[ChatInput] auto naming error', e); }
           }
@@ -186,8 +232,46 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
   };
 
   const handleAttachment = () => {
-    // TODO: 实现附件/功能菜单逻辑
-    console.log('打开功能菜单');
+    // 简易选择：图片 或 文件
+    Alert.alert('添加附件', '请选择要添加的内容类型', [
+      { text: '图片', onPress: () => pickImage() },
+      { text: '文件', onPress: () => pickFile() },
+      { text: '取消', style: 'cancel' },
+    ]);
+  };
+
+  const pickImage = async () => {
+    try {
+      const res: any = await DocumentPicker.getDocumentAsync({ type: 'image/*', multiple: false });
+      const file = 'assets' in res ? res.assets?.[0] : res;
+      if (!file || res.canceled || file.type === 'cancel') return;
+      const att = await AttachmentRepository.saveAttachmentFromUri(file.uri, {
+        kind: 'image',
+        mime: file.mimeType || file.mime || null,
+        name: file.name || 'image',
+        size: file.size || null,
+      });
+      setSelectedAttachments(prev => [...prev, att]);
+    } catch (e) {
+      console.warn('[ChatInput] 选择图片失败', e);
+    }
+  };
+
+  const pickFile = async () => {
+    try {
+      const res: any = await DocumentPicker.getDocumentAsync({ type: '*/*', multiple: false });
+      const file = 'assets' in res ? res.assets?.[0] : res;
+      if (!file || res.canceled || file.type === 'cancel') return;
+      const att = await AttachmentRepository.saveAttachmentFromUri(file.uri, {
+        kind: 'file',
+        mime: file.mimeType || file.mime || null,
+        name: file.name || 'file',
+        size: file.size || null,
+      });
+      setSelectedAttachments(prev => [...prev, att]);
+    } catch (e) {
+      console.warn('[ChatInput] 选择文件失败', e);
+    }
   };
 
   const handleVoice = () => {
@@ -225,6 +309,41 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
             style={[styles.textInput, { color: theme.colors.onSurface }]}
           />
 
+          {/* 已选附件预览 */}
+          {selectedAttachments.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.attachmentsBar}
+              contentContainerStyle={styles.attachmentsContent}
+            >
+              {selectedAttachments.map(att => (
+                att.kind === 'image' && att.uri ? (
+                  <View key={att.id} style={styles.attachmentItem}>
+                    <Image source={{ uri: att.uri }} style={styles.attachmentThumb} contentFit="cover" />
+                    <TouchableOpacity
+                      style={[styles.removeBadge, { backgroundColor: theme.colors.error }]}
+                      onPress={() => setSelectedAttachments(prev => prev.filter(a => a.id !== att.id))}
+                    >
+                      <IconButton icon="close" size={14} style={styles.removeIcon} iconColor="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View key={att.id} style={[styles.fileChip, { borderColor: theme.colors.outlineVariant }]}> 
+                    <IconButton icon="file" size={16} style={{ margin: 0 }} />
+                    <RNTextInput editable={false} value={att.name || '附件'} style={styles.fileChipText} />
+                    <IconButton
+                      icon="close"
+                      size={14}
+                      style={{ margin: 0 }}
+                      onPress={() => setSelectedAttachments(prev => prev.filter(a => a.id !== att.id))}
+                    />
+                  </View>
+                )
+              ))}
+            </ScrollView>
+          )}
+
           {/* 下层：工具按钮行 */}
           <View style={styles.toolbarRow}>
             {/* 左侧工具按钮组 */}
@@ -257,12 +376,12 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
                 iconColor={
                   isGenerating
                     ? theme.colors.error
-                    : message.trim()
+                    : (message.trim() || selectedAttachments.length > 0)
                       ? theme.colors.primary
                       : theme.colors.onSurfaceDisabled
                 }
                 onPress={isGenerating ? handleStop : handleSend}
-                disabled={!message.trim() && !isGenerating}
+                disabled={!message.trim() && selectedAttachments.length === 0 && !isGenerating}
                 style={styles.toolButton}
               />
             </View>
@@ -302,6 +421,45 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     fontSize: 15,
     lineHeight: 20,
+  },
+  attachmentsBar: {
+    paddingHorizontal: 8,
+    paddingBottom: 6,
+  },
+  attachmentsContent: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  attachmentItem: {
+    position: 'relative',
+  },
+  attachmentThumb: {
+    width: 96,
+    height: 64,
+    borderRadius: 8,
+  },
+  removeBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    borderRadius: 12,
+  },
+  removeIcon: {
+    margin: 0,
+  },
+  fileChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  fileChipText: {
+    minWidth: 60,
+    maxWidth: 160,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
   },
   toolbarRow: {
     flexDirection: 'row',

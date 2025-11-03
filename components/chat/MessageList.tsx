@@ -7,16 +7,19 @@
  * - 空状态显示欢迎提示文字
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, StyleSheet } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { MessageBubble } from './MessageBubble';
 import { useMessages } from '@/hooks/use-messages';
+import { AttachmentRepository } from '@/storage/repositories/attachments';
+import type { Attachment } from '@/storage/core';
 
 export function MessageList({ conversationId }: { conversationId: string | null }) {
   const theme = useTheme();
   const { items } = useMessages(conversationId ?? null, 50);
   const scrollViewRef = useRef<ScrollView>(null);
+  const [attachmentsMap, setAttachmentsMap] = useState<Record<string, Attachment[]>>({});
 
   // 自动滚动到最新消息
   useEffect(() => {
@@ -26,6 +29,23 @@ export function MessageList({ conversationId }: { conversationId: string | null 
       }, 100);
     }
   }, [items.length]);
+
+  // 批量加载当前页消息的附件（减少查询次数）
+  useEffect(() => {
+    (async () => {
+      try {
+        const ids = items.map(m => m.id);
+        if (ids.length === 0) {
+          setAttachmentsMap({});
+          return;
+        }
+        const map = await AttachmentRepository.getAttachmentsByMessageIds(ids);
+        setAttachmentsMap(map);
+      } catch (e) {
+        console.warn('[MessageList] load attachments error', e);
+      }
+    })();
+  }, [items.map(m => m.id).join('|')]);
 
   return (
     <ScrollView
@@ -55,6 +75,7 @@ export function MessageList({ conversationId }: { conversationId: string | null 
               isUser={m.role === 'user'}
               status={m.status}
               timestamp={new Date(m.createdAt).toLocaleTimeString()}
+              attachments={attachmentsMap[m.id] || []}
             />
           ))}
         </View>

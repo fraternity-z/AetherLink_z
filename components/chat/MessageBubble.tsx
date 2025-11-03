@@ -10,15 +10,18 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Card, Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper';
+import { Image } from 'expo-image';
+import type { Attachment } from '@/storage/core';
 
 interface MessageBubbleProps {
   content: string;
   isUser: boolean;
   timestamp?: string;
   status?: 'pending' | 'sent' | 'failed';
+  attachments?: Attachment[];
 }
 
-export function MessageBubble({ content, isUser, timestamp, status }: MessageBubbleProps) {
+export function MessageBubble({ content, isUser, timestamp, status, attachments = [] }: MessageBubbleProps) {
   const theme = useTheme();
 
   const getStatusIndicator = () => {
@@ -62,7 +65,32 @@ export function MessageBubble({ content, isUser, timestamp, status }: MessageBub
           ]}
         >
           <Card.Content>
-            <Text variant="bodyMedium">{content || (status === 'pending' ? '正在思考...' : '')}</Text>
+            {/* 附件预览（图片缩略图 + 文件条目） */}
+            {attachments.length > 0 && (
+              <View style={styles.attachmentsContainer}>
+                {attachments.map(att => (
+                  att.kind === 'image' && att.uri ? (
+                    <Image
+                      key={att.id}
+                      source={{ uri: att.uri }}
+                      style={styles.imageThumb}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <View key={att.id} style={[styles.fileItem, { borderColor: theme.colors.outlineVariant }]}> 
+                      <Avatar.Icon size={16} icon="paperclip" style={styles.fileIcon} />
+                      <Text variant="bodySmall" numberOfLines={1} style={styles.fileName}>
+                        {att.name || '附件'}
+                      </Text>
+                    </View>
+                  )
+                ))}
+              </View>
+            )}
+
+            <Text variant="bodyMedium" style={attachments.length ? styles.contentWithAttachments : undefined}>
+              {content || (status === 'pending' ? '正在思考...' : '')}
+            </Text>
             <View style={styles.footerRow}>
               {timestamp && (
                 <Text
@@ -116,6 +144,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
+    marginTop: 4,
+  },
+  attachmentsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 6,
+  },
+  imageThumb: {
+    width: 120,
+    height: 80,
+    borderRadius: 8,
+  },
+  fileItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    maxWidth: 200,
+  },
+  fileIcon: {
+    marginRight: 6,
+  },
+  fileName: {
+    flexShrink: 1,
+  },
+  contentWithAttachments: {
     marginTop: 4,
   },
   timestamp: {

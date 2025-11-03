@@ -165,4 +165,89 @@ export const AttachmentRepository = {
     );
     return rows;
   },
+  
+  // 新增：按消息ID查询附件列表（单条消息）
+  async getAttachmentsForMessage(messageId: string): Promise<Attachment[]> {
+    const rows = await queryAll<any>(
+      `SELECT a.id, a.kind, a.mime, a.name, a.uri, a.size, a.width, a.height, a.duration_ms as durationMs, a.sha256, a.created_at as createdAt, a.extra
+       FROM message_attachments ma
+       JOIN attachments a ON a.id = ma.attachment_id
+       WHERE ma.message_id = ?
+       ORDER BY a.created_at ASC`,
+      [messageId]
+    );
+    return rows.map((r: any) => ({
+      ...r,
+      extra: r.extra ? JSON.parse(r.extra) : undefined,
+    }));
+  },
+  
+  // 新增：批量按消息ID获取附件，返回映射
+  async getAttachmentsByMessageIds(messageIds: string[]): Promise<Record<string, Attachment[]>> {
+    if (!messageIds || messageIds.length === 0) return {} as Record<string, Attachment[]>;
+    const placeholders = messageIds.map(() => '?').join(',');
+    const rows = await queryAll<any>(
+      `SELECT ma.message_id as messageId, a.id, a.kind, a.mime, a.name, a.uri, a.size, a.width, a.height, a.duration_ms as durationMs, a.sha256, a.created_at as createdAt, a.extra
+       FROM message_attachments ma
+       JOIN attachments a ON a.id = ma.attachment_id
+       WHERE ma.message_id IN (${placeholders})
+       ORDER BY a.created_at ASC`,
+      messageIds
+    );
+    const map: Record<string, Attachment[]> = {};
+    for (const r of rows) {
+      const att: Attachment = {
+        id: r.id,
+        kind: r.kind,
+        mime: r.mime,
+        name: r.name,
+        uri: r.uri,
+        size: r.size,
+        width: r.width,
+        height: r.height,
+        durationMs: r.durationMs,
+        sha256: r.sha256,
+        createdAt: r.createdAt,
+        extra: r.extra ? JSON.parse(r.extra) : undefined,
+      };
+      const mid = String(r.messageId);
+      if (!map[mid]) map[mid] = [];
+      map[mid].push(att);
+    }
+    return map;
+  },
 };
+,
+
+  async getAttachmentsForMessage(messageId: string) {
+    const rows = await queryAll<any>(
+      `SELECT a.id, a.kind, a.mime, a.name, a.uri, a.size, a.width, a.height, a.duration_ms as durationMs, a.sha256, a.created_at as createdAt, a.extra
+       FROM message_attachments ma
+       JOIN attachments a ON a.id = ma.attachment_id
+       WHERE ma.message_id = ?
+       ORDER BY a.created_at ASC`,
+      [messageId]
+    );
+    return rows.map((r: any) => ({ ...r, extra: r.extra ? JSON.parse(r.extra) : undefined }));
+  },
+
+  async getAttachmentsByMessageIds(messageIds: string[]) {
+    if (messageIds.length === 0) return {} as Record<string, any[]>;
+    const placeholders = messageIds.map(() => '?').join(',');
+    const rows = await queryAll<any>(
+      `SELECT ma.message_id as messageId, a.id, a.kind, a.mime, a.name, a.uri, a.size, a.width, a.height, a.duration_ms as durationMs, a.sha256, a.created_at as createdAt, a.extra
+       FROM message_attachments ma
+       JOIN attachments a ON a.id = ma.attachment_id
+       WHERE ma.message_id IN (${placeholders})
+       ORDER BY a.created_at ASC`,
+      messageIds
+    );
+    const map: Record<string, any[]> = {};
+    for (const r of rows) {
+      const att = { ...r, extra: r.extra ? JSON.parse(r.extra) : undefined };
+      const mid = r.messageId as string;
+      if (!map[mid]) map[mid] = [];
+      map[mid].push(att);
+    }
+    return map as Record<string, any[]>;
+  }
