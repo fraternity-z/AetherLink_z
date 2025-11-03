@@ -133,8 +133,8 @@ export function ChatSettings() {
         <Slider
           value={contextCount}
           onValueChange={saveContextCount}
-          minimumValue={1}
-          maximumValue={50}
+          minimumValue={0}
+          maximumValue={20}
           step={1}
           style={styles.slider}
         />

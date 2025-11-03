@@ -1,0 +1,163 @@
+{
+  "timestamp": "2025-11-03T18:47:44.000Z",
+  "project": {
+    "name": "AetherLink_z",
+    "type": "React Native Expo App",
+    "description": "基于Tauri的AI聊天助手应用，支持多平台部署"
+  },
+  "scanCoverage": {
+    "totalFiles": 79,
+    "scannedFiles": 25,
+    "coveragePercentage": 31.6,
+    "ignoredFiles": 54,
+    "truncated": false
+  },
+  "modules": [
+    {
+      "path": "app",
+      "type": "pages",
+      "entry": "index.tsx, _layout.tsx",
+      "description": "应用页面和路由结构",
+      "coverage": {
+        "scanned": 2,
+        "total": 15,
+        "percentage": 13.3
+      },
+      "interfaces": ["ChatScreen", "RootLayout"],
+      "tests": false,
+      "gaps": ["缺少设置页面详细扫描", "缺少话题管理页面分析"]
+    },
+    {
+      "path": "components/chat",
+      "type": "ui-components",
+      "entry": "ChatInput.tsx, MessageList.tsx",
+      "description": "聊天界面相关组件",
+      "coverage": {
+        "scanned": 4,
+        "total": 8,
+        "percentage": 50.0
+      },
+      "interfaces": ["ChatInputProps", "MessageListProps"],
+      "tests": false,
+      "gaps": ["缺少MessageBubble组件分析", "缺少侧边栏组件详细扫描"]
+    },
+    {
+      "path": "services/ai",
+      "type": "business-services",
+      "entry": "AiClient.ts",
+      "description": "AI提供商集成和流式响应",
+      "coverage": {
+        "scanned": 2,
+        "total": 2,
+        "percentage": 100.0
+      },
+      "interfaces": ["StreamOptions", "Provider"],
+      "tests": false,
+      "gaps": ["缺少ModelDiscovery详细分析"]
+    },
+    {
+      "path": "storage",
+      "type": "data-layer",
+      "entry": "core.ts, sqlite/db.ts",
+      "description": "数据持久化和存储管理",
+      "coverage": {
+        "scanned": 6,
+        "total": 12,
+        "percentage": 50.0
+      },
+      "interfaces": ["Conversation", "Message", "Attachment", "IKeyValueStore"],
+      "tests": false,
+      "gaps": ["缺少数据仓库详细实现分析", "缺少存储适配器扫描"]
+    },
+    {
+      "path": "hooks",
+      "type": "logic-layer",
+      "entry": "use-conversations.ts, use-messages.ts",
+      "description": "React Hooks 业务逻辑封装",
+      "coverage": {
+        "scanned": 3,
+        "total": 4,
+        "percentage": 75.0
+      },
+      "interfaces": ["useConversations", "useMessages", "useSetting"],
+      "tests": false,
+      "gaps": ["缺少use-color-scheme相关hooks分析"]
+    }
+  ],
+  "ignoredPaths": [
+    {
+      "path": "node_modules",
+      "reason": "第三方依赖包",
+      "fileCount": 1000
+    },
+    {
+      "path": "assets/images",
+      "reason": "静态资源文件",
+      "fileCount": 10
+    },
+    {
+      "path": ".vscode",
+      "reason": "IDE配置文件",
+      "fileCount": 2
+    }
+  ],
+  "nextScanRecommendations": [
+    {
+      "priority": "high",
+      "path": "app/settings",
+      "reason": "设置页面是核心功能，需要详细分析设置项和配置逻辑"
+    },
+    {
+      "priority": "high",
+      "path": "storage/repositories",
+      "reason": "数据仓库是业务逻辑核心，需要完整扫描所有CRUD操作"
+    },
+    {
+      "priority": "medium",
+      "path": "components/settings",
+      "reason": "设置组件涉及用户配置，需要了解交互逻辑"
+    },
+    {
+      "priority": "medium",
+      "path": "services/data",
+      "reason": "数据服务包含备份、清理等重要功能"
+    },
+    {
+      "priority": "low",
+      "path": "constants",
+      "reason": "常量配置文件，影响应用全局行为"
+    }
+  ],
+  "qualityGaps": {
+    "missingTests": {
+      "count": 25,
+      "affectedModules": ["all"],
+      "recommendation": "建议为核心业务逻辑添加单元测试"
+    },
+    "missingDocumentation": {
+      "count": 8,
+      "affectedModules": ["components/settings", "app/settings", "services/data"],
+      "recommendation": "需要为未扫描模块创建文档"
+    },
+    "typeSafety": {
+      "status": "good",
+      "coverage": "TypeScript strict mode enabled",
+      "gaps": ["部分any类型需要具体化"]
+    }
+  },
+  "architectureSummary": {
+    "pattern": "Repository + Service + Component",
+    "dataFlow": "UI Component -> Hook -> Service -> Repository -> SQLite",
+    "keyFeatures": [
+      "多AI提供商支持",
+      "本地SQLite存储",
+      "流式对话响应",
+      "跨平台兼容"
+    ],
+    "technicalDebt": [
+      "缺少自动化测试",
+      "错误处理需要统一",
+      "部分组件耦合度较高"
+    ]
+  }
+}

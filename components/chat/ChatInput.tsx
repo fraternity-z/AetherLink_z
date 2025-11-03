@@ -52,26 +52,27 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
     const contextCount = (await sr.get<number>(SettingKey.ChatContextCount)) ?? 10;
     const systemPrompt = (await sr.get<string>(SettingKey.ChatSystemPrompt)) ?? 'You are a helpful assistant.';
 
-    // 获取历史消息（上下文）
-    const historyMessages = await MessageRepository.listMessages(cid!, { limit: contextCount * 2 });
+    // 构建消息数组（根据上下文数目）
+    const msgs: CoreMessage[] = [];
 
-    // 构建消息数组：系统提示词 + 历史消息 + 当前消息
-    const msgs: CoreMessage[] = [
-      { role: 'system', content: systemPrompt },
-    ];
+    if (contextCount > 0) {
+      // 系统提示词
+      msgs.push({ role: 'system', content: systemPrompt });
 
-    // 添加历史消息（只取最近的 contextCount 条对话，每条对话包含 user 和 assistant）
-    const recentHistory = historyMessages.slice(-contextCount * 2);
-    for (const msg of recentHistory) {
-      if (msg.role === 'user' || msg.role === 'assistant') {
-        msgs.push({
-          role: msg.role,
-          content: msg.text ?? '',
-        });
+      // 获取并添加历史消息（只取最近的 contextCount 条对话，每条对话包含 user 和 assistant）
+      const historyMessages = await MessageRepository.listMessages(cid!, { limit: contextCount * 2 });
+      const recentHistory = historyMessages.slice(-contextCount * 2);
+      for (const msg of recentHistory) {
+        if (msg.role === 'user' || msg.role === 'assistant') {
+          msgs.push({
+            role: msg.role,
+            content: msg.text ?? '',
+          });
+        }
       }
     }
 
-    // 添加当前用户消息
+    // 添加当前用户消息（当 contextCount === 0 时，不包含上文和系统提示）
     msgs.push({ role: 'user', content: message });
 
     let acc = '';
