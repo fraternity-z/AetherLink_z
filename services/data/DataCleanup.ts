@@ -2,7 +2,7 @@ import { ChatRepository } from '@/storage/repositories/chat';
 import { MessageRepository } from '@/storage/repositories/messages';
 import { AttachmentRepository } from '@/storage/repositories/attachments';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { execute } from '@/storage/sqlite/db';
+import { execute, queryAll } from '@/storage/sqlite/db';
 
 export const DataCleanupService = {
   /**
@@ -103,7 +103,7 @@ export const DataCleanupService = {
   }> {
     const archived = await ChatRepository.listConversations({ archived: true, limit: 999999 });
 
-    const failedMessages = await execute(
+    const failedMessages = await queryAll(
       `SELECT COUNT(*) as count FROM messages WHERE status = ?`,
       ['failed']
     );
@@ -113,7 +113,7 @@ export const DataCleanupService = {
 
     return {
       archivedConversations: archived.length,
-      failedMessages: (failedMessages.rows?._array?.[0]?.count as number) || 0,
+      failedMessages: (failedMessages[0]?.count as number) || 0,
       orphanAttachments: allAttachments.length, // 简化统计
     };
   },

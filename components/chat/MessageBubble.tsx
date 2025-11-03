@@ -9,16 +9,37 @@
 
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Card, Text, useTheme, Avatar } from 'react-native-paper';
+import { Card, Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper';
 
 interface MessageBubbleProps {
   content: string;
   isUser: boolean;
   timestamp?: string;
+  status?: 'pending' | 'sent' | 'failed';
 }
 
-export function MessageBubble({ content, isUser, timestamp }: MessageBubbleProps) {
+export function MessageBubble({ content, isUser, timestamp, status }: MessageBubbleProps) {
   const theme = useTheme();
+
+  const getStatusIndicator = () => {
+    if (!status || status === 'sent') return null;
+
+    if (status === 'pending') {
+      return <ActivityIndicator size="small" style={styles.statusIndicator} />;
+    }
+
+    if (status === 'failed') {
+      return (
+        <Avatar.Icon
+          size={16}
+          icon="alert-circle"
+          style={[styles.statusIndicator, { backgroundColor: theme.colors.error }]}
+        />
+      );
+    }
+
+    return null;
+  };
 
   return (
     <View style={[
@@ -41,15 +62,18 @@ export function MessageBubble({ content, isUser, timestamp }: MessageBubbleProps
           ]}
         >
           <Card.Content>
-            <Text variant="bodyMedium">{content}</Text>
-            {timestamp && (
-              <Text
-                variant="bodySmall"
-                style={[styles.timestamp, { color: theme.colors.onSurfaceVariant }]}
-              >
-                {timestamp}
-              </Text>
-            )}
+            <Text variant="bodyMedium">{content || (status === 'pending' ? '正在思考...' : '')}</Text>
+            <View style={styles.footerRow}>
+              {timestamp && (
+                <Text
+                  variant="bodySmall"
+                  style={[styles.timestamp, { color: theme.colors.onSurfaceVariant }]}
+                >
+                  {timestamp}
+                </Text>
+              )}
+              {getStatusIndicator()}
+            </View>
           </Card.Content>
         </Card>
 
@@ -88,8 +112,17 @@ const styles = StyleSheet.create({
     flex: 1,
     elevation: 1,
   },
-  timestamp: {
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
     marginTop: 4,
+  },
+  timestamp: {
     fontSize: 10,
+    marginRight: 4,
+  },
+  statusIndicator: {
+    marginLeft: 4,
   },
 });

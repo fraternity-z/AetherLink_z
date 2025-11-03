@@ -41,8 +41,9 @@ export default function DataSettings() {
   }, []);
 
   const loadSettings = async () => {
-    const analyticsEnabled = await SettingsRepository.get<boolean>(SettingKey.AnalyticsEnabled);
-    const cacheEnabled = await SettingsRepository.get<boolean>(SettingKey.LocalCacheEnabled);
+    const sr = SettingsRepository();
+    const analyticsEnabled = await sr.get<boolean>(SettingKey.AnalyticsEnabled);
+    const cacheEnabled = await sr.get<boolean>(SettingKey.LocalCacheEnabled);
     setAnalytics(analyticsEnabled ?? false);
     setLocalCache(cacheEnabled ?? true);
   };
@@ -332,7 +333,8 @@ export default function DataSettings() {
                 value={analytics}
                 onValueChange={async (v) => {
                   setAnalytics(v);
-                  await SettingsRepository.set(SettingKey.AnalyticsEnabled, v);
+                  const sr = SettingsRepository();
+                  await sr.set(SettingKey.AnalyticsEnabled, v);
                 }}
               />
             )}
@@ -346,7 +348,8 @@ export default function DataSettings() {
                 value={localCache}
                 onValueChange={async (v) => {
                   setLocalCache(v);
-                  await SettingsRepository.set(SettingKey.LocalCacheEnabled, v);
+                  const sr = SettingsRepository();
+                  await sr.set(SettingKey.LocalCacheEnabled, v);
                 }}
               />
             )}

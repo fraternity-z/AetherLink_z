@@ -21,6 +21,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [message, setMessage] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   // 🎯 优化：动态计算键盘偏移量，适配不同设备（包括刘海屏）
@@ -31,7 +32,9 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
   });
 
   const handleSend = async () => {
-    if (!message.trim()) return;
+    if (!message.trim() || isGenerating) return;
+
+    setIsGenerating(true);
     let cid = conversationId;
     if (!cid) {
       const c = await ChatRepository.createConversation('新话题');
@@ -95,10 +98,12 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         },
         onDone: async () => {
           await MessageRepository.updateMessageStatus(assistant.id, 'sent');
+          setIsGenerating(false);
         },
         onError: async (e: any) => {
           console.error('[ChatInput] Stream error', e);
           await MessageRepository.updateMessageStatus(assistant.id, 'failed');
+          setIsGenerating(false);
         },
       });
     } catch (error: any) {
@@ -110,6 +115,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         responseBody: error?.responseBody,
       });
       await MessageRepository.updateMessageStatus(assistant.id, 'failed');
+      setIsGenerating(false);
     } finally {
       abortRef.current = null;
     }
@@ -125,6 +131,13 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
   const handleVoice = () => {
     // TODO: 实现语音输入逻辑
     console.log('打开语音输入');
+  };
+
+  const handleStop = () => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -177,11 +190,17 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
                 style={styles.toolButton}
               />
               <IconButton
-                icon="send"
+                icon={isGenerating ? "stop" : "send"}
                 size={20}
-                iconColor={message.trim() ? theme.colors.primary : theme.colors.onSurfaceDisabled}
-                onPress={handleSend}
-                disabled={!message.trim()}
+                iconColor={
+                  isGenerating
+                    ? theme.colors.error
+                    : message.trim()
+                      ? theme.colors.primary
+                      : theme.colors.onSurfaceDisabled
+                }
+                onPress={isGenerating ? handleStop : handleSend}
+                disabled={!message.trim() && !isGenerating}
                 style={styles.toolButton}
               />
             </View>

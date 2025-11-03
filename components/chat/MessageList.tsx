@@ -7,7 +7,7 @@
  * - 空状态显示欢迎提示文字
  */
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ScrollView, View, StyleSheet } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { MessageBubble } from './MessageBubble';
@@ -16,9 +16,20 @@ import { useMessages } from '@/hooks/use-messages';
 export function MessageList({ conversationId }: { conversationId: string | null }) {
   const theme = useTheme();
   const { items } = useMessages(conversationId ?? null, 50);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // 自动滚动到最新消息
+  useEffect(() => {
+    if (items.length > 0) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [items.length]);
 
   return (
     <ScrollView
+      ref={scrollViewRef}
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={styles.contentContainer}
     >
@@ -42,6 +53,8 @@ export function MessageList({ conversationId }: { conversationId: string | null 
               key={m.id}
               content={m.text ?? ''}
               isUser={m.role === 'user'}
+              status={m.status}
+              timestamp={new Date(m.createdAt).toLocaleTimeString()}
             />
           ))}
         </View>
