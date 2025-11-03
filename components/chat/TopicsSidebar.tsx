@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, useWindowDimensions, View, Alert } from 'react-native';
-import { Surface, Text, List, TouchableRipple, useTheme, Button, IconButton } from 'react-native-paper';
+import { Surface, Text, List, TouchableRipple, useTheme, Button, IconButton, Portal, Dialog, TextInput } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConversations } from '@/hooks/use-conversations';
 import { ChatRepository } from '@/storage/repositories/chat';
@@ -18,6 +18,7 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic }: TopicsSidebar
   const insets = useSafeAreaInsets();
   const translateX = useRef(new Animated.Value(drawerWidth)).current; // from right
   const { items: convs, reload } = useConversations({ limit: 100 });
+  const [renameDlg, setRenameDlg] = useState<{ visible: boolean; id: string | null; title: string }>(() => ({ visible: false, id: null, title: '' }));
 
   useEffect(() => {
     Animated.timing(translateX, {
@@ -79,23 +80,30 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic }: TopicsSidebar
                   description={new Date(c.updatedAt).toLocaleString()}
                   left={(p) => <List.Icon {...p} icon="chat-processing-outline" />}
                   right={(p) => (
-                    <IconButton
-                      {...p}
-                      icon="delete-outline"
-                      onPress={() =>
-                        Alert.alert('删除话题', '删除后不可恢复，确认删除？', [
-                          { text: '取消', style: 'cancel' },
-                          {
-                            text: '删除',
-                            style: 'destructive',
-                            onPress: async () => {
-                              await ChatRepository.deleteConversation(c.id);
-                              await reload();
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <IconButton
+                        {...p}
+                        icon="pencil-outline"
+                        onPress={() => setRenameDlg({ visible: true, id: c.id, title: c.title || '' })}
+                      />
+                      <IconButton
+                        {...p}
+                        icon="delete-outline"
+                        onPress={() =>
+                          Alert.alert('删除话题', '删除后不可恢复，确认删除？', [
+                            { text: '取消', style: 'cancel' },
+                            {
+                              text: '删除',
+                              style: 'destructive',
+                              onPress: async () => {
+                                await ChatRepository.deleteConversation(c.id);
+                                await reload();
+                              },
                             },
-                          },
-                        ])
-                      }
-                    />
+                          ])
+                        }
+                      />
+                    </View>
                   )}
                 />
               </TouchableRipple>
@@ -114,10 +122,35 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic }: TopicsSidebar
                 新建话题
               </Button>
             </View>
-          </View>
-        </Surface>
+          </View>        </Surface>
       </Animated.View>
+
+      <Portal>
+        <Dialog visible={renameDlg.visible} onDismiss={() => setRenameDlg({ visible: false, id: null, title: '' })}>
+          <Dialog.Title>重命名话题</Dialog.Title>
+          <Dialog.Content>
+            <TextInput
+              autoFocus
+              label="新标题"
+              value={renameDlg.title}
+              onChangeText={(t) => setRenameDlg((s) => ({ ...s, title: t }))}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setRenameDlg({ visible: false, id: null, title: '' })}>取消</Button>
+            <Button
+              onPress={async () => {
+                if (!renameDlg.id) return;
+                await ChatRepository.renameConversation(renameDlg.id, renameDlg.title.trim() || '未命名话题');
+                setRenameDlg({ visible: false, id: null, title: '' });
+                await reload();
+              }}
+            >
+              保存
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </View>
   );
 }
-

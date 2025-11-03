@@ -15,7 +15,13 @@ export enum SettingKey {
   ChatContextCount = 'al:settings:chat_context_count',
   ChatSystemPrompt = 'al:settings:chat_system_prompt',
   ChatStreamOutput = 'al:settings:chat_stream_output',
+  // 话题自动命名
+  TopicAutoNameEnabled = 'al:settings:topic_auto_name_enabled',
+  TopicAutoNamePrompt = 'al:settings:topic_auto_name_prompt',
+  TopicNamingProvider = 'al:settings:topic_naming_provider',
+  TopicNamingModel = 'al:settings:topic_naming_model',
 }
+
 
 const p = prefixer('settings'); // For clearNamespace use if needed
 

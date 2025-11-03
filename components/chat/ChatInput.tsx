@@ -16,6 +16,7 @@ import { MessageRepository } from '@/storage/repositories/messages';
 import { streamCompletion, type Provider } from '@/services/ai/AiClient';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import type { CoreMessage } from 'ai';
+import { autoNameConversation } from '@/services/ai/TopicNaming';
 
 export function ChatInput({ conversationId, onConversationChange }: { conversationId: string | null; onConversationChange: (id: string) => void; }) {
   const theme = useTheme();
@@ -40,6 +41,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
 
     let cid = conversationId;
     let assistant: any = null;
+    let isFirstTurn = false;
 
     try {
       if (!cid) {
@@ -48,6 +50,9 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         onConversationChange(c.id);
       }
 
+      // 判断是否首轮对话：在写入用户消息前检查是否已有历史
+      const __prev = await MessageRepository.listMessages(cid!, { limit: 1 });
+      isFirstTurn = __prev.length === 0;
       await MessageRepository.addMessage({ conversationId: cid!, role: 'user', text: userMessage, status: 'sent' });
       assistant = await MessageRepository.addMessage({ conversationId: cid!, role: 'assistant', text: '', status: 'pending' });
 
@@ -93,8 +98,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         模型: model,
         温度: parseFloat(temperature.toFixed(1)),
         最大令牌: maxTokens || '自动',
-        上下文轮数: contextCount,
-        消息构成: `共 ${msgs.length} 条 = ${contextCount > 0 ? '系统提示(1) + ' : ''}历史消息(${msgs.length - (contextCount > 0 ? 2 : 1)}) + 当前(1)`
+        上下文轮数: contextCount
       });
 
       let acc = '';
@@ -112,6 +116,9 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         onDone: async () => {
           await MessageRepository.updateMessageStatus(assistant.id, 'sent');
           setIsGenerating(false);
+          if (isFirstTurn) {
+            try { void autoNameConversation(cid!); } catch (e) { console.warn('[ChatInput] auto naming error', e); }
+          }
         },
         onError: async (e: any) => {
           console.error('[ChatInput] Stream error', e);
