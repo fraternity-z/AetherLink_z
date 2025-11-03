@@ -11,6 +11,7 @@ export enum SettingKey {
   // 对话参数设置
   ChatTemperature = 'al:settings:chat_temperature',
   ChatMaxTokens = 'al:settings:chat_max_tokens',
+  ChatMaxTokensEnabled = 'al:settings:chat_max_tokens_enabled',
   ChatContextCount = 'al:settings:chat_context_count',
   ChatSystemPrompt = 'al:settings:chat_system_prompt',
   ChatStreamOutput = 'al:settings:chat_stream_output',

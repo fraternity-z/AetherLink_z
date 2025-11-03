@@ -1,5 +1,6 @@
 import { streamText, type CoreMessage } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
@@ -45,12 +46,23 @@ export async function streamCompletion(opts: StreamOptions) {
     anthropicBaseURL = cfg.baseURL || undefined;
   }
 
+  // choose provider factory with compatibility for OpenAI-compatible gateways
+  const useOpenAICompatible = (
+    provider === 'deepseek' || provider === 'volc' || provider === 'zhipu' ||
+    (provider === 'openai' && !!baseURL && !/^https?:\/\/api\.openai\.com\/?v1\/?$/i.test(String(baseURL).replace(/\/$/, '')))
+  );
+
   const factory =
-    provider === 'openai' || provider === 'deepseek' || provider === 'volc' || provider === 'zhipu'
-      ? () => createOpenAI({ apiKey, baseURL })
-      : provider === 'anthropic'
+    provider === 'anthropic'
       ? () => createAnthropic({ apiKey, baseURL: anthropicBaseURL })
-      : () => createGoogleGenerativeAI({ apiKey });
+      : provider === 'google'
+      ? () => createGoogleGenerativeAI({ apiKey })
+      : useOpenAICompatible
+      ? () => createOpenAICompatible({
+        apiKey, baseURL: baseURL ?? 'https://api.openai.com/v1',
+        name: ''
+      })
+      : () => createOpenAI({ apiKey, baseURL });
 
   const { textStream } = streamText({
     model: factory()(opts.model),

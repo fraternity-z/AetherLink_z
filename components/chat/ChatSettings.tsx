@@ -22,6 +22,7 @@ export function ChatSettings() {
   // 状态管理
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(2048);
+  const [maxTokensEnabled, setMaxTokensEnabled] = useState(false);
   const [contextCount, setContextCount] = useState(10);
   const [streamOutput, setStreamOutput] = useState(true);
   const [systemPrompt, setSystemPrompt] = useState('You are a helpful assistant.');
@@ -33,12 +34,14 @@ export function ChatSettings() {
     (async () => {
       const temp = await sr.get<number>(SettingKey.ChatTemperature);
       const tokens = await sr.get<number>(SettingKey.ChatMaxTokens);
+      const tokensEnabled = await sr.get<boolean>(SettingKey.ChatMaxTokensEnabled);
       const context = await sr.get<number>(SettingKey.ChatContextCount);
       const stream = await sr.get<boolean>(SettingKey.ChatStreamOutput);
       const prompt = await sr.get<string>(SettingKey.ChatSystemPrompt);
 
       if (temp !== null) setTemperature(temp);
       if (tokens !== null) setMaxTokens(tokens);
+      if (tokensEnabled !== null) setMaxTokensEnabled(tokensEnabled);
       if (context !== null) setContextCount(context);
       if (stream !== null) setStreamOutput(stream);
       if (prompt !== null) setSystemPrompt(prompt);
@@ -54,6 +57,11 @@ export function ChatSettings() {
   const saveMaxTokens = async (value: number) => {
     setMaxTokens(value);
     await sr.set(SettingKey.ChatMaxTokens, value);
+  };
+
+  const saveMaxTokensEnabled = async (value: boolean) => {
+    setMaxTokensEnabled(value);
+    await sr.set(SettingKey.ChatMaxTokensEnabled, value);
   };
 
   const saveContextCount = async (value: number) => {
@@ -79,8 +87,8 @@ export function ChatSettings() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text variant="titleSmall" style={{ marginBottom: 8, paddingHorizontal: 8 }}>
-        对话参数设置（占位）
+      <Text variant="titleSmall" style={{ marginBottom: 8, paddingHorizontal: 16, marginTop: 8 }}>
+        对话参数设置
       </Text>
 
       {/* Temperature 设置 */}
@@ -90,7 +98,7 @@ export function ChatSettings() {
           <Text variant="bodyMedium" style={{ color: theme.colors.primary }}>{temperature.toFixed(1)}</Text>
         </View>
         <Text variant="bodySmall" style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
-          占位
+          控制回复的随机性和创造性。较低值（0.2-0.5）更保守，较高值（0.7-1.0）更有创意
         </Text>
         <Slider
           value={temperature}
@@ -99,26 +107,40 @@ export function ChatSettings() {
           maximumValue={2}
           step={0.1}
           style={styles.slider}
+          minimumTrackTintColor={theme.colors.primary}
         />
       </View>
 
       {/* Max tokens 设置 */}
       <View style={styles.settingItem}>
         <View style={styles.settingHeader}>
-          <Text variant="bodyMedium">Max tokens</Text>
-          <Text variant="bodyMedium" style={{ color: theme.colors.primary }}>{maxTokens}</Text>
+          <View style={{ flex: 1 }}>
+            <Text variant="bodyMedium">Max tokens</Text>
+            <Text variant="bodySmall" style={[styles.description, { color: theme.colors.onSurfaceVariant, marginTop: 4 }]}>
+              限制单次回复的最大长度。关闭则由模型自动决定
+            </Text>
+          </View>
+          <Switch value={maxTokensEnabled} onValueChange={saveMaxTokensEnabled} />
         </View>
-        <Text variant="bodySmall" style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
-          占位
-        </Text>
-        <Slider
-          value={maxTokens}
-          onValueChange={saveMaxTokens}
-          minimumValue={256}
-          maximumValue={8192}
-          step={256}
-          style={styles.slider}
-        />
+        {maxTokensEnabled && (
+          <>
+            <View style={styles.settingHeader}>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                最大令牌数
+              </Text>
+              <Text variant="bodyMedium" style={{ color: theme.colors.primary }}>{maxTokens}</Text>
+            </View>
+            <Slider
+              value={maxTokens}
+              onValueChange={saveMaxTokens}
+              minimumValue={256}
+              maximumValue={8192}
+              step={256}
+              style={styles.slider}
+              minimumTrackTintColor={theme.colors.primary}
+            />
+          </>
+        )}
       </View>
 
       {/* Context count 设置 */}
@@ -128,7 +150,7 @@ export function ChatSettings() {
           <Text variant="bodyMedium" style={{ color: theme.colors.primary }}>{contextCount}</Text>
         </View>
         <Text variant="bodySmall" style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
-          占位
+          保留多少轮历史对话。设为 0 则不包含历史上下文
         </Text>
         <Slider
           value={contextCount}
@@ -137,14 +159,15 @@ export function ChatSettings() {
           maximumValue={20}
           step={1}
           style={styles.slider}
+          minimumTrackTintColor={theme.colors.primary}
         />
       </View>
 
       {/* System prompt 设置 */}
       <List.Item
-        title="System prompt"
-        description="占位"
-        right={() => <Text>编辑</Text>}
+        title="系统提示词"
+        description={systemPrompt.length > 50 ? systemPrompt.substring(0, 50) + '...' : systemPrompt}
+        right={() => <Button mode="text">编辑</Button>}
         onPress={openPromptDialog}
         style={styles.listItem}
       />
@@ -155,7 +178,7 @@ export function ChatSettings() {
           <View style={{ flex: 1 }}>
             <Text variant="bodyMedium">流式输出</Text>
             <Text variant="bodySmall" style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
-              占位
+              实时显示 AI 回复内容（推荐开启）
             </Text>
           </View>
           <Switch value={streamOutput} onValueChange={saveStreamOutput} />

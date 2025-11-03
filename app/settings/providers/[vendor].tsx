@@ -6,6 +6,7 @@ import { Avatar, Button, HelperText, List, SegmentedButtons, Surface, Switch, Te
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 import { ProviderModelsRepository } from '@/storage/repositories/provider-models';
 import { fetchProviderModels, type DiscoveredModel } from '@/services/ai/ModelDiscovery';
+import { validateProviderModel } from '@/services/ai/ModelValidation';
 
 type VendorMeta = {
   id: string;
@@ -24,6 +25,7 @@ const VENDORS: Record<string, VendorMeta> = {
   volc: { id: 'volc', name: '火山引擎', desc: '火山引擎 API', color: '#f97316', letter: 'V' },
   zhipu: { id: 'zhipu', name: '智谱AI', desc: '智谱 API', color: '#6366f1', letter: 'Z' },
 };
+
 
 export default function ProviderConfig() {
   const theme = useTheme();
@@ -238,7 +240,14 @@ export default function ProviderConfig() {
             left={(p) => <List.Icon {...p} icon="cube" />}
             right={(p) => (
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Button compact onPress={() => console.log('校验', m.id)}>校验</Button>
+                <Button
+                  compact
+                  onPress={async () => {
+                    setSaveStatus({ visible: true, message: `校验中：${m.id} …` });
+                    const r = await validateProviderModel(meta.id as ProviderId, m.id);
+                    setSaveStatus({ visible: true, message: `${r.ok ? '✓' : '✗'} ${r.message}` });
+                  }}
+                >校验</Button>
                 <Button
                   compact
                   onPress={async () => {

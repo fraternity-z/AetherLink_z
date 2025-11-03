@@ -8,7 +8,7 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, TextInput as RNTextInput } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, TextInput as RNTextInput, Alert } from 'react-native';
 import { IconButton, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChatRepository } from '@/storage/repositories/chat';
@@ -35,56 +35,70 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
     if (!message.trim() || isGenerating) return;
 
     setIsGenerating(true);
+    const userMessage = message;
+    setMessage(''); // 立即清空输入框
+
     let cid = conversationId;
-    if (!cid) {
-      const c = await ChatRepository.createConversation('新话题');
-      cid = c.id;
-      onConversationChange(c.id);
-    }
+    let assistant: any = null;
 
-    await MessageRepository.addMessage({ conversationId: cid!, role: 'user', text: message, status: 'sent' });
-    const assistant = await MessageRepository.addMessage({ conversationId: cid!, role: 'assistant', text: '', status: 'pending' });
+    try {
+      if (!cid) {
+        const c = await ChatRepository.createConversation('新话题');
+        cid = c.id;
+        onConversationChange(c.id);
+      }
 
-    const controller = new AbortController();
-    abortRef.current = controller;
+      await MessageRepository.addMessage({ conversationId: cid!, role: 'user', text: userMessage, status: 'sent' });
+      assistant = await MessageRepository.addMessage({ conversationId: cid!, role: 'assistant', text: '', status: 'pending' });
 
-    // 获取聊天设置参数
-    const sr = SettingsRepository();
-    const temperature = (await sr.get<number>(SettingKey.ChatTemperature)) ?? 0.7;
-    const maxTokens = (await sr.get<number>(SettingKey.ChatMaxTokens)) ?? 2048;
-    const contextCount = (await sr.get<number>(SettingKey.ChatContextCount)) ?? 10;
-    const systemPrompt = (await sr.get<string>(SettingKey.ChatSystemPrompt)) ?? 'You are a helpful assistant.';
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      // 获取聊天设置参数
+      const sr = SettingsRepository();
+      const temperature = (await sr.get<number>(SettingKey.ChatTemperature)) ?? 0.7;
+      const maxTokensEnabled = (await sr.get<boolean>(SettingKey.ChatMaxTokensEnabled)) ?? false;
+      const maxTokens = maxTokensEnabled ? ((await sr.get<number>(SettingKey.ChatMaxTokens)) ?? 2048) : undefined;
+      const contextCount = (await sr.get<number>(SettingKey.ChatContextCount)) ?? 10;
+      const systemPrompt = (await sr.get<string>(SettingKey.ChatSystemPrompt)) ?? 'You are a helpful assistant.';
 
     // 构建消息数组（根据上下文数目）
-    const msgs: CoreMessage[] = [];
+      const msgs: CoreMessage[] = [];
 
-    if (contextCount > 0) {
-      // 系统提示词
-      msgs.push({ role: 'system', content: systemPrompt });
+      if (contextCount > 0) {
+        // 系统提示词
+        msgs.push({ role: 'system', content: systemPrompt });
 
-      // 获取并添加历史消息（只取最近的 contextCount 条对话，每条对话包含 user 和 assistant）
-      const historyMessages = await MessageRepository.listMessages(cid!, { limit: contextCount * 2 });
-      const recentHistory = historyMessages.slice(-contextCount * 2);
-      for (const msg of recentHistory) {
-        if (msg.role === 'user' || msg.role === 'assistant') {
-          msgs.push({
-            role: msg.role,
-            content: msg.text ?? '',
-          });
+        // 获取并添加历史消息（只取最近的 contextCount 条对话，每条对话包含 user 和 assistant）
+        const historyMessages = await MessageRepository.listMessages(cid!, { limit: contextCount * 2 });
+        const recentHistory = historyMessages.slice(-contextCount * 2);
+        for (const msg of recentHistory) {
+          if (msg.role === 'user' || msg.role === 'assistant') {
+            msgs.push({
+              role: msg.role,
+              content: msg.text ?? '',
+            });
+          }
         }
       }
-    }
 
-    // 添加当前用户消息（当 contextCount === 0 时，不包含上文和系统提示）
-    msgs.push({ role: 'user', content: message });
+      // 添加当前用户消息（当 contextCount === 0 时，不包含上文和系统提示）
+      msgs.push({ role: 'user', content: userMessage });
 
-    let acc = '';
-    try {
       const provider = ((await sr.get<string>(SettingKey.DefaultProvider)) ?? 'openai') as Provider;
       const model = (await sr.get<string>(SettingKey.DefaultModel)) ?? (provider === 'openai' ? 'gpt-4o-mini' : provider === 'anthropic' ? 'claude-3-5-haiku-latest' : 'gemini-1.5-flash');
 
-      console.log('[ChatInput] Sending message', { provider, model, messagesCount: msgs.length, temperature, maxTokens });
+      console.log('[ChatInput] Sending message', {
+        provider,
+        model,
+        messagesCount: msgs.length,
+        temperature,
+        maxTokens: maxTokens || '自动',
+        maxTokensEnabled,
+        contextCount
+      });
 
+      let acc = '';
       await streamCompletion({
         provider,
         model,
@@ -102,8 +116,14 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         },
         onError: async (e: any) => {
           console.error('[ChatInput] Stream error', e);
-          await MessageRepository.updateMessageStatus(assistant.id, 'failed');
+          if (assistant) {
+            await MessageRepository.updateMessageStatus(assistant.id, 'failed');
+          }
           setIsGenerating(false);
+
+          // 显示友好的错误提示
+          const errorMessage = getErrorMessage(e);
+          Alert.alert('发送失败', errorMessage, [{ text: '确定' }]);
         },
       });
     } catch (error: any) {
@@ -114,13 +134,49 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         statusCode: error?.statusCode,
         responseBody: error?.responseBody,
       });
-      await MessageRepository.updateMessageStatus(assistant.id, 'failed');
+
+      if (assistant) {
+        await MessageRepository.updateMessageStatus(assistant.id, 'failed');
+      }
       setIsGenerating(false);
+
+      // 显示友好的错误提示
+      const errorMessage = getErrorMessage(error);
+      Alert.alert('发送失败', errorMessage, [
+        { text: '取消', style: 'cancel' },
+        { text: '前往设置', onPress: () => console.log('TODO: 跳转到设置页面') }
+      ]);
     } finally {
       abortRef.current = null;
     }
+  };
 
-    setMessage('');
+  const getErrorMessage = (error: any): string => {
+    const errorName = error?.name || '';
+    const errorMessage = error?.message || '';
+
+    // API Key 相关错误
+    if (errorName === 'ALAPICallError' || errorMessage.includes('API key') || errorMessage.includes('authentication')) {
+      return 'API Key 未配置或无效，请前往设置页面配置 AI 提供商的 API Key。';
+    }
+
+    // 网络错误
+    if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+      return '网络连接失败，请检查网络连接后重试。';
+    }
+
+    // 超时错误
+    if (errorMessage.includes('timeout') || errorMessage.includes('aborted')) {
+      return '请求超时，请稍后重试。';
+    }
+
+    // 配额错误
+    if (errorMessage.includes('quota') || errorMessage.includes('limit')) {
+      return 'API 配额已用尽，请检查账户配额或更换 API Key。';
+    }
+
+    // 默认错误信息
+    return `发送消息失败：${errorMessage || '未知错误'}`;
   };
 
   const handleAttachment = () => {
