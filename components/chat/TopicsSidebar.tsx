@@ -122,7 +122,8 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic }: TopicsSidebar
                 新建话题
               </Button>
             </View>
-          </View>        </Surface>
+          </View>
+        </Surface>
       </Animated.View>
 
       <Portal>

@@ -15,7 +15,7 @@ export function AppDataProvider({ children }: Props) {
 
     // Initialize database schema on app start
     initMigrations().catch((e) => {
-      // eslint-disable-next-line no-console
+       
       console.error('DB init failed', e);
     });
   }, []);

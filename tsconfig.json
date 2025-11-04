@@ -1,7 +1,13 @@
 {
+  // 继承 Expo 官方基础配置（推荐写法，不直接硬编码 node_modules 路径）
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    // 启用 JSX 支持（React 17+ 自动运行时，适配 React 19 / RN 0.81）
+    "jsx": "react-jsx",
+    // 允许从 CommonJS 包进行默认导入（修复对 react 的默认导入报错）
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
     "paths": {
       "@/*": [
         "./*"

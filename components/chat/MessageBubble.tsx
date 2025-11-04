@@ -12,6 +12,7 @@ import { View, StyleSheet } from 'react-native';
 import { Card, Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper';
 import { Image } from 'expo-image';
 import type { Attachment } from '@/storage/core';
+import { MixedRenderer } from './MixedRenderer';
 
 interface MessageBubbleProps {
   content: string;
@@ -88,9 +89,18 @@ export function MessageBubble({ content, isUser, timestamp, status, attachments 
               </View>
             )}
 
-            <Text variant="bodyMedium" style={attachments.length ? styles.contentWithAttachments : undefined}>
-              {content || (status === 'pending' ? '正在思考...' : '')}
-            </Text>
+            {/* 智能内容渲染：用户消息使用纯文本，AI 消息支持 Markdown 和数学公式 */}
+            {isUser ? (
+              <Text variant="bodyMedium" style={attachments.length ? styles.contentWithAttachments : undefined}>
+                {content || (status === 'pending' ? '正在思考...' : '')}
+              </Text>
+            ) : (
+              <View style={[attachments.length ? styles.contentWithAttachments : styles.rendererContainer]}>
+                <MixedRenderer
+                  content={content || (status === 'pending' ? '正在思考...' : '')}
+                />
+              </View>
+            )}
             <View style={styles.footerRow}>
               {timestamp && (
                 <Text
@@ -174,6 +184,9 @@ const styles = StyleSheet.create({
   },
   contentWithAttachments: {
     marginTop: 4,
+  },
+  rendererContainer: {
+    minHeight: 20, // 确保渲染容器有最小高度
   },
   timestamp: {
     fontSize: 10,
