@@ -22,6 +22,9 @@ import * as FileSystem from 'expo-file-system';
 import { AttachmentRepository } from '@/storage/repositories/attachments';
 import type { Attachment } from '@/storage/core';
 import { Image } from 'expo-image';
+import { performSearch } from '@/services/search/SearchClient';
+import type { SearchEngine } from '@/services/search/types';
+import { SearchLoadingIndicator } from './SearchLoadingIndicator';
 
 export function ChatInput({ conversationId, onConversationChange }: { conversationId: string | null; onConversationChange: (id: string) => void; }) {
   const theme = useTheme();
@@ -29,6 +32,10 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
   const [message, setMessage] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedAttachments, setSelectedAttachments] = useState<Attachment[]>([]);
+  const [searchEnabled, setSearchEnabled] = useState(false); // 搜索开关状态
+  const [isSearching, setIsSearching] = useState(false); // 搜索进行中状态
+  const [currentSearchQuery, setCurrentSearchQuery] = useState(''); // 当前搜索查询
+  const [currentSearchEngine, setCurrentSearchEngine] = useState<SearchEngine>('bing'); // 当前搜索引擎
   const abortRef = useRef<AbortController | null>(null);
 
   // 🎯 优化：动态计算键盘偏移量，适配不同设备（包括刘海屏）
@@ -63,8 +70,103 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
     let cid = conversationId;
     let assistant: any = null;
     let isFirstTurn = false;
+    let searchResults: string | null = null;
 
     try {
+      // 执行网络搜索（如果启用）
+      if (searchEnabled && userMessage.trim()) {
+        try {
+          const sr = SettingsRepository();
+          const webSearchEnabled = (await sr.get<boolean>(SettingKey.WebSearchEnabled)) ?? false;
+
+          if (webSearchEnabled) {
+            const searchEngine = (await sr.get<SearchEngine>(SettingKey.WebSearchEngine)) ?? 'bing';
+            const maxResults = (await sr.get<number>(SettingKey.WebSearchMaxResults)) ?? 5;
+            const tavilyApiKey = searchEngine === 'tavily' ? ((await sr.get<string>(SettingKey.TavilySearchApiKey)) || undefined) : undefined;
+
+            // 设置搜索状态，显示加载指示器
+            setCurrentSearchEngine(searchEngine);
+            setCurrentSearchQuery(userMessage);
+            setIsSearching(true);
+
+            console.log('[ChatInput] 开始网络搜索', { engine: searchEngine, query: userMessage });
+
+            const results = await performSearch({
+              engine: searchEngine,
+              query: userMessage,
+              maxResults,
+              apiKey: tavilyApiKey,
+            });
+
+            // 格式化搜索结果，优化 AI 可读性
+            if (results.length > 0) {
+              const timestamp = new Date().toLocaleString('zh-CN');
+              const engineName = searchEngine === 'bing' ? 'Bing' : searchEngine === 'google' ? 'Google' : 'Tavily';
+
+              searchResults = `\n\n<网络搜索结果>\n` +
+                `搜索引擎: ${engineName}\n` +
+                `搜索时间: ${timestamp}\n` +
+                `查询内容: ${userMessage}\n` +
+                `结果数量: ${results.length}\n\n` +
+                results.map((r, i) => {
+                  // 清理并截断摘要
+                  const cleanSnippet = r.snippet.trim().substring(0, 300);
+                  return `【结果 ${i + 1}】\n` +
+                    `标题: ${r.title}\n` +
+                    `链接: ${r.url}\n` +
+                    `内容摘要: ${cleanSnippet}${r.snippet.length > 300 ? '...' : ''}\n`;
+                }).join('\n') +
+                `\n</网络搜索结果>\n\n` +
+                `请根据以上搜索结果，结合你的知识，为用户提供准确、全面的回答。`;
+
+              console.log(`[ChatInput] 搜索成功，找到 ${results.length} 条结果`);
+            }
+          }
+        } catch (error: any) {
+          console.error('[ChatInput] 搜索失败:', error);
+
+          // 根据错误类型生成友好的错误消息
+          let errorMessage = '未知错误';
+          let errorHint = '';
+
+          if (error.code === 'CAPTCHA') {
+            errorMessage = '搜索引擎检测到异常流量';
+            errorHint = '建议：稍后重试或切换到其他搜索引擎（如 Tavily）';
+          } else if (error.code === 'TIMEOUT') {
+            errorMessage = '搜索请求超时';
+            errorHint = '建议：检查网络连接或稍后重试';
+          } else if (error.code === 'API_ERROR') {
+            errorMessage = error.message || 'API 调用失败';
+            errorHint = '建议：检查 API Key 配置或查看设置页面';
+          } else if (error.code === 'NETWORK_ERROR') {
+            errorMessage = '网络连接失败';
+            errorHint = '建议：检查网络连接';
+          } else if (error.code === 'PARSE_ERROR') {
+            errorMessage = '搜索结果解析失败';
+            errorHint = '建议：搜索引擎页面结构可能已更新，请切换到其他搜索引擎';
+          } else {
+            errorMessage = error.message || '未知错误';
+          }
+
+          // 格式化错误信息
+          searchResults = `\n\n<网络搜索失败>\n` +
+            `错误信息: ${errorMessage}\n` +
+            (errorHint ? `${errorHint}\n` : '') +
+            `\n注意：搜索失败不影响对话，我将基于现有知识为您解答。\n` +
+            `</网络搜索失败>\n`;
+
+          // 显示错误提示给用户
+          Alert.alert(
+            '网络搜索失败',
+            `${errorMessage}\n${errorHint}`,
+            [{ text: '知道了' }]
+          );
+
+          // 搜索失败不记录历史
+        } finally {
+          setIsSearching(false);
+        }
+      }
       if (!cid) {
         const c = await ChatRepository.createConversation('新话题');
         cid = c.id;
@@ -135,7 +237,10 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         const fileSuffix = selectedAttachments.length > 0 && !userMessage.trim()
           ? `(已附加 ${selectedAttachments.length} 个附件)`
           : (selectedAttachments.length > 0 ? `\n(附加 ${selectedAttachments.length} 个附件)` : '');
-        msgs.push({ role: 'user', content: (userMessage + fileSuffix).trim() });
+
+        // 拼接搜索结果（如果有）
+        const finalMessage = userMessage + fileSuffix + (searchResults || '');
+        msgs.push({ role: 'user', content: finalMessage.trim() });
       }
 
       console.log('[ChatInput] 发送消息', {
@@ -292,6 +397,14 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       keyboardVerticalOffset={keyboardVerticalOffset}
     >
       <View style={styles.outerContainer}>
+        {/* 搜索加载指示器 */}
+        {isSearching && (
+          <SearchLoadingIndicator
+            engine={currentSearchEngine}
+            query={currentSearchQuery}
+          />
+        )}
+
         {/* 圆角悬浮方框容器 */}
         <View style={[styles.inputContainer, {
           backgroundColor: theme.colors.surface,
@@ -348,6 +461,14 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
           <View style={styles.toolbarRow}>
             {/* 左侧工具按钮组 */}
             <View style={styles.leftTools}>
+              <IconButton
+                icon="web"
+                size={20}
+                iconColor={searchEnabled ? theme.colors.primary : theme.colors.onSurfaceVariant}
+                onPress={() => setSearchEnabled(!searchEnabled)}
+                style={styles.toolButton}
+                disabled={isSearching}
+              />
               <IconButton
                 icon="paperclip"
                 size={20}

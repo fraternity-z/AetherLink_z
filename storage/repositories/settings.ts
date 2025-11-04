@@ -20,6 +20,11 @@ export enum SettingKey {
   TopicAutoNamePrompt = 'al:settings:topic_auto_name_prompt',
   TopicNamingProvider = 'al:settings:topic_naming_provider',
   TopicNamingModel = 'al:settings:topic_naming_model',
+  // 网络搜索设置
+  WebSearchEnabled = 'al:settings:web_search_enabled',
+  WebSearchEngine = 'al:settings:web_search_engine',
+  WebSearchMaxResults = 'al:settings:web_search_max_results',
+  TavilySearchApiKey = 'al:settings:tavily_search_api_key',
 }
 
 
