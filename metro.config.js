@@ -35,42 +35,6 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     ) {
       return { type: 'sourceFile', filePath: realSemverPath };
     }
-
-    // Workaround for Metro failing to resolve certain relative imports
-    // inside react-native-markdown-display on some Windows/Posix mixes.
-    // If the origin file is the package src/index.js and request starts with ./lib/
-    // resolve it explicitly into node_modules/react-native-markdown-display/src/lib/*
-    const rmdIndexSuffix = 'react-native-markdown-display/src/index.js';
-    if (moduleName.startsWith('./lib/') && origin.endsWith(rmdIndexSuffix)) {
-      // Normalize requested subpath and ensure .js extension
-      let sub = moduleName.replace(/^\.\//, ''); // remove leading ./
-      const candidate = path.join(
-        projectRoot,
-        'node_modules',
-        'react-native-markdown-display',
-        'src',
-        sub
-      );
-
-      const withJs = candidate.endsWith('.js') ? candidate : candidate + '.js';
-      const filePath = fs.existsSync(withJs) ? withJs : candidate;
-
-      if (fs.existsSync(filePath)) {
-        return { type: 'sourceFile', filePath };
-      }
-    }
-
-    // Normalize deep imports for ramda, e.g. 'ramda/src/equals'.
-    // Metro should resolve these, but on some setups it fails.
-    if (moduleName.startsWith('ramda/src/')) {
-      const sub = moduleName.replace(/^ramda\/src\//, '');
-      const candidate = path.join(projectRoot, 'node_modules', 'ramda', 'src', sub);
-      const withJs = candidate.endsWith('.js') ? candidate : candidate + '.js';
-      const filePath = fs.existsSync(withJs) ? withJs : candidate;
-      if (fs.existsSync(filePath)) {
-        return { type: 'sourceFile', filePath };
-      }
-    }
   } catch {}
 
   if (typeof baseResolve === 'function') {
