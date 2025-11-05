@@ -30,17 +30,19 @@ export function useMessages(conversationId: string | null, pageSize = 50) {
     if (conversationId) void load(true);
   }, [conversationId]);
 
-  // 实时轮询更新消息（用于流式响应）
+  // 实时轮询更新消息（用于流式响应和消息变化）
   useEffect(() => {
     if (!conversationId) return;
 
     const interval = setInterval(async () => {
       try {
         const latestMessages = await MessageRepository.listMessages(conversationId, { limit: pageSize });
-        if (latestMessages.length > items.length) {
+
+        // 消息数量发生变化（增加或减少）
+        if (latestMessages.length !== items.length) {
           setItems(latestMessages);
-        } else if (latestMessages.length === items.length) {
-          // 检查最后一条消息是否有更新（流式响应）
+        } else if (latestMessages.length > 0 && items.length > 0) {
+          // 消息数量相同，检查最后一条消息是否有更新（流式响应）
           const lastMessage = latestMessages[latestMessages.length - 1];
           const currentLastMessage = items[items.length - 1];
           if (lastMessage && currentLastMessage && lastMessage.id === currentLastMessage.id) {

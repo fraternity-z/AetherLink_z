@@ -195,6 +195,8 @@ export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererPr
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    // 不占满父容器，随内容自适应高度
+    width: '100%',
+    flexShrink: 1,
   },
 });

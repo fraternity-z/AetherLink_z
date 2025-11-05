@@ -143,7 +143,10 @@ export function MixedRenderer({ content, style }: MixedRendererProps) {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    // 避免在 ScrollView/气泡容器中被拉伸占满可用空间
+    // 保持按内容自然高度收缩
+    width: '100%',
+    flexShrink: 1,
   },
   fragmentContainer: {
     marginVertical: 2,

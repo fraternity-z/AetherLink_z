@@ -14,12 +14,29 @@ import { MessageBubble } from './MessageBubble';
 import { useMessages } from '@/hooks/use-messages';
 import { AttachmentRepository } from '@/storage/repositories/attachments';
 import type { Attachment } from '@/storage/core';
+import { appEvents, AppEvents } from '@/utils/events';
 
 export function MessageList({ conversationId }: { conversationId: string | null }) {
   const theme = useTheme();
-  const { items } = useMessages(conversationId ?? null, 50);
+  const { items, reload } = useMessages(conversationId ?? null, 50);
   const scrollViewRef = useRef<ScrollView>(null);
   const [attachmentsMap, setAttachmentsMap] = useState<Record<string, Attachment[]>>({});
+
+  // 监听消息清空事件，立即刷新列表
+  useEffect(() => {
+    const handleMessagesCleared = (clearedConversationId: string) => {
+      if (clearedConversationId === conversationId) {
+        // 立即重新加载消息列表
+        reload();
+      }
+    };
+
+    appEvents.on(AppEvents.MESSAGES_CLEARED, handleMessagesCleared);
+
+    return () => {
+      appEvents.off(AppEvents.MESSAGES_CLEARED, handleMessagesCleared);
+    };
+  }, [conversationId, reload]);
 
   // 自动滚动到最新消息
   useEffect(() => {
@@ -97,7 +114,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   contentContainerWithMessages: {
-    paddingVertical: 16,
+    paddingTop: 16,
+    paddingBottom: 170, // 为输入框预留空间（输入框高度约 100-150px + 额外边距）
   },
   emptyStateContainer: {
     flex: 1,

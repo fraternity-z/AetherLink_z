@@ -31,16 +31,16 @@ export function ChatHeader({ onMenuPress, onTopicsPress, onModelPickerPress }: C
       />
       <Appbar.Content title="新的对话" />
       <Appbar.Action
+        icon="tune-variant"
+        onPress={() => onModelPickerPress?.()}
+        accessibilityLabel="模型选择器"
+      />
+      <Appbar.Action
         icon="message-text-outline"
         onPress={() => {
           onTopicsPress?.();
         }}
         accessibilityLabel="话题列表"
-      />
-      <Appbar.Action
-        icon="tune-variant"
-        onPress={() => onModelPickerPress?.()}
-        accessibilityLabel="模型选择器"
       />
     </Appbar.Header>
   );

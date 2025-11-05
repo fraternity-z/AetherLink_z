@@ -152,14 +152,7 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         color: '#8b5cf6',
         route: '/settings/voice-settings',
       },
-            {
-        id: 'notion',
-        title: 'Notion 集成',
-        description: '配置 Notion 数据库导出设置',
-        icon: 'notebook-outline',
-        color: '#60a5fa',
-        route: '/settings/notion',
-      },
+            
       {
         id: 'about',
         title: '关于我们',
@@ -236,20 +229,21 @@ export function SettingsList() {
                       containerStyle={styles.listItemContainer}
                       onPress={() => handleItemPress(item)}
                     >
-                      <Avatar.Icon key="icon"                        size={40}
+                      <Avatar.Icon
+                        size={40}
                         icon={item.icon as any}
                         color={item.color}
                         style={{ backgroundColor: withOpacity(item.color, 0.15) }}
                       />
-                      <ListItem.Content key="content">
-                        <ListItem.Title key="title" style={styles.title}>
+                      <ListItem.Content>
+                        <ListItem.Title style={styles.title}>
                           {item.title}
                         </ListItem.Title>
-                        <ListItem.Subtitle key="subtitle" style={styles.subtitle} numberOfLines={2}>
+                        <ListItem.Subtitle style={styles.subtitle} numberOfLines={2}>
                           {item.description}
                         </ListItem.Subtitle>
                       </ListItem.Content>
-                      <Icon key="chevron"
+                      <Icon
                         name="chevron-right"
                         type="material-community"
                         color={theme.colors.onSurfaceVariant}
@@ -263,22 +257,6 @@ export function SettingsList() {
           </View>
         </View>
       ))}
-
-      {/* TODO 提示 */}
-      <Card containerStyle={styles.todoCard}>
-        <View style={styles.todoHint}>
-          <Icon
-            name="lightbulb-outline"
-            type="material-community"
-            color={theme.colors.primary}
-            size={20}
-            style={{ marginRight: 8 }}
-          />
-          <Text style={{ fontSize: 14, color: theme.colors.onSurfaceVariant }}>
-            提示：点击各项设置进入详细配置页面
-          </Text>
-        </View>
-      </Card>
     </ScrollView>
   );
 }
@@ -319,15 +297,5 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     lineHeight: 18,
-  },
-  todoCard: {
-    backgroundColor: 'rgba(99, 102, 241, 0.05)',
-    borderColor: 'rgba(99, 102, 241, 0.2)',
-    borderWidth: 1,
-  },
-  todoHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
   },
 });

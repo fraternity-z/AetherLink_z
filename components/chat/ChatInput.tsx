@@ -8,7 +8,7 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, Platform, TextInput as RNTextInput, Alert, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Platform, TextInput as RNTextInput, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { IconButton, useTheme } from 'react-native-paper';
 import { ChatRepository } from '@/storage/repositories/chat';
 import { MessageRepository } from '@/storage/repositories/messages';
@@ -24,6 +24,9 @@ import { Image } from 'expo-image';
 import { performSearch } from '@/services/search/SearchClient';
 import type { SearchEngine } from '@/services/search/types';
 import { SearchLoadingIndicator } from './SearchLoadingIndicator';
+import { AttachmentMenu } from './AttachmentMenu';
+import { MoreActionsMenu } from './MoreActionsMenu';
+import { appEvents, AppEvents } from '@/utils/events';
 
 export function ChatInput({ conversationId, onConversationChange }: { conversationId: string | null; onConversationChange: (id: string) => void; }) {
   const theme = useTheme();
@@ -35,6 +38,8 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
   const [currentSearchQuery, setCurrentSearchQuery] = useState('');
   const [currentSearchEngine, setCurrentSearchEngine] = useState<SearchEngine>('bing');
   const [enterToSend, setEnterToSend] = useState(false);
+  const [attachmentMenuVisible, setAttachmentMenuVisible] = useState(false);
+  const [moreActionsMenuVisible, setMoreActionsMenuVisible] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   // 加载 Enter 键发送设置
@@ -338,12 +343,8 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
   };
 
   const handleAttachment = () => {
-    // 简易选择：图片 或 文件
-    Alert.alert('添加附件', '请选择要添加的内容类型', [
-      { text: '图片', onPress: () => pickImage() },
-      { text: '文件', onPress: () => pickFile() },
-      { text: '取消', style: 'cancel' },
-    ]);
+    // 显示底部菜单
+    setAttachmentMenuVisible(true);
   };
 
   const pickImage = async () => {
@@ -385,6 +386,29 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
     console.log('打开语音输入');
   };
 
+  const handleMoreActions = () => {
+    // 显示更多功能菜单
+    setMoreActionsMenuVisible(true);
+  };
+
+  const handleClearConversation = async () => {
+    if (!conversationId) return;
+
+    try {
+      // 清空当前对话的所有消息
+      await MessageRepository.clearConversationMessages(conversationId);
+
+      // 立即发送事件通知消息列表刷新
+      appEvents.emit(AppEvents.MESSAGES_CLEARED, conversationId);
+
+      // 提示用户
+      Alert.alert('成功', '对话已清空');
+    } catch (error) {
+      console.error('[ChatInput] 清除对话失败', error);
+      Alert.alert('错误', '清除对话失败，请重试');
+    }
+  };
+
   const handleStop = () => {
     if (abortRef.current) {
       abortRef.current.abort();
@@ -393,8 +417,23 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
   };
 
   return (
-    <View
-    >
+    <View>
+      {/* 附件选择底部菜单 */}
+      <AttachmentMenu
+        visible={attachmentMenuVisible}
+        onClose={() => setAttachmentMenuVisible(false)}
+        onSelectImage={pickImage}
+        onSelectFile={pickFile}
+      />
+
+      {/* 更多功能底部菜单 */}
+      <MoreActionsMenu
+        visible={moreActionsMenuVisible}
+        onClose={() => setMoreActionsMenuVisible(false)}
+        onClearConversation={handleClearConversation}
+        conversationId={conversationId}
+      />
+
       <View style={styles.outerContainer}>
         {/* 搜索加载指示器 */}
         {isSearching && (
@@ -492,7 +531,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
                 icon="plus-circle-outline"
                 iconColor={theme.colors.onSurfaceVariant}
                 size={20}
-                onPress={() => console.log('更多功能')}
+                onPress={handleMoreActions}
                 style={styles.toolButtonStyle}
               />
             </View>

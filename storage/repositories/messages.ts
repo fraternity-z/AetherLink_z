@@ -111,6 +111,13 @@ export const MessageRepository = {
     await execute(`DELETE FROM messages WHERE id = ?`, [id]);
   },
 
+  async clearConversationMessages(conversationId: string): Promise<void> {
+    // 清空指定对话的所有消息（但保留对话本身）
+    await execute(`DELETE FROM messages WHERE conversation_id = ?`, [conversationId]);
+    // 更新对话的 updated_at 时间戳
+    await execute(`UPDATE conversations SET updated_at = ? WHERE id = ?`, [now(), conversationId]);
+  },
+
   async getAllMessages(): Promise<Message[]> {
     const rows = await queryAll<any>(
       `SELECT id, conversation_id as conversationId, role, text, created_at as createdAt, status, parent_id as parentId
