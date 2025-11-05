@@ -8,9 +8,8 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, TextInput as RNTextInput, Alert, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Platform, TextInput as RNTextInput, Alert, ScrollView, TouchableOpacity } from 'react-native';
 import { IconButton, useTheme } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChatRepository } from '@/storage/repositories/chat';
 import { MessageRepository } from '@/storage/repositories/messages';
 import { streamCompletion, type Provider } from '@/services/ai/AiClient';
@@ -28,22 +27,14 @@ import { SearchLoadingIndicator } from './SearchLoadingIndicator';
 
 export function ChatInput({ conversationId, onConversationChange }: { conversationId: string | null; onConversationChange: (id: string) => void; }) {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
   const [message, setMessage] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedAttachments, setSelectedAttachments] = useState<Attachment[]>([]);
-  const [searchEnabled, setSearchEnabled] = useState(false); // 搜索开关状态
-  const [isSearching, setIsSearching] = useState(false); // 搜索进行中状态
-  const [currentSearchQuery, setCurrentSearchQuery] = useState(''); // 当前搜索查询
-  const [currentSearchEngine, setCurrentSearchEngine] = useState<SearchEngine>('bing'); // 当前搜索引擎
+  const [searchEnabled, setSearchEnabled] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [currentSearchQuery, setCurrentSearchQuery] = useState('');
+  const [currentSearchEngine, setCurrentSearchEngine] = useState<SearchEngine>('bing');
   const abortRef = useRef<AbortController | null>(null);
-
-  // 🎯 优化：动态计算键盘偏移量，适配不同设备（包括刘海屏）
-  const keyboardVerticalOffset = Platform.select({
-    ios: insets.bottom + 50, // iOS: 底部安全区 + Header 高度
-    android: 0, // Android: height 模式不需要偏移
-    default: 0,
-  });
 
   const supportsVision = (provider: Provider, model: string) => {
     const m = (model || '').toLowerCase();
@@ -392,9 +383,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={keyboardVerticalOffset}
+    <View
     >
       <View style={styles.outerContainer}>
         {/* 搜索加载指示器 */}
@@ -517,7 +506,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
           </View>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

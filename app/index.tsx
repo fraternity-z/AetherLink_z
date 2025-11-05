@@ -3,7 +3,8 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from 'react-native-paper';
 import { ChatHeader } from '@/components/chat/ChatHeader';
 import { MessageList } from '@/components/chat/MessageList';
@@ -14,6 +15,8 @@ import { TopicsSidebar } from '@/components/chat/TopicsSidebar';
 import { ModelPickerDialog } from '@/components/chat/ModelPickerDialog';
 
 export default function ChatScreen() {
+  const insets = useSafeAreaInsets();
+  const keyboardVerticalOffset = Platform.OS === 'ios' ? insets.bottom : 0;
   const theme = useTheme();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [topicsOpen, setTopicsOpen] = useState(false);
@@ -32,7 +35,8 @@ export default function ChatScreen() {
   }, [params?.cid]);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={keyboardVerticalOffset}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]} >
       {/* 顶部导航栏 */}
       <ChatHeader
         onMenuPress={handleMenuPress}
@@ -56,7 +60,8 @@ export default function ChatScreen() {
       <ModelPickerDialog visible={modelPickerOpen} onDismiss={() => setModelPickerOpen(false)} />
       {/* TODO: 实现消息上下文菜单（长按操作） */}
       {/* TODO: 实现消息加载更多功能 */}
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
