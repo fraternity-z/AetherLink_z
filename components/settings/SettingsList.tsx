@@ -10,6 +10,7 @@
 import React from 'react';
 import { ScrollView, View, StyleSheet, useWindowDimensions } from 'react-native';
 import { Text, Avatar, TouchableRipple, useTheme } from 'react-native-paper';
+import { Card, ListItem, Icon, useTheme as useRNETheme } from '@rneui/themed';
 import { router } from 'expo-router';
 
 // 设置项数据结构
@@ -182,6 +183,7 @@ function withOpacity(hex: string, opacity = 0.12) {
 
 export function SettingsList() {
   const theme = useTheme();
+  const rneTheme = useRNETheme();
   const { width } = useWindowDimensions();
 
   // 响应式列数：手机1列、平板2列、桌面3列
@@ -209,8 +211,9 @@ export function SettingsList() {
           <Text
             variant="labelLarge"
             style={{
-              marginBottom: 10,
+              marginBottom: 16,
               color: theme.colors.onSurfaceVariant,
+              fontWeight: '600',
             }}
           >
             {group.title}
@@ -228,50 +231,32 @@ export function SettingsList() {
                     marginBottom: gap,
                   }}
                 >
-                  <TouchableRipple
-                    borderless={false}
-                    style={{ borderRadius: 14 }}
-                    onPress={() => handleItemPress(item)}
-                  >
-                    <View
-                      style={{
-                        borderRadius: 14,
-                        backgroundColor: theme.colors.surface,
-                        borderWidth: StyleSheet.hairlineWidth,
-                        borderColor: theme.dark ? '#2A2A2A' : '#E5E7EB',
-                        paddingHorizontal: 14,
-                        paddingVertical: 14,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                      }}
+                  <Card containerStyle={styles.cardContainer}>
+                    <ListItem
+                      containerStyle={styles.listItemContainer}
+                      onPress={() => handleItemPress(item)}
                     >
-                      <View style={{ marginRight: 12 }}>
-                        <Avatar.Icon
-                          size={36}
-                          icon={item.icon as any}
-                          color={item.color}
-                          style={{ backgroundColor: withOpacity(item.color, 0.15) }}
-                        />
-                      </View>
-
-                      <View style={{ flex: 1 }}>
-                        <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>
+                      <Avatar.Icon key="icon"                        size={40}
+                        icon={item.icon as any}
+                        color={item.color}
+                        style={{ backgroundColor: withOpacity(item.color, 0.15) }}
+                      />
+                      <ListItem.Content key="content">
+                        <ListItem.Title style={styles.title}>
                           {item.title}
-                        </Text>
-                        <Text
-                          variant="bodySmall"
-                          style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}
-                          numberOfLines={1}
-                        >
+                        </ListItem.Title>
+                        <ListItem.Subtitle style={styles.subtitle} numberOfLines={2}>
                           {item.description}
-                        </Text>
-                      </View>
-
-                      <View style={{ marginLeft: 8 }}>
-                        <Text style={{ color: theme.colors.onSurfaceVariant }}>{'>'}</Text>
-                      </View>
-                    </View>
-                  </TouchableRipple>
+                        </ListItem.Subtitle>
+                      </ListItem.Content>
+                      <Icon key="chevron"
+                        name="chevron-right"
+                        type="material-community"
+                        color={theme.colors.onSurfaceVariant}
+                        size={24}
+                      />
+                    </ListItem>
+                  </Card>
                 </View>
               );
             })}
@@ -280,11 +265,20 @@ export function SettingsList() {
       ))}
 
       {/* TODO 提示 */}
-      <View style={styles.todoHint}>
-        <Text style={{ fontSize: 12, color: theme.colors.onSurfaceVariant }}>
-          💡 TODO: 实现各项设置功能
-        </Text>
-      </View>
+      <Card containerStyle={styles.todoCard}>
+        <View style={styles.todoHint}>
+          <Icon
+            name="lightbulb-outline"
+            type="material-community"
+            color={theme.colors.primary}
+            size={20}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={{ fontSize: 14, color: theme.colors.onSurfaceVariant }}>
+            提示：点击各项设置进入详细配置页面
+          </Text>
+        </View>
+      </Card>
     </ScrollView>
   );
 }
@@ -297,10 +291,43 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   group: {
-    marginBottom: 16,
+    marginBottom: 24,
+  },
+  cardContainer: {
+    borderRadius: 16,
+    margin: 0,
+    padding: 0,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  listItemContainer: {
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  todoCard: {
+    backgroundColor: 'rgba(99, 102, 241, 0.05)',
+    borderColor: 'rgba(99, 102, 241, 0.2)',
+    borderWidth: 1,
   },
   todoHint: {
-    marginTop: 16,
-    opacity: 0.6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
   },
 });

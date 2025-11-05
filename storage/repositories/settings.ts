@@ -3,6 +3,9 @@ import { AsyncKVStore } from '@/storage/adapters/async-storage';
 
 export enum SettingKey {
   Theme = 'al:settings:theme',
+  ThemeStyle = 'al:settings:theme_style',
+  FontScale = 'al:settings:font_scale',
+  FontFamily = 'al:settings:font_family',
   DefaultModel = 'al:settings:default_model',
   DefaultProvider = 'al:settings:default_provider',
   HapticsOn = 'al:settings:haptics_on',

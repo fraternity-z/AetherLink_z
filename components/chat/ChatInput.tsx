@@ -463,23 +463,25 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
             <View style={styles.leftTools}>
               <IconButton
                 icon="web"
-                size={20}
                 iconColor={searchEnabled ? theme.colors.primary : theme.colors.onSurfaceVariant}
+                size={20}
                 onPress={() => setSearchEnabled(!searchEnabled)}
-                style={styles.toolButton}
                 disabled={isSearching}
+                style={styles.toolButtonStyle}
               />
               <IconButton
-                icon="paperclip"
+                icon="attachment"
+                iconColor={theme.colors.onSurfaceVariant}
                 size={20}
                 onPress={handleAttachment}
-                style={styles.toolButton}
+                style={styles.toolButtonStyle}
               />
               <IconButton
-                icon="plus"
+                icon="plus-circle-outline"
+                iconColor={theme.colors.onSurfaceVariant}
                 size={20}
                 onPress={() => console.log('更多功能')}
-                style={styles.toolButton}
+                style={styles.toolButtonStyle}
               />
             </View>
 
@@ -487,23 +489,29 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
             <View style={styles.rightTools}>
               <IconButton
                 icon="microphone"
+                iconColor={theme.colors.onSurfaceVariant}
                 size={20}
                 onPress={handleVoice}
-                style={styles.toolButton}
+                style={styles.toolButtonStyle}
               />
               <IconButton
                 icon={isGenerating ? "stop" : "send"}
-                size={20}
                 iconColor={
                   isGenerating
-                    ? theme.colors.error
+                    ? "#fff"
                     : (message.trim() || selectedAttachments.length > 0)
                       ? theme.colors.primary
                       : theme.colors.onSurfaceDisabled
                 }
+                size={20}
                 onPress={isGenerating ? handleStop : handleSend}
                 disabled={!message.trim() && selectedAttachments.length === 0 && !isGenerating}
-                style={styles.toolButton}
+                style={[
+                  styles.toolButtonStyle,
+                  isGenerating && {
+                    backgroundColor: theme.colors.error,
+                  }
+                ]}
               />
             </View>
           </View>
@@ -535,13 +543,14 @@ const styles = StyleSheet.create({
     }),
   },
   textInput: {
-    minHeight: 44,
-    maxHeight: 120,
+    fontSize: 15,
+    lineHeight: 20,
+    textAlignVertical: 'top',
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
-    fontSize: 15,
-    lineHeight: 20,
+    minHeight: 44,
+    maxHeight: 120,
   },
   attachmentsBar: {
     paddingHorizontal: 8,
@@ -586,9 +595,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    paddingBottom: 4,
-    minHeight: 40,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    minHeight: 52,
   },
   leftTools: {
     flexDirection: 'row',
@@ -598,9 +607,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  toolButton: {
-    margin: 0,
-    width: 36,
-    height: 36,
+  toolButtonStyle: {
+    marginHorizontal: 2,
   },
 });

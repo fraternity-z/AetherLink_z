@@ -6,7 +6,8 @@
       "Bash(npx tsc:*)",
       "Bash(npm run:*)",
       "Bash(npm uninstall:*)",
-      "Bash(npx expo start:*)"
+      "Bash(npx expo start:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []
