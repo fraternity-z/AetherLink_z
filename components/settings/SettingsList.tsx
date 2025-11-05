@@ -242,10 +242,10 @@ export function SettingsList() {
                         style={{ backgroundColor: withOpacity(item.color, 0.15) }}
                       />
                       <ListItem.Content key="content">
-                        <ListItem.Title style={styles.title}>
+                        <ListItem.Title key="title" style={styles.title}>
                           {item.title}
                         </ListItem.Title>
-                        <ListItem.Subtitle style={styles.subtitle} numberOfLines={2}>
+                        <ListItem.Subtitle key="subtitle" style={styles.subtitle} numberOfLines={2}>
                           {item.description}
                         </ListItem.Subtitle>
                       </ListItem.Content>

@@ -108,7 +108,15 @@ export default function AppearanceSettings() {
                 anchor={<Button onPress={() => setModeMenuVisible(true)} mode="outlined">{THEME_MODES.find(x => x.value === mode)?.label}</Button>}
               >
                 {THEME_MODES.map(m => (
-                  <Menu.Item key={m.value} title={m.label} onPress={() => { setModeMenuVisible(false); saveMode(m.value); }} />
+                  <Menu.Item
+                    key={m.value}
+                    title={m.label}
+                    onPress={() => {
+                      setModeMenuVisible(false);
+                      // 延迟状态更新，确保 Menu 先完成关闭动画
+                      setTimeout(() => saveMode(m.value), 100);
+                    }}
+                  />
                 ))}
               </Menu>
             )}
@@ -174,9 +182,27 @@ export default function AppearanceSettings() {
                 onDismiss={() => setFontMenuVisible(false)}
                 anchor={<Button onPress={() => setFontMenuVisible(true)} mode="outlined">{fontFamily === 'system' ? '系统默认' : fontFamily}</Button>}
               >
-                <Menu.Item title="系统默认" onPress={() => { setFontMenuVisible(false); saveFontFamily('system'); }} />
-                <Menu.Item title="Serif" onPress={() => { setFontMenuVisible(false); saveFontFamily('Serif'); }} />
-                <Menu.Item title="Mono" onPress={() => { setFontMenuVisible(false); saveFontFamily('Mono'); }} />
+                <Menu.Item
+                  title="系统默认"
+                  onPress={() => {
+                    setFontMenuVisible(false);
+                    setTimeout(() => saveFontFamily('system'), 100);
+                  }}
+                />
+                <Menu.Item
+                  title="Serif"
+                  onPress={() => {
+                    setFontMenuVisible(false);
+                    setTimeout(() => saveFontFamily('Serif'), 100);
+                  }}
+                />
+                <Menu.Item
+                  title="Mono"
+                  onPress={() => {
+                    setFontMenuVisible(false);
+                    setTimeout(() => saveFontFamily('Mono'), 100);
+                  }}
+                />
               </Menu>
             )}
           />

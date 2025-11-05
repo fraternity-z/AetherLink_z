@@ -51,7 +51,9 @@ export function MessageList({ conversationId }: { conversationId: string | null 
     <ScrollView
       ref={scrollViewRef}
       style={[styles.container, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={styles.contentContainer}
+      contentContainerStyle={[
+        items.length === 0 ? styles.contentContainerEmpty : styles.contentContainerWithMessages
+      ]}
     >
       {/* 空状态欢迎提示 */}
       {(items.length === 0) && (
@@ -88,11 +90,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  contentContainer: {
+  contentContainerEmpty: {
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
+  },
+  contentContainerWithMessages: {
+    paddingVertical: 16,
   },
   emptyStateContainer: {
     flex: 1,
@@ -105,7 +110,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   messagesContainer: {
-    flex: 1,
     width: '100%',
   },
 });

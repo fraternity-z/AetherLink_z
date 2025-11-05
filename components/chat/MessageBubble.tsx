@@ -4,12 +4,11 @@
  * 功能：
  * - 显示单条消息内容
  * - 区分用户消息和 AI 消息样式
- * - Material Design 卡片样式
+ * - 现代聊天应用风格的气泡设计
  */
 
-import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Card, Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper';
+import { Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper';
 import { Image } from 'expo-image';
 import type { Attachment } from '@/storage/core';
 import { MixedRenderer } from './MixedRenderer';
@@ -50,78 +49,119 @@ export function MessageBubble({ content, isUser, timestamp, status, attachments 
       styles.container,
       isUser ? styles.userContainer : styles.aiContainer
     ]}>
-      <View style={styles.messageRow}>
-        {!isUser && (
+      {/* 头像（上方） */}
+      <View style={styles.avatarRow}>
+        {!isUser ? (
           <Avatar.Icon
-            size={32}
+            size={36}
             icon="robot"
             style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
           />
-        )}
-
-        <Card
-          style={[
-            styles.card,
-            isUser ? { backgroundColor: theme.colors.primaryContainer } : {}
-          ]}
-        >
-          <Card.Content>
-            {/* 附件预览（图片缩略图 + 文件条目） */}
-            {attachments.length > 0 && (
-              <View style={styles.attachmentsContainer}>
-                {attachments.map(att => (
-                  att.kind === 'image' && att.uri ? (
-                    <Image
-                      key={att.id}
-                      source={{ uri: att.uri }}
-                      style={styles.imageThumb}
-                      contentFit="cover"
-                    />
-                  ) : (
-                    <View key={att.id} style={[styles.fileItem, { borderColor: theme.colors.outlineVariant }]}> 
-                      <Avatar.Icon size={16} icon="paperclip" style={styles.fileIcon} />
-                      <Text variant="bodySmall" numberOfLines={1} style={styles.fileName}>
-                        {att.name || '附件'}
-                      </Text>
-                    </View>
-                  )
-                ))}
-              </View>
-            )}
-
-            {/* 智能内容渲染：用户消息使用纯文本，AI 消息支持 Markdown 和数学公式 */}
-            {isUser ? (
-              <Text variant="bodyMedium" style={attachments.length ? styles.contentWithAttachments : undefined}>
-                {content || (status === 'pending' ? '正在思考...' : '')}
-              </Text>
-            ) : (
-              <View style={[attachments.length ? styles.contentWithAttachments : styles.rendererContainer]}>
-                <MixedRenderer
-                  content={content || (status === 'pending' ? '正在思考...' : '')}
-                />
-              </View>
-            )}
-            <View style={styles.footerRow}>
-              {timestamp && (
-                <Text
-                  variant="bodySmall"
-                  style={[styles.timestamp, { color: theme.colors.onSurfaceVariant }]}
-                >
-                  {timestamp}
-                </Text>
-              )}
-              {getStatusIndicator()}
-            </View>
-          </Card.Content>
-        </Card>
-
-        {isUser && (
+        ) : (
           <Avatar.Icon
-            size={32}
+            size={36}
             icon="account"
             style={[styles.avatar, { backgroundColor: theme.colors.secondary }]}
           />
         )}
+      </View>
+
+      {/* 消息气泡容器 */}
+      <View style={styles.bubbleWrapper}>
+        {/* 气泡主体 */}
+        <View
+          style={[
+            styles.bubble,
+            isUser
+              ? { backgroundColor: theme.colors.primary }
+              : {
+                  backgroundColor: theme.dark
+                    ? theme.colors.surfaceVariant
+                    : '#F0F0F0'
+                }
+          ]}
+        >
+          {/* 附件预览（图片缩略图 + 文件条目） */}
+          {attachments.length > 0 && (
+            <View style={styles.attachmentsContainer}>
+              {attachments.map(att => (
+                att.kind === 'image' && att.uri ? (
+                  <Image
+                    key={att.id}
+                    source={{ uri: att.uri }}
+                    style={styles.imageThumb}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <View key={att.id} style={[
+                    styles.fileItem,
+                    {
+                      borderColor: isUser
+                        ? theme.colors.onPrimary
+                        : theme.colors.outlineVariant,
+                      backgroundColor: isUser
+                        ? 'rgba(255, 255, 255, 0.2)'
+                        : 'rgba(0, 0, 0, 0.05)'
+                    }
+                  ]}>
+                    <Avatar.Icon
+                      size={16}
+                      icon="paperclip"
+                      style={styles.fileIcon}
+                      color={isUser ? theme.colors.onPrimary : theme.colors.onSurface}
+                    />
+                    <Text
+                      variant="bodySmall"
+                      numberOfLines={1}
+                      style={[
+                        styles.fileName,
+                        { color: isUser ? theme.colors.onPrimary : theme.colors.onSurface }
+                      ]}
+                    >
+                      {att.name || '附件'}
+                    </Text>
+                  </View>
+                )
+              ))}
+            </View>
+          )}
+
+          {/* 智能内容渲染：用户消息使用纯文本，AI 消息支持 Markdown 和数学公式 */}
+          {isUser ? (
+            <Text
+              variant="bodyMedium"
+              style={[
+                styles.messageText,
+                { color: theme.colors.onPrimary },
+                attachments.length ? styles.contentWithAttachments : undefined
+              ]}
+            >
+              {content || (status === 'pending' ? '正在发送...' : '')}
+            </Text>
+          ) : (
+            <View style={[attachments.length ? styles.contentWithAttachments : styles.rendererContainer]}>
+              <MixedRenderer
+                content={content || (status === 'pending' ? '正在思考...' : '')}
+              />
+            </View>
+          )}
+        </View>
+
+        {/* 时间戳和状态指示器 */}
+        <View style={[
+          styles.footerRow,
+          isUser ? styles.footerRowUser : styles.footerRowAI
+        ]}>
+          {timestamp && (
+            <Text
+              variant="bodySmall"
+              style={[styles.timestamp, { color: theme.colors.onSurfaceVariant }]}
+            >
+              {timestamp}
+            </Text>
+          )}
+          {getStatusIndicator()}
+        </View>
       </View>
     </View>
   );
@@ -129,43 +169,58 @@ export function MessageBubble({ content, isUser, timestamp, status, attachments 
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 4,
+    marginVertical: 6,
     marginHorizontal: 12,
+    maxWidth: '85%',
   },
   userContainer: {
+    alignSelf: 'flex-end',
     alignItems: 'flex-end',
   },
   aiContainer: {
+    alignSelf: 'flex-start',
     alignItems: 'flex-start',
   },
-  messageRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    maxWidth: '85%',
+  avatarRow: {
+    marginBottom: 6,
   },
   avatar: {
-    marginHorizontal: 8,
+    marginHorizontal: 0,
   },
-  card: {
-    flex: 1,
-    elevation: 1,
+  bubbleWrapper: {
+    flexDirection: 'column',
+  },
+  bubble: {
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  messageText: {
+    fontSize: 15,
+    lineHeight: 22,
   },
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
     marginTop: 4,
+    paddingHorizontal: 2,
+  },
+  footerRowUser: {
+    justifyContent: 'flex-end',
+  },
+  footerRowAI: {
+    justifyContent: 'flex-start',
   },
   attachmentsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   imageThumb: {
     width: 120,
     height: 80,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   fileItem: {
     flexDirection: 'row',
@@ -177,7 +232,8 @@ const styles = StyleSheet.create({
     maxWidth: 200,
   },
   fileIcon: {
-    marginRight: 6,
+    marginRight: 4,
+    margin: 0,
   },
   fileName: {
     flexShrink: 1,
@@ -186,13 +242,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   rendererContainer: {
-    minHeight: 20, // 确保渲染容器有最小高度
+    minHeight: 20,
   },
   timestamp: {
-    fontSize: 10,
-    marginRight: 4,
+    fontSize: 11,
+    marginHorizontal: 4,
   },
   statusIndicator: {
-    marginLeft: 4,
+    marginHorizontal: 4,
   },
 });

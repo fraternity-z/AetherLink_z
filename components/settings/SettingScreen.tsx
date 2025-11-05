@@ -12,10 +12,10 @@ interface SettingScreenProps {
 export function SettingScreen({ title, children, description }: SettingScreenProps) {
   const theme = useTheme();
   return (
-    <View style={[styles.root, { backgroundColor: theme.colors.surfaceVariant }]}> 
+    <View style={[styles.root, { backgroundColor: theme.colors.surfaceVariant }]}>
       <Stack.Screen options={{ title }} />
       {description ? (
-        <View style={[styles.header, { backgroundColor: theme.colors.surface }]}> 
+        <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
             {description}
           </Text>

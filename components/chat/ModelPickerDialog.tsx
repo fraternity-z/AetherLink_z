@@ -92,9 +92,9 @@ export function ModelPickerDialog({ visible, onDismiss }: Props) {
       <ScrollView style={{ maxHeight: 400 }}>
         {enabledProviders.map((p, providerIndex) => (
           <View key={p}>
-            {providerIndex > 0 && <Divider style={{ marginVertical: 12 }} />}
+            {providerIndex > 0 && <Divider key={`sep:${p}`} style={{ marginVertical: 12 }} />}
 
-            <ListItem containerStyle={{
+            <ListItem key={`header:${p}`} containerStyle={{
               backgroundColor: theme.colors.primaryContainer,
               borderRadius: 12,
               marginBottom: 8,

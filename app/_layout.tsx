@@ -21,9 +21,9 @@ function RootLayoutInner() {
         {/* 设置页（指向 app/settings/index.tsx） */}
           <Stack.Screen name="settings/index" options={{ title: '设置' }} />
         {/* 外观设置页 */}
-          <Stack.Screen name="settings/appearance" options={{ headerShown: false }} />
+          <Stack.Screen name="settings/appearance" />
         {/* 行为设置页 */}
-        <Stack.Screen name="settings/behavior" options={{ headerShown: false }} />
+        <Stack.Screen name="settings/behavior" />
         {/* 话题列表 */}
         <Stack.Screen name="topics/index" options={{ title: '话题列表' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />

@@ -9,9 +9,9 @@
  */
 
 import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Appbar, List, Switch, Text, useTheme, Divider } from 'react-native-paper';
-import { router } from 'expo-router';
+import { View, StyleSheet } from 'react-native';
+import { List, Switch, Text, useTheme } from 'react-native-paper';
+import { SettingScreen } from '@/components/settings/SettingScreen';
 
 export default function BehaviorSettings() {
   const theme = useTheme();
@@ -20,33 +20,8 @@ export default function BehaviorSettings() {
   const [mobileInputMode, setMobileInputMode] = React.useState(false);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* 顶部导航栏 */}
-      <Appbar.Header elevated>
-        <Appbar.BackAction onPress={() => router.back()} />
-        <Appbar.Content title="行为设置" />
-      </Appbar.Header>
-
-      {/* 设置内容 */}
-      <ScrollView>
-        {/* 标题说明 */}
-        <View style={styles.headerSection}>
-          <Text
-            variant="titleMedium"
-            style={{ color: theme.colors.onBackground, marginBottom: 4 }}
-          >
-            交互行为
-          </Text>
-          <Text
-            variant="bodySmall"
-            style={{ color: theme.colors.onSurfaceVariant }}
-          >
-            自定义应用的交互方式和通知设置
-          </Text>
-        </View>
-
-        {/* 设置列表 */}
-        <List.Section>
+    <SettingScreen title="行为设置" description="自定义应用的交互方式和通知设置">
+      <List.Section>
           {/* 使用Enter键发送清息 */}
           <View style={[styles.settingCard, {
             backgroundColor: theme.colors.surface,
@@ -151,40 +126,32 @@ export default function BehaviorSettings() {
           </View>
         </List.Section>
 
-        {/* TODO 提示 */}
-        <View style={styles.todoHint}>
-          <Text
-            variant="bodySmall"
-            style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}
-          >
-            💡 TODO: 实现设置项的持久化存储
-          </Text>
-          <Text
-            variant="bodySmall"
-            style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 4 }}
-          >
-            💡 TODO: 实现Enter键发送消息功能
-          </Text>
-          <Text
-            variant="bodySmall"
-            style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 4 }}
-          >
-            💡 TODO: 实现系统通知功能
-          </Text>
-        </View>
-      </ScrollView>
-    </View>
+      {/* TODO 提示 */}
+      <View style={styles.todoHint}>
+        <Text
+          variant="bodySmall"
+          style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}
+        >
+          💡 TODO: 实现设置项的持久化存储
+        </Text>
+        <Text
+          variant="bodySmall"
+          style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 4 }}
+        >
+          💡 TODO: 实现Enter键发送消息功能
+        </Text>
+        <Text
+          variant="bodySmall"
+          style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 4 }}
+        >
+          💡 TODO: 实现系统通知功能
+        </Text>
+      </View>
+    </SettingScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  headerSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-  },
   settingCard: {
     marginHorizontal: 16,
     borderRadius: 12,
