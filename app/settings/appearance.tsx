@@ -1,21 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
-import { List, Text, Menu, Button, useTheme, Chip } from 'react-native-paper';
+import { List, Text, useTheme, Chip } from 'react-native-paper';
 import Slider from '@react-native-community/slider';
 import { SettingScreen } from '@/components/settings/SettingScreen';
 import { ThemeStyleCard, ThemePreview } from '@/components/settings/ThemeStyleCard';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 
-// 可选主题模式
-const THEME_MODES = [
-  { value: 'system', label: '跟随系统' },
-  { value: 'light', label: '浅色' },
-  { value: 'dark', label: '深色' },
-] as const;
-
-type ThemeMode = typeof THEME_MODES[number]['value'];
-
-type ThemeStyle =
+// 主题风格枚举
+export type ThemeStyle =
   | 'default'
   | 'claude'
   | 'business'
@@ -42,34 +34,19 @@ export default function AppearanceSettings() {
   const theme = useTheme();
   const sr = SettingsRepository();
 
-  // 状态：主题模式、风格、字体大小、字体族
-  const [mode, setMode] = useState<ThemeMode>('system');
+  // 状态：主题风格、字体大小
   const [styleId, setStyleId] = useState<ThemeStyle>('default');
   const [fontScale, setFontScale] = useState<number>(16);
-  const [fontFamily, setFontFamily] = useState<string>('system');
 
-  // 菜单
-  const [modeMenuVisible, setModeMenuVisible] = useState(false);
-  const [fontMenuVisible, setFontMenuVisible] = useState(false);
-
-  // 加载持久化设置
-  React.useEffect(() => {
+  // 加载持久化设置（仅保留风格与字体大小）
+  useEffect(() => {
     (async () => {
-      const m = await sr.get<ThemeMode>(SettingKey.Theme);
       const s = await sr.get<ThemeStyle>(SettingKey.ThemeStyle);
       const fs = await sr.get<number>(SettingKey.FontScale);
-      const ff = await sr.get<string>(SettingKey.FontFamily);
-      if (m) setMode(m);
       if (s) setStyleId(s);
       if (fs) setFontScale(fs);
-      if (ff) setFontFamily(ff);
     })();
   }, []);
-
-  const saveMode = async (m: ThemeMode) => {
-    setMode(m);
-    await sr.set(SettingKey.Theme, m);
-  };
 
   const saveStyle = async (id: ThemeStyle) => {
     setStyleId(id);
@@ -82,48 +59,13 @@ export default function AppearanceSettings() {
     await sr.set(SettingKey.FontScale, rounded);
   };
 
-  const saveFontFamily = async (ff: string) => {
-    setFontFamily(ff);
-    await sr.set(SettingKey.FontFamily, ff);
-  };
-
-  const fontScaleLabel = React.useMemo(() => {
+  const fontScaleLabel = useMemo(() => {
     if (fontScale === 16) return `${fontScale}px（标准）`;
     return `${fontScale}px`;
   }, [fontScale]);
 
   return (
     <SettingScreen title="外观设置" description="自定义应用的外观主题和全局字体大小设置">
-      {/* 主题和字体 */}
-      <List.Section style={styles.section}>
-        <Text variant="titleSmall" style={styles.sectionTitle}>主题和字体</Text>
-        <View style={[styles.card, { backgroundColor: theme.colors.surface }]}> 
-          <List.Item
-            title="主题"
-            description="选择应用的主题，跟随系统将自动适配暗/浅色模式"
-            right={() => (
-              <Menu
-                visible={modeMenuVisible}
-                onDismiss={() => setModeMenuVisible(false)}
-                anchor={<Button onPress={() => setModeMenuVisible(true)} mode="outlined">{THEME_MODES.find(x => x.value === mode)?.label}</Button>}
-              >
-                {THEME_MODES.map(m => (
-                  <Menu.Item
-                    key={m.value}
-                    title={m.label}
-                    onPress={() => {
-                      setModeMenuVisible(false);
-                      // 延迟状态更新，确保 Menu 先完成关闭动画
-                      setTimeout(() => saveMode(m.value), 100);
-                    }}
-                  />
-                ))}
-              </Menu>
-            )}
-          />
-        </View>
-      </List.Section>
-
       {/* 主题风格 */}
       <List.Section style={styles.section}>
         <Text variant="titleSmall" style={styles.sectionTitle}>主题风格</Text>
@@ -168,46 +110,6 @@ export default function AppearanceSettings() {
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>极大</Text>
         </View>
       </List.Section>
-
-      {/* 全局字体 */}
-      <List.Section style={styles.section}>
-        <Text variant="titleSmall" style={styles.sectionTitle}>全局字体</Text>
-        <View style={[styles.card, { backgroundColor: theme.colors.surface }]}> 
-          <List.Item
-            title="系统默认"
-            description="System Font"
-            right={() => (
-              <Menu
-                visible={fontMenuVisible}
-                onDismiss={() => setFontMenuVisible(false)}
-                anchor={<Button onPress={() => setFontMenuVisible(true)} mode="outlined">{fontFamily === 'system' ? '系统默认' : fontFamily}</Button>}
-              >
-                <Menu.Item
-                  title="系统默认"
-                  onPress={() => {
-                    setFontMenuVisible(false);
-                    setTimeout(() => saveFontFamily('system'), 100);
-                  }}
-                />
-                <Menu.Item
-                  title="Serif"
-                  onPress={() => {
-                    setFontMenuVisible(false);
-                    setTimeout(() => saveFontFamily('Serif'), 100);
-                  }}
-                />
-                <Menu.Item
-                  title="Mono"
-                  onPress={() => {
-                    setFontMenuVisible(false);
-                    setTimeout(() => saveFontFamily('Mono'), 100);
-                  }}
-                />
-              </Menu>
-            )}
-          />
-        </View>
-      </List.Section>
     </SettingScreen>
   );
 }
@@ -216,10 +118,6 @@ const styles = StyleSheet.create({
   section: { marginBottom: 12 },
   sectionTitle: { marginBottom: 8 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  card: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
   tip: {
     paddingHorizontal: 12,
     paddingVertical: 10,

@@ -35,31 +35,39 @@ export default function ChatScreen() {
   }, [params?.cid]);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={keyboardVerticalOffset}>
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]} >
-      {/* 顶部导航栏 */}
-      <ChatHeader
-        onMenuPress={handleMenuPress}
-        onTopicsPress={() => setTopicsOpen(true)}
-        onModelPickerPress={() => setModelPickerOpen(true)}
-      />
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        {/* 顶部导航栏 */}
+        <ChatHeader
+          onMenuPress={handleMenuPress}
+          onTopicsPress={() => setTopicsOpen(true)}
+          onModelPickerPress={() => setModelPickerOpen(true)}
+        />
 
-      {/* 消息列表 */}
-      <MessageList conversationId={conversationId} />
+        {/* 消息列表 - 占满整个屏幕 */}
+        <View style={styles.messagesContainer}>
+          <MessageList conversationId={conversationId} />
+        </View>
 
-      {/* 底部输入框 */}
-      <ChatInput conversationId={conversationId} onConversationChange={setConversationId} />
+        {/* 悬浮输入框 - 直接绝对定位在底部 */}
+        <View style={styles.inputWrapper}>
+          <ChatInput conversationId={conversationId} onConversationChange={setConversationId} />
+        </View>
 
-      {/* 侧边栏 */}
-      <ChatSidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      <TopicsSidebar
-        visible={topicsOpen}
-        onClose={() => setTopicsOpen(false)}
-        onSelectTopic={(id) => setConversationId(id)}
-      />
-      <ModelPickerDialog visible={modelPickerOpen} onDismiss={() => setModelPickerOpen(false)} />
-      {/* TODO: 实现消息上下文菜单（长按操作） */}
-      {/* TODO: 实现消息加载更多功能 */}
+        {/* 侧边栏 */}
+        <ChatSidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
+        <TopicsSidebar
+          visible={topicsOpen}
+          onClose={() => setTopicsOpen(false)}
+          onSelectTopic={(id) => setConversationId(id)}
+        />
+        <ModelPickerDialog visible={modelPickerOpen} onDismiss={() => setModelPickerOpen(false)} />
+        {/* TODO: 实现消息上下文菜单（长按操作） */}
+        {/* TODO: 实现消息加载更多功能 */}
       </View>
     </KeyboardAvoidingView>
   );
@@ -68,5 +76,14 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  messagesContainer: {
+    flex: 1,
+  },
+  inputWrapper: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
 });

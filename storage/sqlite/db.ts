@@ -29,6 +29,14 @@ export async function queryAll<T = any>(sql: string, args: any[] = []): Promise<
   return db.getAllAsync<T>(sql);
 }
 
+export async function queryOne<T = any>(sql: string, args: any[] = []): Promise<T | null> {
+  const db = getDB();
+  const result = args.length > 0
+    ? await db.getFirstAsync<T>(sql, args as any)
+    : await db.getFirstAsync<T>(sql);
+  return result || null;
+}
+
 export async function execute(sql: string, args: any[] = []): Promise<{ changes: number }> {
   const db = getDB();
   const result = await db.runAsync(sql, args as any);

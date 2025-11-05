@@ -1,7 +1,17 @@
 import { Conversation, now, uuid } from '@/storage/core';
-import { execute, queryAll } from '@/storage/sqlite/db';
+import { execute, queryAll, queryOne } from '@/storage/sqlite/db';
 
 export const ChatRepository = {
+  async getConversation(id: string): Promise<Conversation | null> {
+    const row = await queryOne<any>(
+      `SELECT id, title, created_at as createdAt, updated_at as updatedAt, archived
+       FROM conversations WHERE id = ?`,
+      [id]
+    );
+    if (!row) return null;
+    return { ...row, archived: !!row.archived };
+  },
+
   async createConversation(title?: string | null): Promise<Conversation> {
     const id = uuid();
     const createdAt = now();

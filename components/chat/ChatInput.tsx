@@ -34,7 +34,17 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
   const [isSearching, setIsSearching] = useState(false);
   const [currentSearchQuery, setCurrentSearchQuery] = useState('');
   const [currentSearchEngine, setCurrentSearchEngine] = useState<SearchEngine>('bing');
+  const [enterToSend, setEnterToSend] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  // 加载 Enter 键发送设置
+  React.useEffect(() => {
+    (async () => {
+      const sr = SettingsRepository();
+      const ets = await sr.get<boolean>(SettingKey.EnterToSend);
+      if (ets !== null) setEnterToSend(ets);
+    })();
+  }, []);
 
   const supportsVision = (provider: Provider, model: string) => {
     const m = (model || '').toLowerCase();
@@ -402,13 +412,26 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         }]}>
           {/* 上层：输入框 */}
           <RNTextInput
-            placeholder="和助手说点什么… (Ctrl+Enter 展开)"
+            placeholder={enterToSend ? "和助手说点什么… (Shift+Enter 换行)" : "和助手说点什么… (Ctrl+Enter 展开)"}
             placeholderTextColor={theme.colors.onSurfaceVariant}
             value={message}
             onChangeText={setMessage}
             multiline
             maxLength={2000}
             style={[styles.textInput, { color: theme.colors.onSurface }]}
+            onKeyPress={(e) => {
+              // Web 平台支持键盘事件
+              if (Platform.OS === 'web') {
+                const nativeEvent = e.nativeEvent as any;
+                // 如果启用了 Enter 发送，且按下 Enter 键（非 Shift+Enter）
+                if (enterToSend && nativeEvent.key === 'Enter' && !nativeEvent.shiftKey) {
+                  e.preventDefault();
+                  if (message.trim() || selectedAttachments.length > 0) {
+                    handleSend();
+                  }
+                }
+              }
+            }}
           />
 
           {/* 已选附件预览 */}
@@ -513,7 +536,8 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
 const styles = StyleSheet.create({
   outerContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   inputContainer: {
     borderRadius: 20,

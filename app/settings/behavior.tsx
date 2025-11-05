@@ -12,12 +12,23 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { List, Switch, Text, useTheme } from 'react-native-paper';
 import { SettingScreen } from '@/components/settings/SettingScreen';
+import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 
 export default function BehaviorSettings() {
   const theme = useTheme();
+  const sr = SettingsRepository();
   const [enterToSend, setEnterToSend] = React.useState(false);
-  const [enableNotifications, setEnableNotifications] = React.useState(false);
   const [mobileInputMode, setMobileInputMode] = React.useState(false);
+
+  // 加载持久化设置
+  React.useEffect(() => {
+    (async () => {
+      const ets = await sr.get<boolean>(SettingKey.EnterToSend);
+      const mim = await sr.get<boolean>(SettingKey.MobileInputMode);
+      if (ets !== null) setEnterToSend(ets);
+      if (mim !== null) setMobileInputMode(mim);
+    })();
+  }, []);
 
   return (
     <SettingScreen title="行为设置" description="自定义应用的交互方式和通知设置">
@@ -46,45 +57,9 @@ export default function BehaviorSettings() {
               </View>
               <Switch
                 value={enterToSend}
-                onValueChange={(value) => {
+                onValueChange={async (value) => {
                   setEnterToSend(value);
-                  // TODO: 实现Enter键发送逻辑切换
-                  console.log('Enter键发送:', value);
-                }}
-              />
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          {/* 启用通知 */}
-          <View style={[styles.settingCard, {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.outlineVariant,
-          }]}>
-            <View style={styles.settingRow}>
-              <View style={styles.iconContainer}>
-                <View style={[styles.iconCircle, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
-                  <Text style={{ fontSize: 18 }}>🔔</Text>
-                </View>
-              </View>
-              <View style={styles.settingContent}>
-                <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>
-                  启用通知
-                </Text>
-                <Text
-                  variant="bodySmall"
-                  style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}
-                >
-                  当AI助手回复完成时，显示系统桌面通知
-                </Text>
-              </View>
-              <Switch
-                value={enableNotifications}
-                onValueChange={(value) => {
-                  setEnableNotifications(value);
-                  // TODO: 实现通知逻辑切换
-                  console.log('启用通知:', value);
+                  await sr.set(SettingKey.EnterToSend, value);
                 }}
               />
             </View>
@@ -116,37 +91,14 @@ export default function BehaviorSettings() {
               </View>
               <Switch
                 value={mobileInputMode}
-                onValueChange={(value) => {
+                onValueChange={async (value) => {
                   setMobileInputMode(value);
-                  // TODO: 实现移动端输入法拦截逻辑
-                  console.log('移动端输入法拦截:', value);
+                  await sr.set(SettingKey.MobileInputMode, value);
                 }}
               />
             </View>
           </View>
         </List.Section>
-
-      {/* TODO 提示 */}
-      <View style={styles.todoHint}>
-        <Text
-          variant="bodySmall"
-          style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}
-        >
-          💡 TODO: 实现设置项的持久化存储
-        </Text>
-        <Text
-          variant="bodySmall"
-          style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 4 }}
-        >
-          💡 TODO: 实现Enter键发送消息功能
-        </Text>
-        <Text
-          variant="bodySmall"
-          style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 4 }}
-        >
-          💡 TODO: 实现系统通知功能
-        </Text>
-      </View>
     </SettingScreen>
   );
 }
@@ -178,11 +130,5 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 12,
-  },
-  todoHint: {
-    marginTop: 32,
-    marginBottom: 24,
-    paddingHorizontal: 24,
-    opacity: 0.5,
   },
 });

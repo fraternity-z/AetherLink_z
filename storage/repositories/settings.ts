@@ -28,6 +28,10 @@ export enum SettingKey {
   WebSearchEngine = 'al:settings:web_search_engine',
   WebSearchMaxResults = 'al:settings:web_search_max_results',
   TavilySearchApiKey = 'al:settings:tavily_search_api_key',
+  // 行为设置
+  EnterToSend = 'al:settings:enter_to_send',
+  EnableNotifications = 'al:settings:enable_notifications',
+  MobileInputMode = 'al:settings:mobile_input_mode',
 }
 
 
