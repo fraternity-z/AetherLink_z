@@ -8,8 +8,9 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, Platform, TextInput as RNTextInput, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, Platform, TextInput as RNTextInput, ScrollView, TouchableOpacity } from 'react-native';
 import { IconButton, useTheme } from 'react-native-paper';
+import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { ChatRepository } from '@/storage/repositories/chat';
 import { MessageRepository } from '@/storage/repositories/messages';
 import { streamCompletion, type Provider } from '@/services/ai/AiClient';
@@ -30,6 +31,7 @@ import { appEvents, AppEvents } from '@/utils/events';
 
 export function ChatInput({ conversationId, onConversationChange }: { conversationId: string | null; onConversationChange: (id: string) => void; }) {
   const theme = useTheme();
+  const { alert } = useConfirmDialog();
   const [message, setMessage] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedAttachments, setSelectedAttachments] = useState<Attachment[]>([]);
@@ -162,10 +164,9 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
             `</网络搜索失败>\n`;
 
           // 显示错误提示给用户
-          Alert.alert(
+          alert(
             '网络搜索失败',
-            `${errorMessage}\n${errorHint}`,
-            [{ text: '知道了' }]
+            `${errorMessage}\n${errorHint}`
           );
 
           // 搜索失败不记录历史
@@ -286,7 +287,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
 
           // 显示友好的错误提示
           const errorMessage = getErrorMessage(e);
-          Alert.alert('发送失败', errorMessage, [{ text: '确定' }]);
+          alert('发送失败', errorMessage);
         },
       });
     } catch (error: any) {
@@ -305,10 +306,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
 
       // 显示友好的错误提示
       const errorMessage = getErrorMessage(error);
-      Alert.alert('发送失败', errorMessage, [
-        { text: '取消', style: 'cancel' },
-        { text: '前往设置', onPress: () => console.log('TODO: 跳转到设置页面') }
-      ]);
+      alert('发送失败', errorMessage);
     } finally {
       abortRef.current = null;
     }
@@ -402,10 +400,10 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       appEvents.emit(AppEvents.MESSAGES_CLEARED, conversationId);
 
       // 提示用户
-      Alert.alert('成功', '对话已清空');
+      alert('成功', '对话已清空');
     } catch (error) {
       console.error('[ChatInput] 清除对话失败', error);
-      Alert.alert('错误', '清除对话失败，请重试');
+      alert('错误', '清除对话失败，请重试');
     }
   };
 

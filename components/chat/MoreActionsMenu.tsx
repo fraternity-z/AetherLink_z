@@ -16,10 +16,10 @@ import {
   TouchableWithoutFeedback,
   Platform,
   Pressable,
-  Alert,
 } from 'react-native';
 import { useTheme, Text } from 'react-native-paper';
 import { Icon } from '@rneui/themed';
+import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 
 interface MoreActionsMenuProps {
   visible: boolean;
@@ -35,6 +35,7 @@ export function MoreActionsMenu({
   conversationId,
 }: MoreActionsMenuProps) {
   const theme = useTheme();
+  const { confirmAction, alert } = useConfirmDialog();
   const slideAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -73,28 +74,26 @@ export function MoreActionsMenu({
 
   const handleClearConversation = () => {
     if (!conversationId) {
-      Alert.alert('提示', '当前没有对话需要清除');
+      alert('提示', '当前没有对话需要清除');
       onClose();
       return;
     }
 
-    Alert.alert(
+    confirmAction(
       '清除对话',
       '确定要清除当前话题的所有消息吗？此操作不可恢复。',
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '确定清除',
-          style: 'destructive',
-          onPress: () => {
-            onClose();
-            // 延迟执行，让菜单先关闭
-            setTimeout(() => {
-              onClearConversation();
-            }, 300);
-          },
-        },
-      ]
+      () => {
+        onClose();
+        // 延迟执行，让菜单先关闭
+        setTimeout(() => {
+          onClearConversation();
+        }, 300);
+      },
+      {
+        confirmText: '确定清除',
+        cancelText: '取消',
+        destructive: true,
+      }
     );
   };
 

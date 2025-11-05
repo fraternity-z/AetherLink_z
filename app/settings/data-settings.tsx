@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { List, Switch, Button, Card, Text, Divider, Portal, Dialog, ActivityIndicator, useTheme } from 'react-native-paper';
 import { SettingScreen } from '@/components/settings/SettingScreen';
 import { DataStatsService, DataStatistics } from '@/services/data/DataStats';
 import { DataBackupService, BackupData } from '@/services/data/DataBackup';
 import { DataCleanupService } from '@/services/data/DataCleanup';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
+import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 
 export default function DataSettings() {
   const theme = useTheme();
+  const { alert, confirmAction } = useConfirmDialog();
   const [analytics, setAnalytics] = useState(false);
   const [localCache, setLocalCache] = useState(true);
   const [stats, setStats] = useState<DataStatistics | null>(null);
@@ -61,9 +63,9 @@ export default function DataSettings() {
     try {
       setLoading(true);
       await DataBackupService.exportAndShare();
-      Alert.alert('成功', '数据已导出');
+      alert('成功', '数据已导出');
     } catch (e: any) {
-      Alert.alert('导出失败', e?.message || String(e));
+      alert('导出失败', e?.message || String(e));
     } finally {
       setLoading(false);
     }
@@ -97,10 +99,10 @@ export default function DataSettings() {
           // 执行恢复
           setLoading(true);
           await DataBackupService.restoreFromJSON(backupData);
-          Alert.alert('成功', '数据已恢复');
+          alert('成功', '数据已恢复');
           await loadStats();
         } catch (e: any) {
-          Alert.alert('导入失败', e?.message || String(e));
+          alert('导入失败', e?.message || String(e));
           console.error('[DataSettings] Import failed:', e);
         } finally {
           setLoading(false);
@@ -116,10 +118,10 @@ export default function DataSettings() {
       try {
         setLoading(true);
         await DataCleanupService.clearCache();
-        Alert.alert('成功', '缓存已清理');
+        alert('成功', '缓存已清理');
         await loadStats();
       } catch (e: any) {
-        Alert.alert('清理失败', e?.message || String(e));
+        alert('清理失败', e?.message || String(e));
       } finally {
         setLoading(false);
         hideConfirm();
@@ -133,10 +135,10 @@ export default function DataSettings() {
       try {
         setLoading(true);
         const count = await DataCleanupService.clearArchivedConversations();
-        Alert.alert('成功', `已删除 ${count} 个已归档会话`);
+        alert('成功', `已删除 ${count} 个已归档会话`);
         await loadStats();
       } catch (e: any) {
-        Alert.alert('清理失败', e?.message || String(e));
+        alert('清理失败', e?.message || String(e));
       } finally {
         setLoading(false);
         hideConfirm();
@@ -150,10 +152,10 @@ export default function DataSettings() {
       try {
         setLoading(true);
         const count = await DataCleanupService.clearFailedMessages();
-        Alert.alert('成功', `已删除 ${count} 条失败消息`);
+        alert('成功', `已删除 ${count} 条失败消息`);
         await loadStats();
       } catch (e: any) {
-        Alert.alert('清理失败', e?.message || String(e));
+        alert('清理失败', e?.message || String(e));
       } finally {
         setLoading(false);
         hideConfirm();
@@ -168,26 +170,28 @@ export default function DataSettings() {
       '警告：此操作将删除所有会话、消息、附件和设置，且不可恢复！请确保已导出备份。',
       async () => {
         // 二次确认
-        Alert.alert('最终确认', '确定要清空所有数据吗？', [
-          { text: '取消', style: 'cancel' },
-          {
-            text: '确定清空',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                setLoading(true);
-                await DataCleanupService.clearAllData();
-                Alert.alert('已清空', '所有数据已被清除');
-                await loadStats();
-              } catch (e: any) {
-                Alert.alert('清理失败', e?.message || String(e));
-              } finally {
-                setLoading(false);
-                hideConfirm();
-              }
-            },
+        confirmAction(
+          '最终确认',
+          '确定要清空所有数据吗？',
+          async () => {
+            try {
+              setLoading(true);
+              await DataCleanupService.clearAllData();
+              alert('已清空', '所有数据已被清除');
+              await loadStats();
+            } catch (e: any) {
+              alert('清理失败', e?.message || String(e));
+            } finally {
+              setLoading(false);
+              hideConfirm();
+            }
           },
-        ]);
+          {
+            confirmText: '确定清空',
+            cancelText: '取消',
+            destructive: true,
+          }
+        );
       }
     );
   };

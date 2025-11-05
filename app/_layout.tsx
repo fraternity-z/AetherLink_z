@@ -6,6 +6,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppThemeProvider } from '@/components/providers/ThemeProvider';
 import { AppDataProvider } from '@/components/providers/DataProvider';
+import { ConfirmDialogProvider } from '@/hooks/use-confirm-dialog';
 import { ThemeProvider as RNEThemeProvider } from '@rneui/themed';
 import { useRNETheme } from '@/constants/rne-theme';
 
@@ -40,7 +41,9 @@ export default function RootLayout() {
   return (
     <AppThemeProvider>
       <AppDataProvider>
-        <RootLayoutInner />
+        <ConfirmDialogProvider>
+          <RootLayoutInner />
+        </ConfirmDialogProvider>
       </AppDataProvider>
     </AppThemeProvider>
   );

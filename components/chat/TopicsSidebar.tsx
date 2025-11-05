@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, useWindowDimensions, View, Alert } from 'react-native';
+import { Animated, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Surface, Text, List, TouchableRipple, useTheme, Button, IconButton, Portal, Dialog, TextInput } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConversations } from '@/hooks/use-conversations';
 import { ChatRepository } from '@/storage/repositories/chat';
+import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 
 interface TopicsSidebarProps {
   visible: boolean;
@@ -13,6 +14,7 @@ interface TopicsSidebarProps {
 
 export function TopicsSidebar({ visible, onClose, onSelectTopic }: TopicsSidebarProps) {
   const theme = useTheme();
+  const { confirmAction } = useConfirmDialog();
   const { width } = useWindowDimensions();
   const drawerWidth = Math.min(360, Math.max(280, Math.floor(width * 0.85)));
   const insets = useSafeAreaInsets();
@@ -90,17 +92,19 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic }: TopicsSidebar
                         {...p}
                         icon="delete-outline"
                         onPress={() =>
-                          Alert.alert('删除话题', '删除后不可恢复，确认删除？', [
-                            { text: '取消', style: 'cancel' },
-                            {
-                              text: '删除',
-                              style: 'destructive',
-                              onPress: async () => {
-                                await ChatRepository.deleteConversation(c.id);
-                                await reload();
-                              },
+                          confirmAction(
+                            '删除话题',
+                            '删除后不可恢复，确认删除？',
+                            async () => {
+                              await ChatRepository.deleteConversation(c.id);
+                              await reload();
                             },
-                          ])
+                            {
+                              confirmText: '删除',
+                              cancelText: '取消',
+                              destructive: true,
+                            }
+                          )
                         }
                       />
                     </View>
