@@ -26,6 +26,7 @@ AetherLink_z 是一个基于 React Native (Expo) 构建的跨平台 AI 聊天助
 - 📎 附件支持 (图片、文件等)
 - 🗂️ 话题管理和组织
 - 🎯 主题样式预览和切换
+- 💬 统一美化的弹窗系统 (确认对话框 + 输入对话框)
 
 ## 模块结构图
 
@@ -88,6 +89,7 @@ graph TD
 | `app/` | 页面路由 | 应用页面和路由结构 | `index.tsx`, `_layout.tsx` | ❌ |
 | `components/chat/` | UI组件 | 聊天界面相关组件 | `ChatInput.tsx`, `MessageList.tsx` | ❌ |
 | `components/settings/` | UI组件 | 设置页面相关组件 | `SettingsList.tsx`, `ThemeStyleCard.tsx` | ❌ |
+| `components/common/` | UI组件 | 通用UI组件（弹窗、对话框等） | `ConfirmDialog.tsx`, `InputDialog.tsx` | ❌ |
 | `components/providers/` | UI组件 | React Context 提供者 | `ThemeProvider.tsx`, `DataProvider.tsx` | ❌ |
 | `services/ai/` | 业务服务 | AI提供商集成和流式响应 | `AiClient.ts`, `ModelDiscovery.ts` | ❌ |
 | `services/data/` | 业务服务 | 数据备份、清理、统计服务 | `DataBackup.ts`, `DataCleanup.ts` | ❌ |
@@ -174,6 +176,7 @@ npm run reset-project
 - 错误处理使用 try-catch 和用户友好的错误提示
 - 异步操作使用 async/await
 - 搜索功能使用统一的 SearchClient 接口
+- 用户交互使用统一的弹窗系统（ConfirmDialog + InputDialog）
 
 ### 注意事项
 - SQLite 操作需要在事务中执行
@@ -184,6 +187,22 @@ npm run reset-project
 - 主题系统需要同时维护 Paper 和 RNE 两套主题
 
 ## 变更记录 (Changelog)
+
+### 2025-11-05 15:30:00
+- ✨ 创建统一的弹窗管理系统，提升用户交互体验
+- 新增 `InputDialog` 组件用于输入场景（重命名、编辑等）
+- 优化 `ConfirmDialog` 视觉样式，增强圆角和阴影效果
+- 扩展 `use-confirm-dialog` Hook，新增 `prompt` 方法支持输入对话框
+- 更新 `TopicsSidebar` 使用新的 InputDialog 替代原生 Dialog
+- 新增弹窗使用文档 (`docs/DIALOG_USAGE.md`)，包含完整的 API 说明和示例
+- 创建 `DialogShowcase` 组件用于展示所有弹窗样式
+- 弹窗系统特性：
+  - 🎨 现代化设计，支持流畅动画和圆角阴影
+  - ✅ 输入验证和实时错误提示
+  - ⌨️ 键盘优化和自动聚焦
+  - 🔄 异步操作支持和加载状态
+  - 🌓 自动适配深色模式
+  - 📱 完美支持跨平台（iOS、Android、Web）
 
 ### 2025-11-05 13:45:09
 - 更新项目架构文档，添加网络搜索服务模块

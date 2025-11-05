@@ -9,6 +9,7 @@
 
 import React, { useState, useCallback, createContext, useContext } from 'react';
 import { ConfirmDialog, ConfirmDialogButton } from '@/components/common/ConfirmDialog';
+import { InputDialog } from '@/components/common/InputDialog';
 
 interface ConfirmDialogOptions {
   title: string;
@@ -21,8 +22,24 @@ interface ConfirmDialogOptions {
   };
 }
 
+interface InputDialogOptions {
+  title: string;
+  message?: string;
+  placeholder?: string;
+  defaultValue?: string;
+  multiline?: boolean;
+  maxLength?: number;
+  icon?: {
+    name: string;
+    type?: string;
+    color?: string;
+  };
+  validation?: (value: string) => { valid: boolean; error?: string };
+}
+
 interface ConfirmDialogContextType {
   showDialog: (options: ConfirmDialogOptions) => void;
+  showInputDialog: (options: InputDialogOptions & { onConfirm: (value: string) => void | Promise<void> }) => void;
   hideDialog: () => void;
 }
 
@@ -37,8 +54,23 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
     options: null,
   });
 
+  const [inputDialogState, setInputDialogState] = useState<{
+    visible: boolean;
+    options: (InputDialogOptions & { onConfirm: (value: string) => void | Promise<void> }) | null;
+  }>({
+    visible: false,
+    options: null,
+  });
+
   const showDialog = useCallback((options: ConfirmDialogOptions) => {
     setDialogState({
+      visible: true,
+      options,
+    });
+  }, []);
+
+  const showInputDialog = useCallback((options: InputDialogOptions & { onConfirm: (value: string) => void | Promise<void> }) => {
+    setInputDialogState({
       visible: true,
       options,
     });
@@ -51,8 +83,15 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
     }));
   }, []);
 
+  const hideInputDialog = useCallback(() => {
+    setInputDialogState(prev => ({
+      ...prev,
+      visible: false,
+    }));
+  }, []);
+
   return (
-    <ConfirmDialogContext.Provider value={{ showDialog, hideDialog }}>
+    <ConfirmDialogContext.Provider value={{ showDialog, showInputDialog, hideDialog }}>
       {children}
       {dialogState.options && (
         <ConfirmDialog
@@ -62,6 +101,28 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
           buttons={dialogState.options.buttons}
           icon={dialogState.options.icon}
           onDismiss={hideDialog}
+        />
+      )}
+      {inputDialogState.options && (
+        <InputDialog
+          visible={inputDialogState.visible}
+          title={inputDialogState.options.title}
+          message={inputDialogState.options.message}
+          placeholder={inputDialogState.options.placeholder}
+          defaultValue={inputDialogState.options.defaultValue}
+          multiline={inputDialogState.options.multiline}
+          maxLength={inputDialogState.options.maxLength}
+          icon={inputDialogState.options.icon}
+          validation={inputDialogState.options.validation}
+          buttons={[
+            { text: '取消', style: 'cancel' },
+            {
+              text: '确定',
+              style: 'primary',
+              onPress: inputDialogState.options.onConfirm,
+            },
+          ]}
+          onDismiss={hideInputDialog}
         />
       )}
     </ConfirmDialogContext.Provider>
@@ -91,7 +152,7 @@ export function useConfirmDialog() {
     throw new Error('useConfirmDialog must be used within ConfirmDialogProvider');
   }
 
-  const { showDialog, hideDialog } = context;
+  const { showDialog, showInputDialog, hideDialog } = context;
 
   /**
    * 显示确认对话框
@@ -147,10 +208,38 @@ export function useConfirmDialog() {
     });
   }, [showDialog]);
 
+  /**
+   * 显示输入对话框
+   *
+   * @example
+   * const { prompt } = useConfirmDialog();
+   *
+   * prompt({
+   *   title: '重命名',
+   *   placeholder: '请输入新名称',
+   *   defaultValue: '原名称',
+   *   onConfirm: async (value) => {
+   *     await handleRename(value);
+   *   },
+   *   validation: (value) => ({
+   *     valid: value.trim().length > 0,
+   *     error: '名称不能为空',
+   *   }),
+   * });
+   */
+  const prompt = useCallback((
+    options: Omit<InputDialogOptions, 'buttons'> & {
+      onConfirm: (value: string) => void | Promise<void>;
+    }
+  ) => {
+    showInputDialog(options);
+  }, [showInputDialog]);
+
   return {
     confirm,
     alert,
     confirmAction,
+    prompt,
     hide: hideDialog,
   };
 }

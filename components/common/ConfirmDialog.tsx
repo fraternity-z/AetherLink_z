@@ -169,7 +169,7 @@ export function ConfirmDialog({
                     name={iconConfig.name}
                     type={iconConfig.type as any}
                     color={iconConfig.color}
-                    size={32}
+                    size={36}
                   />
                 </View>
               )}
@@ -257,38 +257,43 @@ const styles = StyleSheet.create({
   dialogContainer: {
     width: '100%',
     maxWidth: 400,
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 28,
+    padding: 28,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.2,
-        shadowRadius: 24,
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.25,
+        shadowRadius: 32,
       },
       android: {
-        elevation: 12,
+        elevation: 16,
+      },
+      web: {
+        boxShadow: '0 12px 48px rgba(0, 0, 0, 0.2)',
       },
     }),
   },
   iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   title: {
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
     marginBottom: 12,
+    fontSize: 20,
   },
   message: {
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 24,
+    lineHeight: 24,
+    marginBottom: 28,
+    opacity: 0.85,
   },
   buttonsContainer: {
     flexDirection: 'row',
@@ -297,11 +302,11 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 52,
   },
 });

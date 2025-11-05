@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Animated, Pressable, StyleSheet, useWindowDimensions, View, ScrollView } from 'react-native';
-import { Surface, Text, List, TouchableRipple, useTheme, Button, IconButton, Portal, Dialog, TextInput, Searchbar, Checkbox } from 'react-native-paper';
+import { Surface, Text, List, TouchableRipple, useTheme, Button, IconButton, Searchbar, Checkbox } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConversations } from '@/hooks/use-conversations';
 import { ChatRepository } from '@/storage/repositories/chat';
@@ -40,13 +40,12 @@ function categorizeByTime(conversations: Conversation[]) {
 
 export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId }: TopicsSidebarProps) {
   const theme = useTheme();
-  const { confirmAction } = useConfirmDialog();
+  const { confirmAction, prompt } = useConfirmDialog();
   const { width } = useWindowDimensions();
   const drawerWidth = Math.min(360, Math.max(280, Math.floor(width * 0.85)));
   const insets = useSafeAreaInsets();
   const translateX = useRef(new Animated.Value(drawerWidth)).current; // from right
   const { items: convs, reload } = useConversations({ limit: 100 });
-  const [renameDlg, setRenameDlg] = useState<{ visible: boolean; id: string | null; title: string }>(() => ({ visible: false, id: null, title: '' }));
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchVisible, setSearchVisible] = useState(false);
@@ -165,7 +164,27 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
                   {...p}
                   icon="pencil-outline"
                   size={20}
-                  onPress={() => setRenameDlg({ visible: true, id: c.id, title: c.title || '' })}
+                  onPress={() =>
+                    prompt({
+                      title: '重命名话题',
+                      placeholder: '请输入新标题',
+                      defaultValue: c.title || '',
+                      maxLength: 50,
+                      icon: {
+                        name: 'pencil',
+                        type: 'material-community',
+                        color: theme.colors.primary,
+                      },
+                      validation: (value) => ({
+                        valid: value.trim().length > 0,
+                        error: '标题不能为空',
+                      }),
+                      onConfirm: async (value) => {
+                        await ChatRepository.renameConversation(c.id, value.trim());
+                        await reload();
+                      },
+                    })
+                  }
                 />
                 <IconButton
                   {...p}
@@ -337,33 +356,6 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
           </View>
         </Surface>
       </Animated.View>
-
-      <Portal>
-        <Dialog visible={renameDlg.visible} onDismiss={() => setRenameDlg({ visible: false, id: null, title: '' })}>
-          <Dialog.Title>重命名话题</Dialog.Title>
-          <Dialog.Content>
-            <TextInput
-              autoFocus
-              label="新标题"
-              value={renameDlg.title}
-              onChangeText={(t) => setRenameDlg((s) => ({ ...s, title: t }))}
-            />
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setRenameDlg({ visible: false, id: null, title: '' })}>取消</Button>
-            <Button
-              onPress={async () => {
-                if (!renameDlg.id) return;
-                await ChatRepository.renameConversation(renameDlg.id, renameDlg.title.trim() || '未命名话题');
-                setRenameDlg({ visible: false, id: null, title: '' });
-                await reload();
-              }}
-            >
-              保存
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
     </View>
   );
 }
