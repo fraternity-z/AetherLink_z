@@ -279,6 +279,27 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
           }
         },
         onError: async (e: any) => {
+          // 用户主动取消，静默处理
+          if (isUserCanceled(e)) {
+            console.log('[ChatInput] 用户主动取消请求');
+            if (assistant) {
+              // 如果助手消息为空或内容很少，直接删除；否则保留但标记为失败
+              const currentText = assistant.text || '';
+              if (currentText.trim().length < 10) {
+                // 内容太少，直接删除空消息
+                await MessageRepository.deleteMessage(assistant.id);
+                console.log('[ChatInput] 已删除空的助手消息');
+              } else {
+                // 已经有一些内容，标记为失败状态保留
+                await MessageRepository.updateMessageStatus(assistant.id, 'failed');
+                console.log('[ChatInput] 助手消息已标记为失败状态');
+              }
+            }
+            setIsGenerating(false);
+            return;
+          }
+
+          // 真实错误，记录并显示提示
           console.error('[ChatInput] Stream error', e);
           if (assistant) {
             await MessageRepository.updateMessageStatus(assistant.id, 'failed');
@@ -291,6 +312,26 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         },
       });
     } catch (error: any) {
+      // 用户主动取消，静默处理
+      if (isUserCanceled(error)) {
+        console.log('[ChatInput] 用户主动取消请求（外层捕获）');
+        if (assistant) {
+          // 同样的逻辑：内容太少就删除，否则保留
+          const currentText = assistant.text || '';
+          if (currentText.trim().length < 10) {
+            await MessageRepository.deleteMessage(assistant.id);
+            console.log('[ChatInput] 已删除空的助手消息（外层）');
+          } else {
+            await MessageRepository.updateMessageStatus(assistant.id, 'failed');
+            console.log('[ChatInput] 助手消息已标记为失败状态（外层）');
+          }
+        }
+        setIsGenerating(false);
+        abortRef.current = null;
+        return;
+      }
+
+      // 真实错误，记录详细信息
       console.error('[ChatInput] Fatal error', {
         error,
         message: error?.message,
@@ -312,6 +353,23 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
     }
   };
 
+  /**
+   * 判断是否为用户主动取消
+   */
+  const isUserCanceled = (error: any): boolean => {
+    const errorMessage = error?.message || '';
+    const errorName = error?.name || '';
+
+    // 常见的取消请求错误标识
+    return (
+      errorMessage.includes('canceled') ||
+      errorMessage.includes('cancelled') ||
+      errorMessage.includes('abort') ||
+      errorName === 'AbortError' ||
+      errorName === 'CancelError'
+    );
+  };
+
   const getErrorMessage = (error: any): string => {
     const errorName = error?.name || '';
     const errorMessage = error?.message || '';
@@ -326,8 +384,8 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       return '网络连接失败，请检查网络连接后重试。';
     }
 
-    // 超时错误
-    if (errorMessage.includes('timeout') || errorMessage.includes('aborted')) {
+    // 超时错误（排除用户主动取消）
+    if (!isUserCanceled(error) && errorMessage.includes('timeout')) {
       return '请求超时，请稍后重试。';
     }
 
