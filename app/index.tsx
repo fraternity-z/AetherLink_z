@@ -64,6 +64,7 @@ export default function ChatScreen() {
           visible={topicsOpen}
           onClose={() => setTopicsOpen(false)}
           onSelectTopic={(id) => setConversationId(id)}
+          currentTopicId={conversationId || undefined}
         />
         <ModelPickerDialog visible={modelPickerOpen} onDismiss={() => setModelPickerOpen(false)} />
         {/* TODO: 实现消息上下文菜单（长按操作） */}

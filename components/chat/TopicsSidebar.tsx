@@ -1,18 +1,44 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { Surface, Text, List, TouchableRipple, useTheme, Button, IconButton, Portal, Dialog, TextInput } from 'react-native-paper';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { Animated, Pressable, StyleSheet, useWindowDimensions, View, ScrollView } from 'react-native';
+import { Surface, Text, List, TouchableRipple, useTheme, Button, IconButton, Portal, Dialog, TextInput, Searchbar, Checkbox } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConversations } from '@/hooks/use-conversations';
 import { ChatRepository } from '@/storage/repositories/chat';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
+import { Conversation } from '@/storage/core';
 
 interface TopicsSidebarProps {
   visible: boolean;
   onClose: () => void;
   onSelectTopic?: (id: string) => void;
+  currentTopicId?: string;
 }
 
-export function TopicsSidebar({ visible, onClose, onSelectTopic }: TopicsSidebarProps) {
+// 时间分类辅助函数
+function categorizeByTime(conversations: Conversation[]) {
+  const now = Date.now();
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  const sevenDaysMs = 7 * oneDayMs;
+
+  const today: Conversation[] = [];
+  const sevenDays: Conversation[] = [];
+  const earlier: Conversation[] = [];
+
+  conversations.forEach((conv) => {
+    const diff = now - conv.updatedAt;
+    if (diff < oneDayMs) {
+      today.push(conv);
+    } else if (diff < sevenDaysMs) {
+      sevenDays.push(conv);
+    } else {
+      earlier.push(conv);
+    }
+  });
+
+  return { today, sevenDays, earlier };
+}
+
+export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId }: TopicsSidebarProps) {
   const theme = useTheme();
   const { confirmAction } = useConfirmDialog();
   const { width } = useWindowDimensions();
@@ -22,6 +48,23 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic }: TopicsSidebar
   const { items: convs, reload } = useConversations({ limit: 100 });
   const [renameDlg, setRenameDlg] = useState<{ visible: boolean; id: string | null; title: string }>(() => ({ visible: false, id: null, title: '' }));
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [batchMode, setBatchMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // 搜索过滤
+  const filteredItems = useMemo(() => {
+    if (!searchQuery.trim()) return convs;
+    const query = searchQuery.toLowerCase();
+    return convs.filter(item =>
+      (item.title?.toLowerCase() || '').includes(query)
+    );
+  }, [convs, searchQuery]);
+
+  // 时间分类
+  const categorized = useMemo(() => categorizeByTime(filteredItems), [filteredItems]);
+
   useEffect(() => {
     Animated.timing(translateX, {
       toValue: visible ? 0 : drawerWidth,
@@ -29,6 +72,143 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic }: TopicsSidebar
       useNativeDriver: true,
     }).start();
   }, [visible, drawerWidth, translateX]);
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const deleteSelected = async () => {
+    if (selectedIds.size === 0) return;
+
+    await confirmAction(
+      '批量删除',
+      `确认删除选中的 ${selectedIds.size} 个话题？删除后不可恢复。`,
+      async () => {
+        for (const id of selectedIds) {
+          await ChatRepository.deleteConversation(id);
+        }
+        setSelectedIds(new Set());
+        setBatchMode(false);
+        await reload();
+      },
+      {
+        confirmText: '删除',
+        cancelText: '取消',
+        destructive: true,
+      }
+    );
+  };
+
+  const renderTopicItem = (c: Conversation) => {
+    const isCurrentTopic = c.id === currentTopicId;
+
+    return (
+      <TouchableRipple
+        key={c.id}
+        onPress={() => {
+          if (batchMode) {
+            toggleSelection(c.id);
+          } else {
+            onSelectTopic?.(c.id);
+            onClose();
+          }
+        }}
+        onLongPress={() => {
+          if (!batchMode) {
+            setBatchMode(true);
+            toggleSelection(c.id);
+          }
+        }}
+        rippleColor={theme.colors.primary + '20'}
+      >
+        <List.Item
+          title={c.title || '默认话题'}
+          description={new Date(c.updatedAt).toLocaleString('zh-CN', {
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+          style={isCurrentTopic ? {
+            backgroundColor: theme.colors.primaryContainer,
+          } : undefined}
+          titleStyle={isCurrentTopic ? {
+            color: theme.colors.primary,
+            fontWeight: '600',
+          } : undefined}
+          left={(p) =>
+            batchMode ? (
+              <Checkbox
+                status={selectedIds.has(c.id) ? 'checked' : 'unchecked'}
+                onPress={() => toggleSelection(c.id)}
+              />
+            ) : (
+              <List.Icon
+                {...p}
+                icon="chat-outline"
+                color={isCurrentTopic ? theme.colors.primary : p.color}
+              />
+            )
+          }
+          right={(p) =>
+            !batchMode ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <IconButton
+                  {...p}
+                  icon="pencil-outline"
+                  size={20}
+                  onPress={() => setRenameDlg({ visible: true, id: c.id, title: c.title || '' })}
+                />
+                <IconButton
+                  {...p}
+                  icon="delete-outline"
+                  size={20}
+                  iconColor={theme.colors.error}
+                  onPress={() =>
+                    confirmAction(
+                      '删除话题',
+                      '删除后不可恢复，确认删除？',
+                      async () => {
+                        await ChatRepository.deleteConversation(c.id);
+                        await reload();
+                      },
+                      {
+                        confirmText: '删除',
+                        cancelText: '取消',
+                        destructive: true,
+                      }
+                    )
+                  }
+                />
+              </View>
+            ) : undefined
+          }
+        />
+      </TouchableRipple>
+    );
+  };
+
+  const renderSection = (title: string, data: Conversation[]) => {
+    if (data.length === 0) return null;
+    return (
+      <View key={title}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
+            {title}
+          </Text>
+        </View>
+        {data.map((item) => renderTopicItem(item))}
+      </View>
+    );
+  };
 
   return (
     <View
@@ -65,57 +245,85 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic }: TopicsSidebar
           }}
           elevation={5}
         >
-          <View style={{ paddingHorizontal: 8, paddingBottom: insets.bottom + 88, flex: 1 }}>
-            <Text variant="titleSmall" style={{ margin: 12 }}>
-              话题列表
-            </Text>
-            {convs.map((c) => (
-              <TouchableRipple
-                key={c.id}
-                onPress={() => {
-                  onSelectTopic?.(c.id);
-                  onClose();
-                }}
-              >
-                <List.Item
-                  title={c.title || '未命名话题'}
-                  description={new Date(c.updatedAt).toLocaleString()}
-                  left={(p) => <List.Icon {...p} icon="chat-processing-outline" />}
-                  right={(p) => (
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <IconButton
-                        {...p}
-                        icon="pencil-outline"
-                        onPress={() => setRenameDlg({ visible: true, id: c.id, title: c.title || '' })}
-                      />
-                      <IconButton
-                        {...p}
-                        icon="delete-outline"
-                        onPress={() =>
-                          confirmAction(
-                            '删除话题',
-                            '删除后不可恢复，确认删除？',
-                            async () => {
-                              await ChatRepository.deleteConversation(c.id);
-                              await reload();
-                            },
-                            {
-                              confirmText: '删除',
-                              cancelText: '取消',
-                              destructive: true,
-                            }
-                          )
-                        }
-                      />
-                    </View>
-                  )}
+          <View style={{ flex: 1 }}>
+            {/* 头部标题栏 */}
+            <View style={styles.header}>
+              {searchVisible ? (
+                <Searchbar
+                  placeholder="搜索话题..."
+                  onChangeText={setSearchQuery}
+                  value={searchQuery}
+                  style={[styles.searchBarInHeader, { backgroundColor: '#F5F5F5' }]}
+                  inputStyle={{ color: theme.colors.onSurface }}
+                  elevation={0}
+                  autoFocus
+                  icon="arrow-left"
+                  onIconPress={() => {
+                    setSearchVisible(false);
+                    setSearchQuery('');
+                  }}
                 />
-              </TouchableRipple>
-            ))}
-            <View style={{ padding: 8 }}>
+              ) : (
+                <>
+                  <Text variant="titleMedium" style={{ fontWeight: '600' }}>
+                    {batchMode ? `已选择 ${selectedIds.size} 项` : '话题'}
+                  </Text>
+                  <View style={{ flexDirection: 'row' }}>
+                    {batchMode ? (
+                      <>
+                        <IconButton
+                          icon="delete"
+                          iconColor={theme.colors.error}
+                          disabled={selectedIds.size === 0}
+                          onPress={deleteSelected}
+                        />
+                        <IconButton
+                          icon="close"
+                          onPress={() => {
+                            setBatchMode(false);
+                            setSelectedIds(new Set());
+                          }}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <IconButton
+                          icon="magnify"
+                          onPress={() => setSearchVisible(true)}
+                        />
+                        <IconButton
+                          icon="dots-vertical"
+                          onPress={() => setBatchMode(true)}
+                        />
+                      </>
+                    )}
+                  </View>
+                </>
+              )}
+            </View>
+
+            {/* 话题列表 */}
+            <ScrollView style={{ flex: 1 }}>
+              {filteredItems.length === 0 ? (
+                <View style={{ padding: 24, alignItems: 'center' }}>
+                  <Text style={{ opacity: 0.6, textAlign: 'center' }}>
+                    {searchQuery ? '未找到匹配的话题' : '暂无话题'}
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  {renderSection('今日', categorized.today)}
+                  {renderSection('七天内', categorized.sevenDays)}
+                  {renderSection('更早', categorized.earlier)}
+                </>
+              )}
+            </ScrollView>
+
+            {/* 底部新建按钮 */}
+            <View style={styles.footer}>
               <Button
                 icon="plus"
-                mode="outlined"
+                mode="contained"
                 onPress={async () => {
                   const conv = await ChatRepository.createConversation('新话题');
                   await reload();
@@ -159,3 +367,36 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic }: TopicsSidebar
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+  },
+  searchBarInHeader: {
+    flex: 1,
+    borderRadius: 16,
+    elevation: 0,
+  },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.03)',
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  footer: {
+    padding: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB',
+  },
+});

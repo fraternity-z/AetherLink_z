@@ -230,12 +230,13 @@ export function SettingsList() {
                       onPress={() => handleItemPress(item)}
                     >
                       <Avatar.Icon
+                        key="avatar"
                         size={40}
                         icon={item.icon as any}
                         color={item.color}
                         style={{ backgroundColor: withOpacity(item.color, 0.15) }}
                       />
-                      <ListItem.Content>
+                      <ListItem.Content key="content">
                         <ListItem.Title style={styles.title}>
                           {item.title}
                         </ListItem.Title>
@@ -244,6 +245,7 @@ export function SettingsList() {
                         </ListItem.Subtitle>
                       </ListItem.Content>
                       <Icon
+                        key="chevron"
                         name="chevron-right"
                         type="material-community"
                         color={theme.colors.onSurfaceVariant}
