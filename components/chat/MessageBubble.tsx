@@ -7,11 +7,12 @@
  * - 现代聊天应用风格的气泡设计
  */
 
-import { View, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import { Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper';
 import { Image } from 'expo-image';
 import type { Attachment } from '@/storage/core';
 import { MixedRenderer } from './MixedRenderer';
+import { cn } from '@/utils/classnames';
 
 interface MessageBubbleProps {
   content: string;
@@ -28,7 +29,7 @@ export function MessageBubble({ content, isUser, timestamp, status, attachments 
     if (!status || status === 'sent') return null;
 
     if (status === 'pending') {
-      return <ActivityIndicator size="small" style={styles.statusIndicator} />;
+      return <ActivityIndicator size="small" className="mx-1" />;
     }
 
     if (status === 'failed') {
@@ -36,7 +37,8 @@ export function MessageBubble({ content, isUser, timestamp, status, attachments 
         <Avatar.Icon
           size={16}
           icon="alert-circle"
-          style={[styles.statusIndicator, { backgroundColor: theme.colors.error }]}
+          className="mx-1"
+          style={{ backgroundColor: theme.colors.error }}
         />
       );
     }
@@ -45,78 +47,77 @@ export function MessageBubble({ content, isUser, timestamp, status, attachments 
   };
 
   return (
-    <View style={[
-      styles.container,
-      isUser ? styles.userContainer : styles.aiContainer
-    ]}>
+    <View className={cn(
+      'my-1.5 mx-3 max-w-[85%]',
+      isUser ? 'self-end items-end' : 'self-start items-start'
+    )}>
       {/* 头像（上方） */}
-      <View style={styles.avatarRow}>
+      <View className="mb-1.5">
         {!isUser ? (
           <Avatar.Icon
             size={36}
             icon="robot"
-            style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
+            className="mx-0"
+            style={{ backgroundColor: theme.colors.primary }}
           />
         ) : (
           <Avatar.Icon
             size={36}
             icon="account"
-            style={[styles.avatar, { backgroundColor: theme.colors.secondary }]}
+            className="mx-0"
+            style={{ backgroundColor: theme.colors.secondary }}
           />
         )}
       </View>
 
       {/* 消息气泡容器 */}
-      <View style={styles.bubbleWrapper}>
+      <View className="flex-col">
         {/* 气泡主体 */}
         <View
-          style={[
-            styles.bubble,
-            isUser
-              ? { backgroundColor: theme.colors.primary }
-              : {
-                  backgroundColor: theme.dark
-                    ? theme.colors.surfaceVariant
-                    : '#F0F0F0'
-                }
-          ]}
+          className="rounded-2xl px-3.5 py-2.5"
+          style={{
+            backgroundColor: isUser
+              ? theme.colors.primary
+              : theme.dark
+                ? theme.colors.surfaceVariant
+                : '#F0F0F0'
+          }}
         >
           {/* 附件预览（图片缩略图 + 文件条目） */}
           {attachments.length > 0 && (
-            <View style={styles.attachmentsContainer}>
+            <View className="flex-row flex-wrap gap-2 mb-2">
               {attachments.map(att => (
                 att.kind === 'image' && att.uri ? (
                   <Image
                     key={att.id}
                     source={{ uri: att.uri }}
-                    style={styles.imageThumb}
+                    className="w-[120px] h-20 rounded-[10px]"
                     contentFit="cover"
                   />
                 ) : (
-                  <View key={att.id} style={[
-                    styles.fileItem,
-                    {
+                  <View
+                    key={att.id}
+                    className="flex-row items-center border rounded-lg px-2 py-1 max-w-[200px]"
+                    style={{
                       borderColor: isUser
                         ? theme.colors.onPrimary
                         : theme.colors.outlineVariant,
                       backgroundColor: isUser
                         ? 'rgba(255, 255, 255, 0.2)'
                         : 'rgba(0, 0, 0, 0.05)'
-                    }
-                  ]}>
+                    }}
+                  >
                     <Avatar.Icon
                       size={16}
                       icon="paperclip"
-                      style={styles.fileIcon}
+                      className="mr-1 m-0"
                       color={isUser ? theme.colors.onPrimary : theme.colors.onSurface}
                     />
                     <Text
                       variant="bodySmall"
                       numberOfLines={1}
-                      style={[
-                        styles.fileName,
-                        { color: isUser ? theme.colors.onPrimary : theme.colors.onSurface }
-                      ]}
+                      className="flex-shrink"
+                      style={{ color: isUser ? theme.colors.onPrimary : theme.colors.onSurface }}
                     >
                       {att.name || '附件'}
                     </Text>
@@ -130,16 +131,13 @@ export function MessageBubble({ content, isUser, timestamp, status, attachments 
           {isUser ? (
             <Text
               variant="bodyMedium"
-              style={[
-                styles.messageText,
-                { color: theme.colors.onPrimary },
-                attachments.length ? styles.contentWithAttachments : undefined
-              ]}
+              className={cn('text-[15px] leading-[22px]', attachments.length > 0 && 'mt-1')}
+              style={{ color: theme.colors.onPrimary }}
             >
               {content || (status === 'pending' ? '正在发送...' : '')}
             </Text>
           ) : (
-            <View style={[attachments.length ? styles.contentWithAttachments : styles.rendererContainer]}>
+            <View className={attachments.length > 0 ? 'mt-1' : 'min-h-[20px]'}>
               <MixedRenderer
                 content={content || (status === 'pending' ? '正在思考...' : '')}
               />
@@ -148,14 +146,15 @@ export function MessageBubble({ content, isUser, timestamp, status, attachments 
         </View>
 
         {/* 时间戳和状态指示器 */}
-        <View style={[
-          styles.footerRow,
-          isUser ? styles.footerRowUser : styles.footerRowAI
-        ]}>
+        <View className={cn(
+          'flex-row items-center mt-1 px-0.5',
+          isUser ? 'justify-end' : 'justify-start'
+        )}>
           {timestamp && (
             <Text
               variant="bodySmall"
-              style={[styles.timestamp, { color: theme.colors.onSurfaceVariant }]}
+              className="text-[11px] mx-1"
+              style={{ color: theme.colors.onSurfaceVariant }}
             >
               {timestamp}
             </Text>
@@ -167,88 +166,3 @@ export function MessageBubble({ content, isUser, timestamp, status, attachments 
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginVertical: 6,
-    marginHorizontal: 12,
-    maxWidth: '85%',
-  },
-  userContainer: {
-    alignSelf: 'flex-end',
-    alignItems: 'flex-end',
-  },
-  aiContainer: {
-    alignSelf: 'flex-start',
-    alignItems: 'flex-start',
-  },
-  avatarRow: {
-    marginBottom: 6,
-  },
-  avatar: {
-    marginHorizontal: 0,
-  },
-  bubbleWrapper: {
-    flexDirection: 'column',
-  },
-  bubble: {
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  messageText: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  footerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    paddingHorizontal: 2,
-  },
-  footerRowUser: {
-    justifyContent: 'flex-end',
-  },
-  footerRowAI: {
-    justifyContent: 'flex-start',
-  },
-  attachmentsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 8,
-  },
-  imageThumb: {
-    width: 120,
-    height: 80,
-    borderRadius: 10,
-  },
-  fileItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    maxWidth: 200,
-  },
-  fileIcon: {
-    marginRight: 4,
-    margin: 0,
-  },
-  fileName: {
-    flexShrink: 1,
-  },
-  contentWithAttachments: {
-    marginTop: 4,
-  },
-  rendererContainer: {
-    minHeight: 20,
-  },
-  timestamp: {
-    fontSize: 11,
-    marginHorizontal: 4,
-  },
-  statusIndicator: {
-    marginHorizontal: 4,
-  },
-});

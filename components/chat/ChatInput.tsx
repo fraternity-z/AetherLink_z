@@ -8,7 +8,7 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, Platform, TextInput as RNTextInput, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Platform, TextInput as RNTextInput, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { IconButton, useTheme } from 'react-native-paper';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { ChatRepository } from '@/storage/repositories/chat';
@@ -28,6 +28,8 @@ import { SearchLoadingIndicator } from './SearchLoadingIndicator';
 import { AttachmentMenu } from './AttachmentMenu';
 import { MoreActionsMenu } from './MoreActionsMenu';
 import { appEvents, AppEvents } from '@/utils/events';
+import { Text } from 'react-native-paper';
+import { cn } from '@/utils/classnames';
 
 export function ChatInput({ conversationId, onConversationChange }: { conversationId: string | null; onConversationChange: (id: string) => void; }) {
   const theme = useTheme();

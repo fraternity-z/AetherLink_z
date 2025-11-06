@@ -8,10 +8,11 @@
  */
 
 import React from 'react';
-import { ScrollView, View, StyleSheet, useWindowDimensions } from 'react-native';
-import { Text, Avatar, TouchableRipple, useTheme, Card, List } from 'react-native-paper';
+import { ScrollView, View, useWindowDimensions } from 'react-native';
+import { Text, Avatar, useTheme, Card, List } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { cn } from '@/utils/classnames';
 
 // 设置项数据结构
 interface SettingItem {
@@ -195,23 +196,21 @@ export function SettingsList() {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: theme.colors.surfaceVariant }]}
-      contentContainerStyle={[styles.contentContainer, { paddingHorizontal: horizontalPadding }]}
+      className="flex-1"
+      contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: horizontalPadding }}
+      style={{ backgroundColor: theme.colors.surfaceVariant }}
     >
       {SETTINGS_GROUPS.map((group, groupIndex) => (
-        <View key={groupIndex} style={styles.group}>
+        <View key={groupIndex} className="mb-6">
           <Text
             variant="labelLarge"
-            style={{
-              marginBottom: 16,
-              color: theme.colors.onSurfaceVariant,
-              fontWeight: '600',
-            }}
+            className="mb-4 font-semibold"
+            style={{ color: theme.colors.onSurfaceVariant }}
           >
             {group.title}
           </Text>
 
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          <View className="flex-row flex-wrap">
             {group.items.map((item, idx) => {
               const isLastInRow = (idx + 1) % columns === 0;
               return (
@@ -223,9 +222,9 @@ export function SettingsList() {
                     marginBottom: gap,
                   }}
                 >
-                  <Card style={styles.cardContainer}>
+                  <Card className="rounded-2xl m-0 p-0" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 }}>
                     <List.Item
-                      style={styles.listItemContainer}
+                      className="rounded-2xl px-4 py-3"
                       onPress={() => handleItemPress(item)}
                       title={item.title}
                       description={item.description}
@@ -234,7 +233,8 @@ export function SettingsList() {
                           size={40}
                           icon={item.icon as any}
                           color={item.color}
-                          style={{ backgroundColor: withOpacity(item.color, 0.15), marginRight: 12 }}
+                          className="mr-3"
+                          style={{ backgroundColor: withOpacity(item.color, 0.15) }}
                         />
                       )}
                       right={() => (
@@ -256,41 +256,3 @@ export function SettingsList() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  contentContainer: {
-    paddingBottom: 16,
-  },
-  group: {
-    marginBottom: 24,
-  },
-  cardContainer: {
-    borderRadius: 16,
-    margin: 0,
-    padding: 0,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  listItemContainer: {
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 18,
-  },
-});
