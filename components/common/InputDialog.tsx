@@ -22,7 +22,7 @@ import {
   TextInput as RNTextInput,
 } from 'react-native';
 import { useTheme, Text, TextInput } from 'react-native-paper';
-import { Icon } from '@rneui/themed';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
 interface InputDialogButton {
   text: string;
@@ -165,9 +165,7 @@ export function InputDialog({
     if (icon) return icon;
 
     return {
-      name: 'pencil',
-      type: 'material-community',
-      color: theme.colors.primary,
+      name: 'pencil',color: theme.colors.primary,
     };
   };
 
@@ -216,8 +214,7 @@ export function InputDialog({
                     ]}
                   >
                     <Icon
-                      name={iconConfig.name}
-                      type={iconConfig.type as any}
+                      name={iconConfig.name as any}
                       color={iconConfig.color}
                       size={28}
                     />
@@ -283,7 +280,6 @@ export function InputDialog({
                   <View style={styles.errorContainer}>
                     <Icon
                       name="alert-circle"
-                      type="material-community"
                       color={theme.colors.error}
                       size={16}
                     />

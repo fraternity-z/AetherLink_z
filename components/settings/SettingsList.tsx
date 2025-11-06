@@ -9,8 +9,8 @@
 
 import React from 'react';
 import { ScrollView, View, StyleSheet, useWindowDimensions } from 'react-native';
-import { Text, Avatar, TouchableRipple, useTheme } from 'react-native-paper';
-import { Card, ListItem, Icon, useTheme as useRNETheme } from '@rneui/themed';
+import { Text, Avatar, TouchableRipple, useTheme, Card, List } from 'react-native-paper';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 // 设置项数据结构
@@ -176,7 +176,6 @@ function withOpacity(hex: string, opacity = 0.12) {
 
 export function SettingsList() {
   const theme = useTheme();
-  const rneTheme = useRNETheme();
   const { width } = useWindowDimensions();
 
   // 响应式列数：手机1列、平板2列、桌面3列
@@ -224,32 +223,28 @@ export function SettingsList() {
                     marginBottom: gap,
                   }}
                 >
-                  <Card containerStyle={styles.cardContainer}>
-                    <ListItem
-                      containerStyle={styles.listItemContainer}
+                  <Card style={styles.cardContainer}>
+                    <List.Item
+                      style={styles.listItemContainer}
                       onPress={() => handleItemPress(item)}
-                    >
-                      <Avatar.Icon
-                        size={40}
-                        icon={item.icon as any}
-                        color={item.color}
-                        style={{ backgroundColor: withOpacity(item.color, 0.15) }}
-                      />
-                      <ListItem.Content>
-                        <ListItem.Title style={styles.title}>
-                          {item.title}
-                        </ListItem.Title>
-                        <ListItem.Subtitle style={styles.subtitle} numberOfLines={2}>
-                          {item.description}
-                        </ListItem.Subtitle>
-                      </ListItem.Content>
-                      <Icon
-                        name="chevron-right"
-                        type="material-community"
-                        color={theme.colors.onSurfaceVariant}
-                        size={24}
-                      />
-                    </ListItem>
+                      title={item.title}
+                      description={item.description}
+                      left={() => (
+                        <Avatar.Icon
+                          size={40}
+                          icon={item.icon as any}
+                          color={item.color}
+                          style={{ backgroundColor: withOpacity(item.color, 0.15), marginRight: 12 }}
+                        />
+                      )}
+                      right={() => (
+                        <Icon
+                          name="chevron-right"
+                          size={24}
+                          color={theme.colors.onSurfaceVariant}
+                        />
+                      )}
+                    />
                   </Card>
                 </View>
               );

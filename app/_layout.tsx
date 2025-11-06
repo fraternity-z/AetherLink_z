@@ -7,14 +7,11 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppThemeProvider } from '@/components/providers/ThemeProvider';
 import { AppDataProvider } from '@/components/providers/DataProvider';
 import { ConfirmDialogProvider } from '@/hooks/use-confirm-dialog';
-import { ThemeProvider as RNEThemeProvider } from '@rneui/themed';
-import { useRNETheme } from '@/constants/rne-theme';
+
 
 function RootLayoutInner() {
-  const rneTheme = useRNETheme();
-
   return (
-    <RNEThemeProvider theme={rneTheme}>
+    
       <ThemeProvider value={useColorScheme() === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack>
         {/* 根聊天页，无头部 */}
@@ -31,7 +28,7 @@ function RootLayoutInner() {
       </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
-    </RNEThemeProvider>
+    
   );
 }
 

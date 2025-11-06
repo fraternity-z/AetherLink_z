@@ -18,7 +18,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useTheme, Text } from 'react-native-paper';
-import { Icon } from '@rneui/themed';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 
 interface MoreActionsMenuProps {
@@ -208,9 +208,7 @@ export function MoreActionsMenu({
                       ]}
                     >
                       <Icon
-                        name={item.icon}
-                        type={item.iconType as any}
-                        color={item.color}
+                        name={item.icon as any}color={item.color}
                         size={24}
                       />
                     </View>
@@ -235,7 +233,6 @@ export function MoreActionsMenu({
                     </View>
                     <Icon
                       name="chevron-right"
-                      type="material-community"
                       color={theme.colors.onSurfaceVariant}
                       size={24}
                     />

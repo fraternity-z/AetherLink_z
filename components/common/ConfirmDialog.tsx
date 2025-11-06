@@ -19,7 +19,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useTheme, Text } from 'react-native-paper';
-import { Icon } from '@rneui/themed';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
 export interface ConfirmDialogButton {
   text: string;
@@ -113,14 +113,12 @@ export function ConfirmDialog({
     if (hasDestructive) {
       return {
         name: 'alert-circle',
-        type: 'material-community',
         color: '#ef4444',
       };
     }
 
     return {
       name: 'information',
-      type: 'material-community',
       color: theme.colors.primary,
     };
   };
@@ -166,8 +164,7 @@ export function ConfirmDialog({
                   ]}
                 >
                   <Icon
-                    name={iconConfig.name}
-                    type={iconConfig.type as any}
+                    name={iconConfig.name as any}
                     color={iconConfig.color}
                     size={36}
                   />

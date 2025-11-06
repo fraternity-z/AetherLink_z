@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView } from 'react-native';
-import { useTheme } from 'react-native-paper';
-import { Dialog, Button, ListItem, Avatar, Icon, Divider } from '@rneui/themed';
+import { useTheme, Portal, Dialog, Button, List, Avatar, Divider } from 'react-native-paper';
 import { ProviderModelsRepository } from '@/storage/repositories/provider-models';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
 type Props = { visible: boolean; onDismiss: () => void };
 
@@ -27,7 +27,6 @@ export function ModelPickerDialog({ visible, onDismiss }: Props) {
   useEffect(() => {
     if (!visible) return;
     (async () => {
-      // load enabled providers
       const providers: ProviderId[] = ['openai', 'anthropic', 'gemini', 'google', 'deepseek', 'volc', 'zhipu'];
       const enabled: ProviderId[] = [];
       for (const p of providers) {
@@ -56,125 +55,83 @@ export function ModelPickerDialog({ visible, onDismiss }: Props) {
     const sr = SettingsRepository();
     await sr.set(SettingKey.DefaultProvider, provider);
     await sr.set(SettingKey.DefaultModel, model);
-    // 实时生效：ChatInput 每次发送前都会读取 SettingsRepository
   };
 
   return (
-    <Dialog
-      isVisible={visible}
-      onBackdropPress={onDismiss}
-      overlayStyle={{
-        backgroundColor: theme.colors.surface,
-        borderRadius: 20,
-        maxHeight: '80%',
-        width: '90%',
-        maxWidth: 500,
-      }}
-      animationType="fade"
-    >
-      <Dialog.Title title="选择AI模型" titleStyle={{ fontSize: 20, fontWeight: '700' }} />
+    <Portal>
+      <Dialog visible={visible} onDismiss={onDismiss} style={{ borderRadius: 20 }}>
+        <Dialog.Title>选择AI模型</Dialog.Title>
 
-      {enabledProviders.length === 0 && (
-        <View style={{
-          padding: 40,
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          <Icon
-            name="loading"
-            type="material-community"
-            color={theme.colors.primary}
-            size={32}
-          />
-        </View>
-      )}
-
-      <ScrollView style={{ maxHeight: 400 }}>
-        {enabledProviders.map((p, providerIndex) => (
-          <View key={p}>
-            {providerIndex > 0 && <Divider key={`sep:${p}`} style={{ marginVertical: 12 }} />}
-
-            <ListItem key={`header:${p}`} containerStyle={{
-              backgroundColor: theme.colors.primaryContainer,
-              borderRadius: 12,
-              marginBottom: 8,
-            }}>
-              <Avatar key="avatar"
-                rounded
-                icon={{
-                  name: PROVIDER_META[p]?.icon || 'help',
-                  type: 'material-community',
-                  color: 'white',
-                  size: 24,
-                }}
-                containerStyle={{
-                  backgroundColor: PROVIDER_META[p]?.color || theme.colors.primary,
-                  marginRight: 12,
-                }}
-              />
-              <ListItem.Content key="content">
-                <ListItem.Title style={{
-                  fontSize: 16,
-                  fontWeight: '600',
-                  color: theme.colors.onPrimaryContainer
-                }}>
-                  {PROVIDER_META[p]?.name || p}
-                </ListItem.Title>
-              </ListItem.Content>
-            </ListItem>
-
-            {(models[p] || []).map((m) => {
-              const isSelected = selected?.provider === p && selected?.model === m.id;
-              return (
-                <ListItem
-                  key={`${p}:${m.id}`}
-                  containerStyle={{
-                    backgroundColor: isSelected
-                      ? theme.colors.secondaryContainer
-                      : 'transparent',
-                    borderRadius: 12,
-                    marginBottom: 4,
-                    marginLeft: 16,
-                  }}
-                  onPress={() => selectAndSave(p, m.id)}
-                >
-                  <Icon key="radio"
-                    name={isSelected ? 'radiobox-marked' : 'radiobox-blank'}
-                    type="material-community"
-                    color={isSelected ? theme.colors.primary : theme.colors.onSurfaceVariant}
-                    size={20}
-                    style={{ marginRight: 12 }}
-                  />
-                  <ListItem.Content key="content">
-                    <ListItem.Title style={{
-                      fontSize: 15,
-                      color: isSelected
-                        ? theme.colors.onSecondaryContainer
-                        : theme.colors.onSurface
-                    }}>
-                      {m.label}
-                    </ListItem.Title>
-                  </ListItem.Content>
-                </ListItem>
-              );
-            })}
+        {enabledProviders.length === 0 && (
+          <View style={{ padding: 40, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="loading" color={theme.colors.primary} size={32} />
           </View>
-        ))}
-      </ScrollView>
+        )}
 
-      <Dialog.Actions>
-        <Button
-          title="完成"
-          onPress={onDismiss}
-          buttonStyle={{
-            backgroundColor: theme.colors.primary,
-            borderRadius: 12,
-            paddingHorizontal: 24,
-          }}
-          titleStyle={{ fontWeight: '600' }}
-        />
-      </Dialog.Actions>
-    </Dialog>
+        <Dialog.Content>
+          <ScrollView style={{ maxHeight: 400 }}>
+            {enabledProviders.map((p, providerIndex) => (
+              <View key={p}>
+                {providerIndex > 0 && <Divider style={{ marginVertical: 12 }} />}
+
+                <List.Item
+                  title={PROVIDER_META[p]?.name || p}
+                  titleStyle={{ fontWeight: '600', color: theme.colors.onPrimaryContainer }}
+                  style={{
+                    backgroundColor: theme.colors.primaryContainer,
+                    borderRadius: 12,
+                    marginBottom: 8,
+                  }}
+                  left={() => (
+                    <Avatar.Icon
+                      size={40}
+                      icon={PROVIDER_META[p]?.icon || 'help'}
+                      color={'white'}
+                      style={{ backgroundColor: PROVIDER_META[p]?.color || theme.colors.primary, marginRight: 12 }}
+                    />
+                  )}
+                />
+
+                {(models[p] || []).map((m) => {
+                  const isSelected = selected?.provider === p && selected?.model === m.id;
+                  return (
+                    <List.Item
+                      key={`${p}:${m.id}`}
+                      title={m.label}
+                      titleStyle={{
+                        fontSize: 15,
+                        color: isSelected ? theme.colors.onSecondaryContainer : theme.colors.onSurface,
+                      }}
+                      style={{
+                        backgroundColor: isSelected ? theme.colors.secondaryContainer : 'transparent',
+                        borderRadius: 12,
+                        marginBottom: 4,
+                        marginLeft: 16,
+                      }}
+                      onPress={() => selectAndSave(p, m.id)}
+                      left={() => (
+                        <Icon
+                          name={(isSelected ? 'radiobox-marked' : 'radiobox-blank') as any}
+                          size={20}
+                          color={isSelected ? theme.colors.primary : theme.colors.onSurfaceVariant}
+                          style={{ marginRight: 12 }}
+                        />
+                      )}
+                    />
+                  );
+                })}
+              </View>
+            ))}
+          </ScrollView>
+        </Dialog.Content>
+
+        <Dialog.Actions>
+          <Button mode="contained" onPress={onDismiss} style={{ borderRadius: 12 }}>
+            完成
+          </Button>
+        </Dialog.Actions>
+      </Dialog>
+    </Portal>
   );
 }
 
