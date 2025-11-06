@@ -8,7 +8,7 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { View, Platform, TextInput as RNTextInput, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Platform, TextInput as RNTextInput, ScrollView, TouchableOpacity } from 'react-native';
 import { IconButton, useTheme } from 'react-native-paper';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { ChatRepository } from '@/storage/repositories/chat';
@@ -28,8 +28,6 @@ import { SearchLoadingIndicator } from './SearchLoadingIndicator';
 import { AttachmentMenu } from './AttachmentMenu';
 import { MoreActionsMenu } from './MoreActionsMenu';
 import { appEvents, AppEvents } from '@/utils/events';
-import { Text } from 'react-native-paper';
-import { cn } from '@/utils/classnames';
 
 export function ChatInput({ conversationId, onConversationChange }: { conversationId: string | null; onConversationChange: (id: string) => void; }) {
   const theme = useTheme();
@@ -492,7 +490,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         conversationId={conversationId}
       />
 
-      <View style={styles.outerContainer}>
+      <View className="px-4 pt-2 pb-2">
         {/* 搜索加载指示器 */}
         {isSearching && (
           <SearchLoadingIndicator
@@ -502,11 +500,26 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         )}
 
         {/* 圆角悬浮方框容器 */}
-        <View style={[styles.inputContainer, {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.outlineVariant,
-          shadowColor: '#000',
-        }]}>
+        <View
+          className="rounded-[20px] border overflow-hidden"
+          style={[
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.outlineVariant,
+              shadowColor: '#000',
+            },
+            Platform.select({
+              ios: {
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 8,
+              },
+              android: {
+                elevation: 4,
+              },
+            }),
+          ]}
+        >
           {/* 上层：输入框 */}
           <RNTextInput
             placeholder={enterToSend ? "和助手说点什么… (Shift+Enter 换行)" : "和助手说点什么… (Ctrl+Enter 展开)"}
@@ -515,7 +528,11 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
             onChangeText={setMessage}
             multiline
             maxLength={2000}
-            style={[styles.textInput, { color: theme.colors.onSurface }]}
+            className="text-[15px] leading-5 px-4 pt-3 pb-2 min-h-11 max-h-[120px]"
+            style={{
+              textAlignVertical: 'top',
+              color: theme.colors.onSurface,
+            }}
             onKeyPress={(e) => {
               // Web 平台支持键盘事件
               if (Platform.OS === 'web') {
@@ -536,24 +553,37 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              style={styles.attachmentsBar}
-              contentContainerStyle={styles.attachmentsContent}
+              className="px-2 pb-1.5"
+              contentContainerStyle={{ alignItems: 'center', gap: 8 }}
             >
               {selectedAttachments.map(att => (
                 att.kind === 'image' && att.uri ? (
-                  <View key={att.id} style={styles.attachmentItem}>
-                    <Image source={{ uri: att.uri }} style={styles.attachmentThumb} contentFit="cover" />
+                  <View key={att.id} className="relative">
+                    <Image
+                      source={{ uri: att.uri }}
+                      className="w-24 h-16 rounded-lg"
+                      contentFit="cover"
+                    />
                     <TouchableOpacity
-                      style={[styles.removeBadge, { backgroundColor: theme.colors.error }]}
+                      className="absolute -top-2 -right-2 rounded-xl"
+                      style={{ backgroundColor: theme.colors.error }}
                       onPress={() => setSelectedAttachments(prev => prev.filter(a => a.id !== att.id))}
                     >
-                      <IconButton icon="close" size={14} style={styles.removeIcon} iconColor="#fff" />
+                      <IconButton icon="close" size={14} style={{ margin: 0 }} iconColor="#fff" />
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <View key={att.id} style={[styles.fileChip, { borderColor: theme.colors.outlineVariant }]}> 
+                  <View
+                    key={att.id}
+                    className="flex-row items-center border rounded-2xl px-2 py-1"
+                    style={{ borderColor: theme.colors.outlineVariant }}
+                  >
                     <IconButton icon="file" size={16} style={{ margin: 0 }} />
-                    <RNTextInput editable={false} value={att.name || '附件'} style={styles.fileChipText} />
+                    <RNTextInput
+                      editable={false}
+                      value={att.name || '附件'}
+                      className="min-w-[60px] max-w-[160px] py-0 px-0"
+                    />
                     <IconButton
                       icon="close"
                       size={14}
@@ -567,41 +597,41 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
           )}
 
           {/* 下层：工具按钮行 */}
-          <View style={styles.toolbarRow}>
+          <View className="flex-row items-center justify-between px-2 py-2 min-h-[52px]">
             {/* 左侧工具按钮组 */}
-            <View style={styles.leftTools}>
+            <View className="flex-row items-center">
               <IconButton
                 icon="web"
                 iconColor={searchEnabled ? theme.colors.primary : theme.colors.onSurfaceVariant}
                 size={20}
                 onPress={() => setSearchEnabled(!searchEnabled)}
                 disabled={isSearching}
-                style={styles.toolButtonStyle}
+                style={{ marginHorizontal: 2 }}
               />
               <IconButton
                 icon="attachment"
                 iconColor={theme.colors.onSurfaceVariant}
                 size={20}
                 onPress={handleAttachment}
-                style={styles.toolButtonStyle}
+                style={{ marginHorizontal: 2 }}
               />
               <IconButton
                 icon="plus-circle-outline"
                 iconColor={theme.colors.onSurfaceVariant}
                 size={20}
                 onPress={handleMoreActions}
-                style={styles.toolButtonStyle}
+                style={{ marginHorizontal: 2 }}
               />
             </View>
 
             {/* 右侧发送按钮组 */}
-            <View style={styles.rightTools}>
+            <View className="flex-row items-center">
               <IconButton
                 icon="microphone"
                 iconColor={theme.colors.onSurfaceVariant}
                 size={20}
                 onPress={handleVoice}
-                style={styles.toolButtonStyle}
+                style={{ marginHorizontal: 2 }}
               />
               <IconButton
                 icon={isGenerating ? "stop" : "send"}
@@ -616,7 +646,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
                 onPress={isGenerating ? handleStop : handleSend}
                 disabled={!message.trim() && selectedAttachments.length === 0 && !isGenerating}
                 style={[
-                  styles.toolButtonStyle,
+                  { marginHorizontal: 2 },
                   isGenerating && {
                     backgroundColor: theme.colors.error,
                   }
@@ -629,95 +659,3 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  outerContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 8,
-  },
-  inputContainer: {
-    borderRadius: 20,
-    borderWidth: 1,
-    overflow: 'hidden',
-    // 悬浮阴影效果
-    ...Platform.select({
-      ios: {
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  textInput: {
-    fontSize: 15,
-    lineHeight: 20,
-    textAlignVertical: 'top',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-    minHeight: 44,
-    maxHeight: 120,
-  },
-  attachmentsBar: {
-    paddingHorizontal: 8,
-    paddingBottom: 6,
-  },
-  attachmentsContent: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  attachmentItem: {
-    position: 'relative',
-  },
-  attachmentThumb: {
-    width: 96,
-    height: 64,
-    borderRadius: 8,
-  },
-  removeBadge: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    borderRadius: 12,
-  },
-  removeIcon: {
-    margin: 0,
-  },
-  fileChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  fileChipText: {
-    minWidth: 60,
-    maxWidth: 160,
-    paddingVertical: 0,
-    paddingHorizontal: 0,
-  },
-  toolbarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    minHeight: 52,
-  },
-  leftTools: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  rightTools: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  toolButtonStyle: {
-    marginHorizontal: 2,
-  },
-});
