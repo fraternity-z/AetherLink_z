@@ -5,6 +5,7 @@
 // We redirect that request explicitly to the actual file.
 
 const { getDefaultConfig } = require('expo/metro-config');
+const { withNativeWind } = require('nativewind/metro');
 const path = require('path');
 const fs = require('fs');
 
@@ -44,4 +45,4 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   return resolve(context, moduleName, platform);
 };
 
-module.exports = config;
+module.exports = withNativeWind(config, { input: './global.css' });

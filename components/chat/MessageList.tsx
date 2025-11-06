@@ -79,7 +79,7 @@ export function MessageList({ conversationId }: { conversationId: string | null 
             variant="bodyLarge"
             style={[styles.welcomeText, { color: theme.colors.onSurfaceVariant }]}
           >
-            新的对话已开始，幽浮喵是一个乐于助帮手，提供快速这道问答服务。浮浮酱会很认真服务您呢♪ (´▽`)
+            新对话已开启。幽浮喵是一位乐于助人的助手，为您提供快捷高效的问答服务。浮浮酱将认真为您服务哦♪ (´▽`)
           </Text>
         </View>
       )}
