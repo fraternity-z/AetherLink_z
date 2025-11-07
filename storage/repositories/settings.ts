@@ -32,6 +32,8 @@ export enum SettingKey {
   EnterToSend = 'al:settings:enter_to_send',
   EnableNotifications = 'al:settings:enable_notifications',
   MobileInputMode = 'al:settings:mobile_input_mode',
+  // 智能体助手设置
+  CurrentAssistantId = 'al:settings:current_assistant_id',
 }
 
 

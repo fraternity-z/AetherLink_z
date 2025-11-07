@@ -41,4 +41,5 @@ export const AppEvents = {
   MESSAGES_CLEARED: 'messages:cleared',
   MESSAGE_SENT: 'message:sent',
   CONVERSATION_CHANGED: 'conversation:changed',
+  ASSISTANT_CHANGED: 'assistant:changed',
 } as const;

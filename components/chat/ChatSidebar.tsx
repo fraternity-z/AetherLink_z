@@ -1,9 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, useWindowDimensions, View, ScrollView } from 'react-native';
 import { Surface, Text, SegmentedButtons, List, TouchableRipple, useTheme, Avatar, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChatSettings } from './ChatSettings';
+import { AssistantsRepository } from '@/storage/repositories/assistants';
+import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
+import type { Assistant } from '@/types/assistant';
+import { appEvents, AppEvents } from '@/utils/events';
+import { AssistantPickerDialog } from './AssistantPickerDialog';
+import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 
 type TabKey = 'assistants' | 'settings';
 
@@ -24,6 +30,25 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
 
   const translateX = useRef(new Animated.Value(-drawerWidth)).current;
   const [tab, setTab] = useState<TabKey>('assistants');
+  const [assistants, setAssistants] = useState<Assistant[]>([]);
+  const [currentAssistantId, setCurrentAssistantId] = useState<string>('default');
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const { confirm } = useConfirmDialog();
+
+  // 加载助手列表和当前选中的助手
+  useEffect(() => {
+    const loadAssistants = async () => {
+      const repo = AssistantsRepository();
+      const allAssistants = await repo.getAll();
+      setAssistants(allAssistants);
+
+      const settings = SettingsRepository();
+      const currentId = await settings.get<string>(SettingKey.CurrentAssistantId);
+      setCurrentAssistantId(currentId || 'default');
+    };
+
+    loadAssistants();
+  }, [visible]); // 每次打开侧边栏时重新加载
 
   useEffect(() => {
     Animated.timing(translateX, {
@@ -33,14 +58,60 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
     }).start();
   }, [visible, drawerWidth, translateX]);
 
-  const assistants = useMemo(
-    () => [
-      { id: 'default', title: '默认助手', description: '通用对话与任务处理', icon: 'robot-outline' },
-      { id: 'writer', title: '写作助手', description: '创作/润色/改写内容', icon: 'pencil-outline' },
-      { id: 'translator', title: '翻译助手', description: '多语言互译与本地化', icon: 'translate' },
-    ],
-    []
-  );
+  // 切换助手
+  const handleSelectAssistant = async (assistantId: string) => {
+    const settings = SettingsRepository();
+    await settings.set(SettingKey.CurrentAssistantId, assistantId);
+    setCurrentAssistantId(assistantId);
+
+    // 发送助手切换事件
+    appEvents.emit(AppEvents.ASSISTANT_CHANGED, assistantId);
+
+    console.log('[ChatSidebar] 切换助手:', assistantId);
+  };
+
+  // 添加助手
+  const handleAddAssistant = async (assistant: Assistant) => {
+    const repo = AssistantsRepository();
+    await repo.enableAssistant(assistant.id);
+    // 重新加载助手列表
+    const allAssistants = await repo.getAll();
+    setAssistants(allAssistants);
+    console.log('[ChatSidebar] 添加助手:', assistant.name);
+  };
+
+  // 移除助手
+  const handleRemoveAssistant = async (assistant: Assistant) => {
+    if (assistant.id === 'default') {
+      return; // 不能删除默认助手
+    }
+
+    confirm({
+      title: '移除助手',
+      message: `确定要从列表中移除「${assistant.name}」吗？\n\n这不会删除助手，你可以随时重新添加。`,
+      buttons: [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '移除',
+          style: 'destructive',
+          onPress: async () => {
+            const repo = AssistantsRepository();
+            await repo.disableAssistant(assistant.id);
+
+            // 如果移除的是当前助手，切换到默认助手
+            if (assistant.id === currentAssistantId) {
+              await handleSelectAssistant('default');
+            }
+
+            // 重新加载助手列表
+            const allAssistants = await repo.getAll();
+            setAssistants(allAssistants);
+            console.log('[ChatSidebar] 移除助手:', assistant.name);
+          },
+        },
+      ],
+    });
+  };
   
 
   return (
@@ -96,16 +167,85 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
           {/* 内容 */}
           <View style={[styles.content, { paddingBottom: insets.bottom + 96 }]}>
             {tab === 'assistants' ? (
-              <View>
-                {assistants.map((a, idx) => (
-                  <TouchableRipple key={a.id} onPress={() => console.log('选择助手:', a.id)}>
+              <View style={{ flex: 1 }}>
+                {/* 助手列表 */}
+                <ScrollView
+                  showsVerticalScrollIndicator={true}
+                  contentContainerStyle={{ paddingBottom: 80 }}
+                >
+                  {assistants.map((assistant) => {
+                    const isSelected = assistant.id === currentAssistantId;
+                    const canRemove = assistant.id !== 'default';
+
+                    return (
+                      <TouchableRipple
+                        key={assistant.id}
+                        onPress={() => handleSelectAssistant(assistant.id)}
+                        onLongPress={() => canRemove && handleRemoveAssistant(assistant)}
+                      >
+                        <List.Item
+                          title={assistant.name}
+                          description={assistant.description}
+                          left={(props) => (
+                            <View style={{ paddingLeft: 8, paddingTop: 6 }}>
+                              <Text style={{ fontSize: 24 }}>
+                                {assistant.emoji || '🤖'}
+                              </Text>
+                            </View>
+                          )}
+                          right={(props) =>
+                            isSelected ? (
+                              <List.Icon {...props} icon="check" color={theme.colors.primary} />
+                            ) : canRemove ? (
+                              <IconButton
+                                icon="close"
+                                size={16}
+                                onPress={() => handleRemoveAssistant(assistant)}
+                              />
+                            ) : null
+                          }
+                          style={
+                            isSelected
+                              ? { backgroundColor: theme.colors.primaryContainer }
+                              : undefined
+                          }
+                        />
+                      </TouchableRipple>
+                    );
+                  })}
+                </ScrollView>
+
+                {/* 底部添加助手按钮 */}
+                <View
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    padding: 12,
+                    backgroundColor: theme.colors.surface,
+                    borderTopWidth: StyleSheet.hairlineWidth,
+                    borderTopColor: theme.colors.outlineVariant,
+                  }}
+                >
+                  <TouchableRipple
+                    onPress={() => setPickerVisible(true)}
+                    style={{
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: theme.colors.primary,
+                      borderStyle: 'dashed',
+                    }}
+                  >
                     <List.Item
-                      title={a.title}
-                      description={a.description}
-                      left={(props) => <List.Icon {...props} icon={a.icon as any} />}
+                      title="添加助手"
+                      titleStyle={{ color: theme.colors.primary }}
+                      left={(props) => (
+                        <List.Icon {...props} icon="plus" color={theme.colors.primary} />
+                      )}
                     />
                   </TouchableRipple>
-                ))}
+                </View>
               </View>
             ) : (
               <ChatSettings />
@@ -162,6 +302,13 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
           </Surface>
         </Surface>
       </Animated.View>
+
+      {/* 助手选择对话框 */}
+      <AssistantPickerDialog
+        visible={pickerVisible}
+        onDismiss={() => setPickerVisible(false)}
+        onSelect={handleAddAssistant}
+      />
     </View>
   );
 }

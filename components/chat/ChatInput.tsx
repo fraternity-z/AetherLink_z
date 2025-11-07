@@ -15,6 +15,7 @@ import { ChatRepository } from '@/storage/repositories/chat';
 import { MessageRepository } from '@/storage/repositories/messages';
 import { streamCompletion, type Provider } from '@/services/ai/AiClient';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
+import { AssistantsRepository } from '@/storage/repositories/assistants';
 import type { CoreMessage } from 'ai';
 import { autoNameConversation } from '@/services/ai/TopicNaming';
 import * as DocumentPicker from 'expo-document-picker';
@@ -197,7 +198,21 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       const maxTokensEnabled = (await sr.get<boolean>(SettingKey.ChatMaxTokensEnabled)) ?? false;
       const maxTokens = maxTokensEnabled ? ((await sr.get<number>(SettingKey.ChatMaxTokens)) ?? 2048) : undefined;
       const contextCount = (await sr.get<number>(SettingKey.ChatContextCount)) ?? 10;
-      const systemPrompt = (await sr.get<string>(SettingKey.ChatSystemPrompt)) ?? 'You are a helpful assistant.';
+
+      // 获取当前助手的系统提示词
+      let systemPrompt = 'You are a helpful assistant.';
+      const currentAssistantId = (await sr.get<string>(SettingKey.CurrentAssistantId)) ?? 'default';
+      const assistantsRepo = AssistantsRepository();
+      const currentAssistant = await assistantsRepo.getById(currentAssistantId);
+
+      if (currentAssistant?.systemPrompt) {
+        systemPrompt = currentAssistant.systemPrompt;
+        console.log('[ChatInput] 使用助手提示词:', currentAssistant.name);
+      } else {
+        // 如果助手没有自定义提示词，使用设置中的默认提示词
+        systemPrompt = (await sr.get<string>(SettingKey.ChatSystemPrompt)) ?? 'You are a helpful assistant.';
+        console.log('[ChatInput] 使用默认提示词');
+      }
 
     // 构建消息数组（根据上下文数目）
       const msgs: CoreMessage[] = [];
