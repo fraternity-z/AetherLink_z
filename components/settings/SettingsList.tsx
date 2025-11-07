@@ -7,12 +7,10 @@
  * - Material Design 卡片式列表
  */
 
-import React from 'react';
-import { ScrollView, View, useWindowDimensions } from 'react-native';
-import { Text, Avatar, useTheme, Card, List } from 'react-native-paper';
+import { ScrollView, View } from 'react-native';
+import { Text, useTheme, List } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { cn } from '@/utils/classnames';
 
 // 设置项数据结构
 interface SettingItem {
@@ -166,24 +164,8 @@ const SETTINGS_GROUPS: SettingGroup[] = [
   },
 ];
 
-// 将十六进制颜色转为带透明度的 rgba
-function withOpacity(hex: string, opacity = 0.12) {
-  const h = hex.replace('#', '');
-  const r = parseInt(h.substring(0, 2), 16);
-  const g = parseInt(h.substring(2, 4), 16);
-  const b = parseInt(h.substring(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-}
-
 export function SettingsList() {
   const theme = useTheme();
-  const { width } = useWindowDimensions();
-
-  // 响应式列数：手机1列、平板2列、桌面3列
-  const columns = width >= 1200 ? 3 : width >= 768 ? 2 : 1;
-  const horizontalPadding = 16;
-  const gap = 12;
-  const cardWidth = Math.floor((width - horizontalPadding * 2 - gap * (columns - 1)) / columns);
 
   const handleItemPress = (item: SettingItem) => {
     if (item.route) {
@@ -197,58 +179,64 @@ export function SettingsList() {
   return (
     <ScrollView
       className="flex-1"
-      contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: horizontalPadding }}
-      style={{ backgroundColor: theme.colors.surfaceVariant }}
+      style={{ backgroundColor: theme.colors.background }}
+      contentContainerStyle={{ paddingVertical: 12 }}
     >
       {SETTINGS_GROUPS.map((group, groupIndex) => (
-        <View key={groupIndex} className="mb-6">
+        <View key={groupIndex} className="mb-6 px-4">
+          {/* 分组标题 */}
           <Text
-            variant="labelLarge"
-            className="mb-4 font-semibold"
+            variant="labelSmall"
+            className="px-2 mb-2 font-medium"
             style={{ color: theme.colors.onSurfaceVariant }}
           >
             {group.title}
           </Text>
 
-          <View className="flex-row flex-wrap">
-            {group.items.map((item, idx) => {
-              const isLastInRow = (idx + 1) % columns === 0;
-              return (
-                <View
-                  key={item.id}
-                  style={{
-                    width: cardWidth,
-                    marginRight: isLastInRow ? 0 : gap,
-                    marginBottom: gap,
-                  }}
-                >
-                  <Card className="rounded-2xl m-0 p-0" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 }}>
-                    <List.Item
-                      className="rounded-2xl px-4 py-3"
-                      onPress={() => handleItemPress(item)}
-                      title={item.title}
-                      description={item.description}
-                      left={() => (
-                        <Avatar.Icon
-                          size={40}
-                          icon={item.icon as any}
-                          color={item.color}
-                          className="mr-3"
-                          style={{ backgroundColor: withOpacity(item.color, 0.15) }}
-                        />
-                      )}
-                      right={() => (
-                        <Icon
-                          name="chevron-right"
-                          size={24}
-                          color={theme.colors.onSurfaceVariant}
-                        />
-                      )}
+          {/* 列表项容器 - 圆角方框包裹 */}
+          <View
+            style={{
+              backgroundColor: theme.colors.surface,
+              borderRadius: 12,
+              overflow: 'hidden',
+              borderWidth: 1,
+              borderColor: theme.colors.outlineVariant,
+            }}
+          >
+            {group.items.map((item, idx) => (
+              <List.Item
+                key={item.id}
+                onPress={() => handleItemPress(item)}
+                title={item.title}
+                titleStyle={{ fontSize: 16, fontWeight: '500' }}
+                description={item.description}
+                descriptionStyle={{ fontSize: 13, marginTop: 2 }}
+                className="px-4 py-3"
+                style={{
+                  backgroundColor: 'transparent',
+                  borderBottomWidth: idx < group.items.length - 1 ? 0.5 : 0,
+                  borderBottomColor: theme.colors.outlineVariant,
+                }}
+                left={() => (
+                  <View className="justify-center mr-3">
+                    <Icon
+                      name={item.icon as any}
+                      size={24}
+                      color={theme.colors.onSurfaceVariant}
                     />
-                  </Card>
-                </View>
-              );
-            })}
+                  </View>
+                )}
+                right={() => (
+                  <View className="justify-center">
+                    <Icon
+                      name="chevron-right"
+                      size={20}
+                      color={theme.colors.onSurfaceVariant}
+                    />
+                  </View>
+                )}
+              />
+            ))}
           </View>
         </View>
       ))}
