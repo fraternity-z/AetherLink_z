@@ -7,9 +7,11 @@ interface SettingScreenProps {
   title: string;
   children: React.ReactNode;
   description?: string;
+  /** 是否禁用 ScrollView（当子组件已经是虚拟化列表时使用） */
+  disableScroll?: boolean;
 }
 
-export function SettingScreen({ title, children, description }: SettingScreenProps) {
+export function SettingScreen({ title, children, description, disableScroll }: SettingScreenProps) {
   const theme = useTheme();
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.surfaceVariant }]}>
@@ -21,9 +23,13 @@ export function SettingScreen({ title, children, description }: SettingScreenPro
           </Text>
         </View>
       ) : null}
-      <ScrollView contentContainerStyle={styles.container}>
-        {children}
-      </ScrollView>
+      {disableScroll ? (
+        children
+      ) : (
+        <ScrollView contentContainerStyle={styles.container}>
+          {children}
+        </ScrollView>
+      )}
     </View>
   );
 }
