@@ -9,6 +9,7 @@ import { SearchResult, SearchError } from '../types';
 import { performHttpRequest } from '../utils/http-client';
 import { parseBingSearchResults, validateSearchResults } from '../utils/html-parser';
 import { getRecommendedHeaders } from '../utils/user-agents';
+import { isHiddenWebViewAvailable, loadHtmlViaHiddenWebView } from '@/services/webview/HiddenWebViewClient';
 
 /**
  * 执行 Bing 搜索
@@ -38,14 +39,31 @@ export async function searchBing(
     console.log('[Bing Search] 开始搜索:', query);
 
     // 2. 发送 HTTP 请求（带 User-Agent 和其他请求头）
-    const html = await performHttpRequest(searchUrl, {
-      method: 'GET',
-      headers: {
-        ...getRecommendedHeaders(true), // 使用随机 User-Agent
-        'Referer': 'https://www.bing.com/',
-      },
-      timeout,
-    });
+    let html: string
+    if (isHiddenWebViewAvailable()) {
+      try {
+        html = await loadHtmlViaHiddenWebView(searchUrl, timeout)
+      } catch (e) {
+        // 回退到 HTTP 抓取
+        html = await performHttpRequest(searchUrl, {
+          method: 'GET',
+          headers: {
+            ...getRecommendedHeaders(true),
+            Referer: 'https://www.bing.com/'
+          },
+          timeout
+        })
+      }
+    } else {
+      html = await performHttpRequest(searchUrl, {
+        method: 'GET',
+        headers: {
+          ...getRecommendedHeaders(true),
+          Referer: 'https://www.bing.com/'
+        },
+        timeout
+      })
+    }
 
     console.log('[Bing Search] 获取到 HTML，长度:', html.length);
 

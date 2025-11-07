@@ -11,6 +11,7 @@ import { SearchResult, SearchError } from '../types';
 import { performHttpRequest } from '../utils/http-client';
 import { parseGoogleSearchResults, validateSearchResults } from '../utils/html-parser';
 import { getRecommendedHeaders } from '../utils/user-agents';
+import { isHiddenWebViewAvailable, loadHtmlViaHiddenWebView } from '@/services/webview/HiddenWebViewClient';
 
 /**
  * 执行 Google 搜索
@@ -41,17 +42,34 @@ export async function searchGoogle(
     console.log('[Google Search] 开始搜索:', query);
 
     // 2. 发送 HTTP 请求（使用移动端 User-Agent，更容易通过）
-    const html = await performHttpRequest(searchUrl, {
-      method: 'GET',
-      headers: {
-        ...getRecommendedHeaders(true), // 使用随机移动端 User-Agent
-        'Referer': 'https://www.google.com/',
-        // Google 可能需要更多请求头来模拟真实浏览器
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-      },
-      timeout,
-    });
+    let html: string
+    if (isHiddenWebViewAvailable()) {
+      try {
+        html = await loadHtmlViaHiddenWebView(searchUrl, timeout)
+      } catch (e) {
+        html = await performHttpRequest(searchUrl, {
+          method: 'GET',
+          headers: {
+            ...getRecommendedHeaders(true),
+            Referer: 'https://www.google.com/',
+            'Cache-Control': 'no-cache',
+            Pragma: 'no-cache'
+          },
+          timeout
+        })
+      }
+    } else {
+      html = await performHttpRequest(searchUrl, {
+        method: 'GET',
+        headers: {
+          ...getRecommendedHeaders(true),
+          Referer: 'https://www.google.com/',
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache'
+        },
+        timeout
+      })
+    }
 
     console.log('[Google Search] 获取到 HTML，长度:', html.length);
 

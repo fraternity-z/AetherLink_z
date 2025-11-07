@@ -3,7 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import '../global.css';
-
+import HiddenWebViewHost from '@/components/providers/HiddenWebViewHost'
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppThemeProvider } from '@/components/providers/ThemeProvider';
 import { AppDataProvider } from '@/components/providers/DataProvider';
@@ -40,6 +40,7 @@ export default function RootLayout() {
     <AppThemeProvider>
       <AppDataProvider>
         <ConfirmDialogProvider>
+          <HiddenWebViewHost />
           <RootLayoutInner />
         </ConfirmDialogProvider>
       </AppDataProvider>
