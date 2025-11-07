@@ -2,11 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { View, StyleSheet } from 'react-native';
-import { Avatar, Button, HelperText, List, SegmentedButtons, Surface, Switch, Text, TextInput, useTheme, Snackbar, Portal, Dialog, Checkbox } from 'react-native-paper';
+import { Avatar, Button, HelperText, List, SegmentedButtons, Surface, Switch, Text, TextInput, useTheme, Snackbar, Portal, Dialog } from 'react-native-paper';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 import { ProviderModelsRepository } from '@/storage/repositories/provider-models';
 import { fetchProviderModels, type DiscoveredModel } from '@/services/ai/ModelDiscovery';
 import { validateProviderModel } from '@/services/ai/ModelValidation';
+import { ModelDiscoveryDialog } from '@/components/settings/ModelDiscoveryDialog';
 
 type VendorMeta = {
   id: string;
@@ -41,7 +42,7 @@ export default function ProviderConfig() {
   const [saveStatus, setSaveStatus] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
   const [models, setModels] = useState<{ id: string; label: string }[]>([]);
   const [addDialog, setAddDialog] = useState<{ visible: boolean; id: string; label: string }>({ visible: false, id: '', label: '' });
-  const [discoverDialog, setDiscoverDialog] = useState<{ visible: boolean; items: DiscoveredModel[]; selected: Record<string, boolean>; loading: boolean }>({ visible: false, items: [], selected: {}, loading: false });
+  const [discoverDialog, setDiscoverDialog] = useState<{ visible: boolean; items: DiscoveredModel[]; loading: boolean }>({ visible: false, items: [], loading: false });
 
   const loadedRef = useRef(false);
   const persistRef = useRef<Promise<void> | null>(null);
@@ -213,16 +214,14 @@ export default function ProviderConfig() {
               mode="text"
               onPress={async () => {
                 // 立即弹窗，显示加载状态
-                setDiscoverDialog({ visible: true, items: [], selected: {}, loading: true });
+                setDiscoverDialog({ visible: true, items: [], loading: true });
 
                 try {
                   const discovered = await fetchProviderModels(meta.id as ProviderId);
-                  const selected: Record<string, boolean> = {};
-                  for (const d of discovered) selected[d.id] = true; // 默认全选
-                  setDiscoverDialog({ visible: true, items: discovered, selected, loading: false });
+                  setDiscoverDialog({ visible: true, items: discovered, loading: false });
                 } catch (e: any) {
                   // 关闭弹窗并显示错误提示
-                  setDiscoverDialog({ visible: false, items: [], selected: {}, loading: false });
+                  setDiscoverDialog({ visible: false, items: [], loading: false });
                   setSaveStatus({ visible: true, message: `✗ 获取失败：${e?.message || e}` });
                 }
               }}
@@ -265,62 +264,22 @@ export default function ProviderConfig() {
 
       {/* 手动添加模型对话框 */}
       <Portal>
-        {/* 自动获取 → 选择添加 */}
-        <Dialog visible={discoverDialog.visible} onDismiss={() => setDiscoverDialog({ visible: false, items: [], selected: {}, loading: false })}>
-          <Dialog.Title>从接口获取的模型</Dialog.Title>
-          <Dialog.ScrollArea style={{ maxHeight: 400 }}>
-            {discoverDialog.loading ? (
-              <View style={{ padding: 24, alignItems: 'center' }}>
-                <Text style={{ opacity: 0.7 }}>正在加载模型列表...</Text>
-              </View>
-            ) : discoverDialog.items.length === 0 ? (
-              <Text style={{ margin: 12, opacity: 0.7 }}>没有获取到可用模型</Text>
-            ) : (
-              discoverDialog.items.map((m) => (
-                <Checkbox.Item
-                  key={m.id}
-                  label={m.label || m.id}
-                  status={discoverDialog.selected[m.id] ? 'checked' : 'unchecked'}
-                  onPress={() =>
-                    setDiscoverDialog((s) => ({
-                      ...s,
-                      selected: { ...s.selected, [m.id]: !s.selected[m.id] },
-                    }))
-                  }
-                />
-              ))
-            )}
-          </Dialog.ScrollArea>
-          <Dialog.Actions>
-            <Button
-              onPress={() =>
-                setDiscoverDialog((s) => {
-                  const all = s.items.reduce((acc, it) => ({ ...acc, [it.id]: true }), {} as Record<string, boolean>);
-                  return { ...s, selected: all };
-                })
-              }
-              disabled={discoverDialog.loading || discoverDialog.items.length === 0}
-            >
-              全选
-            </Button>
-            <Button onPress={() => setDiscoverDialog({ visible: false, items: [], selected: {}, loading: false })}>取消</Button>
-            <Button
-              mode="contained"
-              disabled={discoverDialog.loading}
-              onPress={async () => {
-                const picks = discoverDialog.items.filter((m) => discoverDialog.selected[m.id]);
-                for (const m of picks) {
-                  await ProviderModelsRepository.upsert(meta.id as ProviderId, m.id, m.label ?? m.id, true);
-                }
-                setDiscoverDialog({ visible: false, items: [], selected: {}, loading: false });
-                await loadModels();
-                setSaveStatus({ visible: true, message: `✓ 已添加 ${picks.length} 个模型` });
-              }}
-            >
-              添加所选
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
+        {/* 自动获取 → 选择添加 - 使用新的优化组件 */}
+        <ModelDiscoveryDialog
+          visible={discoverDialog.visible}
+          loading={discoverDialog.loading}
+          models={discoverDialog.items}
+          onDismiss={() => setDiscoverDialog({ visible: false, items: [], loading: false })}
+          onConfirm={async (selectedIds) => {
+            const picks = discoverDialog.items.filter((m) => selectedIds.includes(m.id));
+            for (const m of picks) {
+              await ProviderModelsRepository.upsert(meta.id as ProviderId, m.id, m.label ?? m.id, true);
+            }
+            setDiscoverDialog({ visible: false, items: [], loading: false });
+            await loadModels();
+            setSaveStatus({ visible: true, message: `✓ 已添加 ${picks.length} 个模型` });
+          }}
+        />
 
         <Dialog visible={addDialog.visible} onDismiss={() => setAddDialog({ visible: false, id: '', label: '' })}>
           <Dialog.Title>添加模型</Dialog.Title>
