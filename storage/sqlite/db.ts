@@ -1,6 +1,7 @@
 import { openDatabaseSync, SQLiteDatabase } from 'expo-sqlite';
 import { MIGRATION_0001 } from '@/storage/sqlite/migrations/0001_init';
 import { MIGRATION_0002 } from '@/storage/sqlite/migrations/0002_provider_models';
+import { MIGRATION_0003 } from '@/storage/sqlite/migrations/0003_thinking_chains';
 
 let dbInstance: SQLiteDatabase | null = null;
 
@@ -13,7 +14,7 @@ export function getDB(): SQLiteDatabase {
 
 export async function initMigrations(): Promise<void> {
   const db = getDB();
-  const all = [MIGRATION_0001, MIGRATION_0002].join('\n');
+  const all = [MIGRATION_0001, MIGRATION_0002, MIGRATION_0003].join('\n');
   const stmts = all.split(';').map(s => s.trim()).filter(Boolean);
   await db.withTransactionAsync(async () => {
     await db.execAsync('PRAGMA foreign_keys = ON;');

@@ -1,5 +1,5 @@
-import { Message, Role, now, uuid } from '@/storage/core';
-import { execute, queryAll } from '@/storage/sqlite/db';
+import { Message, Role, now, uuid, ThinkingChain } from '@/storage/core';
+import { execute, queryAll, queryOne } from '@/storage/sqlite/db';
 
 export const MessageRepository = {
   async addMessage(input: {
@@ -132,5 +132,53 @@ export const MessageRepository = {
       `SELECT role, COUNT(*) as count FROM messages GROUP BY role`
     );
     return rows;
+  },
+
+  /**
+   * 获取单个消息及其关联的思考链(如果有)
+   */
+  async getMessageWithThinkingChain(
+    messageId: string
+  ): Promise<{ message: Message; thinkingChain: ThinkingChain | null } | null> {
+    const messageRow = await queryOne<any>(
+      `SELECT id, conversation_id as conversationId, role, text, created_at as createdAt, status, parent_id as parentId, extra
+       FROM messages
+       WHERE id = ?`,
+      [messageId]
+    );
+
+    if (!messageRow) return null;
+
+    const message: Message = {
+      id: messageRow.id,
+      conversationId: messageRow.conversationId,
+      role: messageRow.role,
+      text: messageRow.text,
+      createdAt: messageRow.createdAt,
+      status: messageRow.status,
+      parentId: messageRow.parentId,
+      extra: messageRow.extra ? JSON.parse(messageRow.extra) : undefined,
+    };
+
+    // 查询关联的思考链
+    const thinkingRow = await queryOne<any>(
+      `SELECT * FROM thinking_chains WHERE message_id = ?`,
+      [messageId]
+    );
+
+    const thinkingChain: ThinkingChain | null = thinkingRow
+      ? {
+          id: thinkingRow.id,
+          messageId: thinkingRow.message_id,
+          content: thinkingRow.content,
+          startTime: thinkingRow.start_time,
+          endTime: thinkingRow.end_time,
+          durationMs: thinkingRow.duration_ms,
+          tokenCount: thinkingRow.token_count,
+          extra: thinkingRow.extra ? JSON.parse(thinkingRow.extra) : undefined,
+        }
+      : null;
+
+    return { message, thinkingChain };
   },
 };

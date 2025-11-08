@@ -11,8 +11,9 @@ import React from 'react';
 import { View } from 'react-native';
 import { Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper';
 import { Image } from 'expo-image';
-import type { Attachment } from '@/storage/core';
+import type { Attachment, ThinkingChain } from '@/storage/core';
 import { MixedRenderer } from './MixedRenderer';
+import { ThinkingBlock } from './ThinkingBlock';
 import { cn } from '@/utils/classnames';
 
 interface MessageBubbleProps {
@@ -21,10 +22,20 @@ interface MessageBubbleProps {
   timestamp?: string;
   status?: 'pending' | 'sent' | 'failed';
   attachments?: Attachment[];
+  thinkingChain?: ThinkingChain | null; // 思考链数据(仅AI消息)
 }
 
-function MessageBubbleComponent({ content, isUser, timestamp, status, attachments = [] }: MessageBubbleProps) {
+function MessageBubbleComponent({ content, isUser, timestamp, status, attachments = [], thinkingChain }: MessageBubbleProps) {
   const theme = useTheme();
+
+  // 调试日志: 检查思考链数据
+  if (!isUser && thinkingChain) {
+    console.log('[MessageBubble] 🎯 显示思考链:', {
+      contentLength: thinkingChain.content.length,
+      durationMs: thinkingChain.durationMs,
+      messageContent: content.substring(0, 50),
+    });
+  }
 
   const getStatusIndicator = () => {
     if (!status || status === 'sent') return null;
@@ -73,6 +84,14 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
 
       {/* 消息气泡容器 */}
       <View className="flex-col">
+        {/* 思考链组件(仅AI消息且有思考链数据时显示,位于气泡上方) */}
+        {!isUser && thinkingChain && (
+          <ThinkingBlock
+            content={thinkingChain.content}
+            durationMs={thinkingChain.durationMs}
+          />
+        )}
+
         {/* 气泡主体 */}
         <View
           className="rounded-2xl px-3.5 py-2.5"

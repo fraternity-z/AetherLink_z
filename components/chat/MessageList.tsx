@@ -13,13 +13,15 @@ import { Text, useTheme } from 'react-native-paper';
 import { MessageBubble } from './MessageBubble';
 import { useMessages } from '@/hooks/use-messages';
 import { AttachmentRepository } from '@/storage/repositories/attachments';
-import type { Attachment, Message } from '@/storage/core';
+import { ThinkingChainRepository } from '@/storage/repositories/thinking-chains';
+import type { Attachment, Message, ThinkingChain } from '@/storage/core';
 import { appEvents, AppEvents } from '@/utils/events';
 
 export function MessageList({ conversationId }: { conversationId: string | null }) {
   const theme = useTheme();
   const { items, reload } = useMessages(conversationId ?? null, 50);
   const [attachmentsMap, setAttachmentsMap] = useState<Record<string, Attachment[]>>({});
+  const [thinkingChainsMap, setThinkingChainsMap] = useState<Record<string, ThinkingChain>>({});
 
   // 监听消息清空事件，立即刷新列表
   useEffect(() => {
@@ -30,10 +32,17 @@ export function MessageList({ conversationId }: { conversationId: string | null 
       }
     };
 
+    const handleMessageChanged = () => {
+      // 消息变化时重新加载思考链数据
+      reload();
+    };
+
     appEvents.on(AppEvents.MESSAGES_CLEARED, handleMessagesCleared);
+    appEvents.on(AppEvents.MESSAGE_CHANGED, handleMessageChanged);
 
     return () => {
       appEvents.off(AppEvents.MESSAGES_CLEARED, handleMessagesCleared);
+      appEvents.off(AppEvents.MESSAGE_CHANGED, handleMessageChanged);
     };
   }, [conversationId, reload]);
 
@@ -57,6 +66,34 @@ export function MessageList({ conversationId }: { conversationId: string | null 
     })();
   }, [items.map(m => m.id).join('|')]);
 
+  // 批量加载思考链数据（仅加载AI消息的思考链）
+  // 注意：思考链是在助手消息创建后才保存，因此仅监听 id 列表不足以触发刷新。
+  // 这里用 id + status + 文本长度 作为变化键，确保在流式更新或状态改变后重新拉取思考链。
+  useEffect(() => {
+    (async () => {
+      try {
+        const ids = items.map(m => m.id);
+        if (ids.length === 0) {
+          setThinkingChainsMap({});
+          return;
+        }
+        console.log('[MessageList] 开始加载思考链数据，消息数:', ids.length);
+        const map = await ThinkingChainRepository.getThinkingChainsByMessageIds(ids);
+        console.log('[MessageList] 加载到的思考链数量:', map.size);
+
+        // 将 Map 转换为普通对象
+        const objMap: Record<string, ThinkingChain> = {};
+        map.forEach((value, key) => {
+          console.log('[MessageList] 思考链数据:', { messageId: key, contentLength: value.content.length, durationMs: value.durationMs });
+          objMap[key] = value;
+        });
+        setThinkingChainsMap(objMap);
+      } catch (e) {
+        console.error('[MessageList] load thinking chains error', e);
+      }
+    })();
+  }, [items.map(m => `${m.id}:${m.status}:${(m.text ?? '').length}`).join('|')]);
+
   const renderItem: ListRenderItem<Message> = ({ item }) => (
     <MessageBubble
       content={item.text ?? ''}
@@ -64,6 +101,7 @@ export function MessageList({ conversationId }: { conversationId: string | null 
       status={item.status}
       timestamp={new Date(item.createdAt).toLocaleTimeString()}
       attachments={attachmentsMap[item.id] || []}
+      thinkingChain={thinkingChainsMap[item.id] || null}
     />
   );
 

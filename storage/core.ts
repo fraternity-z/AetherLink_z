@@ -71,6 +71,21 @@ export interface Attachment {
   extra?: any;
 }
 
+/**
+ * 思考链(Chain of Thought/Reasoning)数据结构
+ * 用于存储 AI 模型的思考过程(仅支持 OpenAI o1/o3、DeepSeek R1 等推理模型)
+ */
+export interface ThinkingChain {
+  id: string;              // 主键
+  messageId: string;       // 关联的消息 ID
+  content: string;         // 完整的思考过程内容
+  startTime: number;       // 开始时间戳 (毫秒)
+  endTime: number;         // 结束时间戳 (毫秒)
+  durationMs: number;      // 耗时 (毫秒)
+  tokenCount?: number | null; // 思考链使用的 token 数量 (可选)
+  extra?: any;             // 扩展字段
+}
+
 export function uuid(): string {
   // RFC4122 v4-like uuid (non-crypto)
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {

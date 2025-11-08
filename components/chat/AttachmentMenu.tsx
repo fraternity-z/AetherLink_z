@@ -14,7 +14,6 @@ import {
   Modal,
   Animated,
   TouchableWithoutFeedback,
-  Dimensions,
   Platform,
   Pressable,
 } from 'react-native';
@@ -74,10 +73,9 @@ export function AttachmentMenu({
   const menuItems = [
     {
       id: 'image',
-      title: '添加照片和文件',
-      icon: 'attachment',
-      iconType: 'material-community',
-      color: theme.colors.primary,
+      title: '添加照片和视频',
+      icon: 'image-multiple',
+      color: '#8B5CF6',
       onPress: () => {
         onClose();
         onSelectImage();
@@ -86,9 +84,8 @@ export function AttachmentMenu({
     {
       id: 'file',
       title: '添加文件',
-      icon: 'file-document-outline',
-      iconType: 'material-community',
-      color: '#10b981',
+      icon: 'file-document',
+      color: '#10B981',
       onPress: () => {
         onClose();
         onSelectFile();
@@ -98,7 +95,7 @@ export function AttachmentMenu({
 
   const translateY = slideAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [300, 0],
+    outputRange: [400, 0],
   });
 
   return (
@@ -114,7 +111,6 @@ export function AttachmentMenu({
           style={[
             styles.overlay,
             {
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
               opacity: opacityAnim,
             },
           ]}
@@ -140,28 +136,30 @@ export function AttachmentMenu({
               </View>
 
               {/* 标题 */}
-              <View style={styles.headerContainer}>
+              <View style={styles.header}>
                 <Text
-                  variant="titleMedium"
-                  style={{ color: theme.colors.onSurface, fontWeight: '600' }}
+                  variant="titleLarge"
+                  style={[
+                    styles.headerText,
+                    { color: theme.colors.onSurface }
+                  ]}
                 >
                   添加附件
                 </Text>
               </View>
 
-              {/* 菜单项 */}
+              {/* 菜单项 - 垂直排列的卡片式布局 */}
               <View style={styles.menuItemsContainer}>
-                {menuItems.map((item, index) => (
+                {menuItems.map((item) => (
                   <Pressable
                     key={item.id}
                     style={({ pressed }) => [
-                      styles.menuItem,
+                      styles.menuItemCard,
                       {
                         backgroundColor: pressed
                           ? theme.colors.surfaceVariant
-                          : 'transparent',
-                        borderTopWidth: index === 0 ? 0 : StyleSheet.hairlineWidth,
-                        borderTopColor: theme.colors.outlineVariant,
+                          : theme.colors.surface,
+                        borderColor: theme.colors.outlineVariant,
                       },
                     ]}
                     onPress={item.onPress}
@@ -171,31 +169,48 @@ export function AttachmentMenu({
                   >
                     <View
                       style={[
-                        styles.iconContainer,
-                        {
-                          backgroundColor: `${item.color}15`,
-                        },
+                        styles.menuItemContent,
                       ]}
                     >
+                      {/* 图标容器 */}
+                      <View
+                        style={[
+                          styles.iconWrapper,
+                          {
+                            backgroundColor: `${item.color}20`,
+                          },
+                        ]}
+                      >
+                        <Icon
+                          name={item.icon as any}
+                          size={28}
+                          color={item.color}
+                        />
+                      </View>
+
+                      {/* 文字容器 - 使用固定宽度 */}
+                      <View style={styles.titleWrapper}>
+                        <Text
+                          variant="bodyLarge"
+                          style={[
+                            styles.menuItemTitle,
+                            { color: theme.colors.onSurface }
+                          ]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {item.title}
+                        </Text>
+                      </View>
+
+                      {/* 箭头 */}
                       <Icon
-                        name={item.icon as any}color={item.color}
+                        name="chevron-right"
                         size={24}
+                        color={theme.colors.onSurfaceVariant}
+                        style={styles.chevron}
                       />
                     </View>
-                    <Text
-                      variant="bodyLarge"
-                      style={{
-                        color: theme.colors.onSurface,
-                        flex: 1,
-                      }}
-                    >
-                      {item.title}
-                    </Text>
-                    <Icon
-                      name="chevron-right"
-                      color={theme.colors.onSurfaceVariant}
-                      size={24}
-                    />
                   </Pressable>
                 ))}
               </View>
@@ -208,7 +223,8 @@ export function AttachmentMenu({
                     {
                       backgroundColor: pressed
                         ? theme.colors.surfaceVariant
-                        : theme.colors.surface,
+                        : 'transparent',
+                      borderColor: theme.colors.outlineVariant,
                     },
                   ]}
                   onPress={onClose}
@@ -218,11 +234,10 @@ export function AttachmentMenu({
                 >
                   <Text
                     variant="bodyLarge"
-                    style={{
-                      color: theme.colors.primary,
-                      fontWeight: '600',
-                      textAlign: 'center',
-                    }}
+                    style={[
+                      styles.cancelText,
+                      { color: theme.colors.primary }
+                    ]}
                   >
                     取消
                   </Text>
@@ -240,62 +255,93 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   menuContainer: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
+        shadowOffset: { width: 0, height: -4 },
         shadowOpacity: 0.15,
         shadowRadius: 16,
       },
       android: {
-        elevation: 8,
+        elevation: 12,
       },
     }),
   },
   dragIndicatorContainer: {
     alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingVertical: 12,
   },
   dragIndicator: {
-    width: 36,
+    width: 40,
     height: 4,
     borderRadius: 2,
   },
-  headerContainer: {
+  header: {
     paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingTop: 4,
+    paddingBottom: 20,
+  },
+  headerText: {
+    fontWeight: '700',
+    fontSize: 20,
   },
   menuItemsContainer: {
     paddingHorizontal: 16,
+    gap: 12,
   },
-  menuItem: {
+  menuItemCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  menuItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    minHeight: 72,
   },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+  iconWrapper: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
+    flexShrink: 0,
+  },
+  titleWrapper: {
+    flex: 1,
+    paddingRight: 12,
+    justifyContent: 'center',
+  },
+  menuItemTitle: {
+    fontWeight: '600',
+    fontSize: 17,
+    lineHeight: 24,
+  },
+  chevron: {
+    flexShrink: 0,
   },
   cancelContainer: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 12,
   },
   cancelButton: {
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelText: {
+    fontWeight: '600',
+    fontSize: 17,
   },
 });

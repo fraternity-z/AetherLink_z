@@ -21,6 +21,7 @@ AetherLink_z 是一个基于 React Native (Expo) 构建的跨平台 AI 聊天助
 - 💾 本地 SQLite 数据库存储对话历史
 - 🎨 自适应主题系统 (明暗模式 + 多彩主题)
 - 🔍 集成网络搜索功能 (Bing, Google, Tavily)
+- 💡 思考链(Chain of Thought)显示 (支持 OpenAI o1/o3, DeepSeek R1 等推理模型)
 - 📱 跨平台支持 (iOS, Android, Web)
 - 🔧 丰富的设置选项 (温度、令牌数、系统提示词等)
 - 📎 附件支持 (图片、文件等)
@@ -187,6 +188,25 @@ npm run reset-project
 - 主题系统需要同时维护 Paper 和 RNE 两套主题
 
 ## 变更记录 (Changelog)
+
+### 2025-11-08 (思考链功能上线)
+- ✨ 新增思考链(Chain of Thought)显示功能
+- 支持推理模型: OpenAI o1/o3, DeepSeek R1, Anthropic Claude 3.7+, Google Gemini Thinking
+- 核心特性:
+  - 💡 思考过程与正文内容分离显示
+  - 🔄 实时流式输出思考过程
+  - 📦 可折叠/展开的思考块 UI 组件
+  - ⏱️ 显示思考耗时统计
+  - 💾 数据库持久化存储思考链数据
+  - 🎨 自适应深色/浅色主题
+- 技术实现:
+  - 修改 `AiClient` 使用 `fullStream` 分离 reasoning 和 text
+  - 新增 `ThinkingChainRepository` 数据访问层
+  - 创建 `ThinkingBlock` UI 组件 (支持 Reanimated 动画)
+  - 扩展数据库表 `thinking_chains` (迁移 0003)
+  - 集成到 `MessageBubble` 和 `MessageList` 组件
+- 📚 新增文档: `docs/THINKING_CHAIN.md` 和技术调研报告
+- 🎯 参考用户截图精确复刻UI设计
 
 ### 2025-11-05 15:30:00
 - ✨ 创建统一的弹窗管理系统，提升用户交互体验

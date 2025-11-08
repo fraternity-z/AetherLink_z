@@ -40,6 +40,7 @@ export const appEvents = new EventEmitter();
 export const AppEvents = {
   MESSAGES_CLEARED: 'messages:cleared',
   MESSAGE_SENT: 'message:sent',
+  MESSAGE_CHANGED: 'message:changed',
   CONVERSATION_CHANGED: 'conversation:changed',
   ASSISTANT_CHANGED: 'assistant:changed',
 } as const;

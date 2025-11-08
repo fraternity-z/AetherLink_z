@@ -13,7 +13,9 @@ import { IconButton, useTheme } from 'react-native-paper';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { ChatRepository } from '@/storage/repositories/chat';
 import { MessageRepository } from '@/storage/repositories/messages';
+import { ThinkingChainRepository } from '@/storage/repositories/thinking-chains';
 import { streamCompletion, type Provider } from '@/services/ai/AiClient';
+import { uuid } from '@/storage/core';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import { AssistantsRepository } from '@/storage/repositories/assistants';
 import type { CoreMessage } from 'ai';
@@ -274,6 +276,12 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       });
 
       let acc = '';
+
+      // 思考链相关状态
+      let thinkingId: string | null = null;
+      let thinkingContent = '';
+      let thinkingStartTime: number | null = null;
+
       await streamCompletion({
         provider,
         model,
@@ -284,6 +292,47 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         onToken: async (d) => {
           acc += d;
           await MessageRepository.updateMessageText(assistant.id, acc);
+        },
+        // 思考链开始回调
+        onThinkingStart: () => {
+          thinkingStartTime = Date.now();
+          thinkingContent = '';
+          thinkingId = uuid();
+          console.log('[ChatInput] 思考链开始', { thinkingId });
+        },
+        // 思考链流式内容回调(每100ms防抖更新)
+        onThinkingToken: (delta) => {
+          thinkingContent += delta;
+          // 这里不需要每次都写数据库,等思考结束时统一保存
+        },
+        // 思考链结束回调
+        onThinkingEnd: async () => {
+          if (thinkingId && thinkingStartTime && thinkingContent) {
+            const endTime = Date.now();
+            const durationMs = endTime - thinkingStartTime;
+
+            try {
+              await ThinkingChainRepository.addThinkingChain({
+                messageId: assistant.id,
+                content: thinkingContent,
+                startTime: thinkingStartTime,
+                endTime,
+                durationMs,
+              });
+
+              console.log('[ChatInput] 思考链已保存', {
+                thinkingId,
+                messageId: assistant.id,
+                durationMs: `${(durationMs / 1000).toFixed(1)}秒`,
+                contentLength: thinkingContent.length,
+              });
+
+              // 触发消息列表刷新(如果需要)
+              appEvents.emit(AppEvents.MESSAGE_CHANGED);
+            } catch (e) {
+              console.error('[ChatInput] 保存思考链失败', e);
+            }
+          }
         },
         onDone: async () => {
           await MessageRepository.updateMessageStatus(assistant.id, 'sent');
