@@ -7,6 +7,7 @@
  * - 现代聊天应用风格的气泡设计
  */
 
+import React from 'react';
 import { View } from 'react-native';
 import { Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper';
 import { Image } from 'expo-image';
@@ -22,7 +23,7 @@ interface MessageBubbleProps {
   attachments?: Attachment[];
 }
 
-export function MessageBubble({ content, isUser, timestamp, status, attachments = [] }: MessageBubbleProps) {
+function MessageBubbleComponent({ content, isUser, timestamp, status, attachments = [] }: MessageBubbleProps) {
   const theme = useTheme();
 
   const getStatusIndicator = () => {
@@ -166,3 +167,4 @@ export function MessageBubble({ content, isUser, timestamp, status, attachments 
   );
 }
 
+export const MessageBubble = React.memo(MessageBubbleComponent);

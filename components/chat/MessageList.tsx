@@ -7,19 +7,18 @@
  * - 空状态显示欢迎提示文字
  */
 
-import React, { useEffect, useRef, useState } from 'react';
-import { ScrollView, View, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FlatList, View, StyleSheet, ListRenderItem } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { MessageBubble } from './MessageBubble';
 import { useMessages } from '@/hooks/use-messages';
 import { AttachmentRepository } from '@/storage/repositories/attachments';
-import type { Attachment } from '@/storage/core';
+import type { Attachment, Message } from '@/storage/core';
 import { appEvents, AppEvents } from '@/utils/events';
 
 export function MessageList({ conversationId }: { conversationId: string | null }) {
   const theme = useTheme();
   const { items, reload } = useMessages(conversationId ?? null, 50);
-  const scrollViewRef = useRef<ScrollView>(null);
   const [attachmentsMap, setAttachmentsMap] = useState<Record<string, Attachment[]>>({});
 
   // 监听消息清空事件，立即刷新列表
@@ -38,14 +37,8 @@ export function MessageList({ conversationId }: { conversationId: string | null 
     };
   }, [conversationId, reload]);
 
-  // 自动滚动到最新消息
-  useEffect(() => {
-    if (items.length > 0) {
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }
-  }, [items.length]);
+  // FlatList 数据：倒序以配合 inverted 列表（最新在底部）
+  const data = useMemo(() => [...items].reverse(), [items]);
 
   // 批量加载当前页消息的附件（减少查询次数）
   useEffect(() => {
@@ -64,16 +57,25 @@ export function MessageList({ conversationId }: { conversationId: string | null 
     })();
   }, [items.map(m => m.id).join('|')]);
 
+  const renderItem: ListRenderItem<Message> = ({ item }) => (
+    <MessageBubble
+      content={item.text ?? ''}
+      isUser={item.role === 'user'}
+      status={item.status}
+      timestamp={new Date(item.createdAt).toLocaleTimeString()}
+      attachments={attachmentsMap[item.id] || []}
+    />
+  );
+
   return (
-    <ScrollView
-      ref={scrollViewRef}
+    <FlatList
+      data={data}
+      keyExtractor={(m) => m.id}
+      renderItem={renderItem}
+      inverted
       style={[styles.container, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={[
-        items.length === 0 ? styles.contentContainerEmpty : styles.contentContainerWithMessages
-      ]}
-    >
-      {/* 空状态欢迎提示 */}
-      {(items.length === 0) && (
+      contentContainerStyle={items.length === 0 ? styles.contentContainerEmpty : styles.contentContainerInverted}
+      ListEmptyComponent={
         <View style={styles.emptyStateContainer}>
           <Text
             variant="bodyLarge"
@@ -82,24 +84,14 @@ export function MessageList({ conversationId }: { conversationId: string | null 
             新对话已开启。幽浮喵是一位乐于助人的助手，为您提供快捷高效的问答服务。浮浮酱将认真为您服务哦♪ (´▽`)
           </Text>
         </View>
-      )}
-
-      {/* 消息列表 */}
-      {items.length > 0 && (
-        <View style={styles.messagesContainer}>
-          {items.map((m) => (
-            <MessageBubble
-              key={m.id}
-              content={m.text ?? ''}
-              isUser={m.role === 'user'}
-              status={m.status}
-              timestamp={new Date(m.createdAt).toLocaleTimeString()}
-              attachments={attachmentsMap[m.id] || []}
-            />
-          ))}
-        </View>
-      )}
-    </ScrollView>
+      }
+      // 虚拟化与性能参数
+      windowSize={5}
+      initialNumToRender={20}
+      maxToRenderPerBatch={12}
+      removeClippedSubviews
+      maintainVisibleContentPosition={{ minIndexForVisible: 1 }}
+    />
   );
 }
 
@@ -113,9 +105,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
   },
-  contentContainerWithMessages: {
-    paddingTop: 16,
-    paddingBottom: 170, // 为输入框预留空间（输入框高度约 100-150px + 额外边距）
+  // inverted 列表中，为底部输入框预留空间应使用 paddingTop
+  contentContainerInverted: {
+    paddingTop: 170, // 为输入框预留空间（输入框高度约 100-150px + 额外边距）
+    paddingBottom: 16,
   },
   emptyStateContainer: {
     flex: 1,
