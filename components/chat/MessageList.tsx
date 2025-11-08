@@ -22,6 +22,7 @@ export function MessageList({ conversationId }: { conversationId: string | null 
   const { items, reload } = useMessages(conversationId ?? null, 50);
   const [attachmentsMap, setAttachmentsMap] = useState<Record<string, Attachment[]>>({});
   const [thinkingChainsMap, setThinkingChainsMap] = useState<Record<string, ThinkingChain>>({});
+  const [thinkingRefreshTick, setThinkingRefreshTick] = useState(0);
 
   // 监听消息清空事件，立即刷新列表
   useEffect(() => {
@@ -33,8 +34,9 @@ export function MessageList({ conversationId }: { conversationId: string | null 
     };
 
     const handleMessageChanged = () => {
-      // 消息变化时重新加载思考链数据
+      // 消息变化：重新加载消息，并强制刷新一次思考链
       reload();
+      setThinkingRefreshTick((x) => x + 1);
     };
 
     appEvents.on(AppEvents.MESSAGES_CLEARED, handleMessagesCleared);
@@ -92,7 +94,10 @@ export function MessageList({ conversationId }: { conversationId: string | null 
         console.error('[MessageList] load thinking chains error', e);
       }
     })();
-  }, [items.map(m => `${m.id}:${m.status}:${(m.text ?? '').length}`).join('|')]);
+  }, [
+    items.map(m => `${m.id}:${m.status}:${(m.text ?? '').length}`).join('|'),
+    thinkingRefreshTick,
+  ]);
 
   const renderItem: ListRenderItem<Message> = ({ item }) => (
     <MessageBubble
