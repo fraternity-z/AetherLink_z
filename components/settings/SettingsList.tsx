@@ -86,14 +86,6 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         route: '/settings/web-search',
       },
       {
-        id: 'model-combine',
-        title: '模型组合',
-        description: '创建和管理多模型组合',
-        icon: 'source-merge',
-        color: '#f472b6',
-        route: '/settings/model-combine',
-      },
-      {
         id: 'mcp-server',
         title: 'MCP 服务端',
         description: '高级服务器配置管理',

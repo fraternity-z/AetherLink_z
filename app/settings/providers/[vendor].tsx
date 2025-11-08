@@ -19,7 +19,6 @@ type VendorMeta = {
 };
 
 const VENDORS: Record<string, VendorMeta> = {
-  combine: { id: 'combine', name: '模型组合', desc: '创建和管理多模型组合', color: '#ef4444', letter: 'C' },
   openai: { id: 'openai', name: 'OpenAI', desc: 'openai API', color: '#22c55e', letter: 'O' },
   gemini: { id: 'gemini', name: 'Gemini', desc: 'google API', color: '#60a5fa', letter: 'G' },
   anthropic: { id: 'anthropic', name: 'Anthropic', desc: 'anthropic API', color: '#a78bfa', letter: 'A' },

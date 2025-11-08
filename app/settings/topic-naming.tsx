@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { List, Switch, TextInput, Button, RadioButton, useTheme } from 'react-native-paper';
+import { List, Switch, TextInput, Button, RadioButton, useTheme, Snackbar } from 'react-native-paper';
 import { SettingScreen } from '@/components/settings/SettingScreen';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
@@ -15,6 +15,7 @@ export default function TopicNamingSettings() {
   const [selected, setSelected] = useState<{ provider: ProviderId; model: string } | null>(null);
   const [enabledProviders, setEnabledProviders] = useState<ProviderId[]>([]);
   const [models, setModels] = useState<Record<ProviderId, { id: string; label: string }[]>>({} as any);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -41,9 +42,24 @@ export default function TopicNamingSettings() {
       }
       setModels(map);
 
-      const curProvider = (prov as ProviderId) || enabledList[0];
-      const curModel = mdl || (map[curProvider]?.[0]?.id ?? 'gpt-4o-mini');
-      setSelected({ provider: curProvider, model: curModel });
+      // 校验持久化选择是否仍然可用；如被禁用/删除则自动切换并持久化
+      let nextProvider: ProviderId = enabledList.includes((prov as ProviderId)) ? (prov as ProviderId) : enabledList[0];
+      if (!map[nextProvider] || (map[nextProvider]?.length ?? 0) === 0) {
+        const firstWithModels = enabledList.find((p) => (map[p]?.length ?? 0) > 0) || enabledList[0];
+        nextProvider = firstWithModels;
+      }
+
+      const exists = mdl && (map[nextProvider] || []).some((m) => m.id === mdl);
+      let nextModel = exists ? (mdl as string) : (map[nextProvider]?.[0]?.id ?? 'gpt-4o-mini');
+
+      setSelected({ provider: nextProvider, model: nextModel });
+
+      const changed = nextProvider !== prov || nextModel !== mdl;
+      if (changed) {
+        await sr.set(SettingKey.TopicNamingProvider, nextProvider);
+        await sr.set(SettingKey.TopicNamingModel, nextModel);
+        setNotice('上次选择的模型不可用，已自动切换');
+      }
     })();
   }, []);
 
@@ -101,6 +117,15 @@ export default function TopicNamingSettings() {
           ))}
         </RadioButton.Group>
       </UnifiedDialog>
+
+      <Snackbar
+        visible={!!notice}
+        onDismiss={() => setNotice(null)}
+        duration={2500}
+        style={{ marginBottom: 20 }}
+      >
+        {notice}
+      </Snackbar>
     </SettingScreen>
   );
 }

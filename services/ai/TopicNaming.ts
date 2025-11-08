@@ -2,6 +2,8 @@ import { SettingsRepository, SettingKey } from '@/storage/repositories/settings'
 import { MessageRepository } from '@/storage/repositories/messages';
 import { ChatRepository } from '@/storage/repositories/chat';
 import { streamCompletion, type Provider } from '@/services/ai/AiClient';
+import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
+import { ProviderModelsRepository } from '@/storage/repositories/provider-models';
 import type { CoreMessage } from 'ai';
 
 function sanitizeTitle(input: string): string {
@@ -19,8 +21,24 @@ export async function autoNameConversation(conversationId: string): Promise<void
   const enabled = (await sr.get<boolean>(SettingKey.TopicAutoNameEnabled)) ?? true;
   if (!enabled) return;
 
-  const provider = ((await sr.get<string>(SettingKey.TopicNamingProvider)) ?? (await sr.get<string>(SettingKey.DefaultProvider)) ?? 'openai') as Provider;
-  const model = (await sr.get<string>(SettingKey.TopicNamingModel)) ?? (await sr.get<string>(SettingKey.DefaultModel)) ?? (provider === 'openai' ? 'gpt-4o-mini' : provider === 'anthropic' ? 'claude-3-5-haiku-latest' : 'gemini-1.5-flash');
+  let provider = ((await sr.get<string>(SettingKey.TopicNamingProvider)) ?? (await sr.get<string>(SettingKey.DefaultProvider)) ?? 'openai') as Provider;
+  let model = (await sr.get<string>(SettingKey.TopicNamingModel)) ?? (await sr.get<string>(SettingKey.DefaultModel)) ?? (provider === 'openai' ? 'gpt-4o-mini' : provider === 'anthropic' ? 'claude-3-5-haiku-latest' : 'gemini-1.5-flash');
+
+  // 兜底：若命名选择的提供商被禁用或模型被删除，自动切换并持久化
+  try {
+    const cfg = await ProvidersRepository.getConfig(provider as ProviderId);
+    if (!cfg.enabled) {
+      provider = ((await sr.get<string>(SettingKey.DefaultProvider)) ?? 'openai') as Provider;
+    }
+    const list = await ProviderModelsRepository.listOrDefaults(provider as ProviderId);
+    if (!list.some((m) => m.modelId === model)) {
+      model = list[0]?.modelId ?? model;
+      await sr.set(SettingKey.TopicNamingProvider, provider);
+      await sr.set(SettingKey.TopicNamingModel, model);
+    }
+  } catch (e) {
+    // 安全兜底，不影响后续调用
+  }
   const prompt = (await sr.get<string>(SettingKey.TopicAutoNamePrompt)) ?? '请用简短中文（不超过20字）给这段对话生成一个标题，仅输出标题本身。';
 
   const msgsDb = await MessageRepository.listMessages(conversationId, { limit: 8 });
