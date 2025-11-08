@@ -11,7 +11,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, List, Switch, Button, Dialog, Portal, TextInput, useTheme } from 'react-native-paper';
+import { Text, List, Switch, Button, Portal, TextInput, useTheme } from 'react-native-paper';
+import { UnifiedDialog } from '@/components/common/UnifiedDialog';
 import Slider from '@react-native-community/slider';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 
@@ -187,27 +188,27 @@ export function ChatSettings() {
         </View>
       </View>
 
-      {/* System Prompt 编辑对话框 */}
-      <Portal>
-        <Dialog visible={showPromptDialog} onDismiss={() => setShowPromptDialog(false)}>
-          <Dialog.Title>编辑系统提示词</Dialog.Title>
-          <Dialog.Content>
-            <TextInput
-              value={tempPrompt}
-              onChangeText={setTempPrompt}
-              multiline
-              numberOfLines={6}
-              mode="outlined"
-              placeholder="输入系统提示词..."
-              style={{ maxHeight: 200 }}
-            />
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowPromptDialog(false)}>取消</Button>
-            <Button onPress={saveSystemPrompt}>保存</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      {/* System Prompt 编辑对话框（统一弹出框） */}
+      <UnifiedDialog
+        visible={showPromptDialog}
+        onClose={() => setShowPromptDialog(false)}
+        title="编辑系统提示词"
+        icon="note-text"
+        actions={[
+          { text: '取消', type: 'cancel', onPress: () => setShowPromptDialog(false) },
+          { text: '保存', type: 'primary', onPress: saveSystemPrompt },
+        ]}
+      >
+        <TextInput
+          value={tempPrompt}
+          onChangeText={setTempPrompt}
+          multiline
+          numberOfLines={6}
+          mode="outlined"
+          placeholder="输入系统提示词..."
+          style={{ maxHeight: 200 }}
+        />
+      </UnifiedDialog>
     </ScrollView>
   );
 }

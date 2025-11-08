@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
-import { List, Switch, Button, Card, Text, Divider, Portal, Dialog, ActivityIndicator, useTheme } from 'react-native-paper';
+import { List, Switch, Button, Card, Text, Divider, Portal, ActivityIndicator, useTheme } from 'react-native-paper';
 import { SettingScreen } from '@/components/settings/SettingScreen';
 import { DataStatsService, DataStatistics } from '@/services/data/DataStats';
 import { DataBackupService, BackupData } from '@/services/data/DataBackup';
 import { DataCleanupService } from '@/services/data/DataCleanup';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
+import { UnifiedDialog } from '@/components/common/UnifiedDialog';
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 
@@ -361,25 +362,19 @@ export default function DataSettings() {
         </List.Section>
       </ScrollView>
 
-      {/* 确认对话框 */}
-      <Portal>
-        <Dialog visible={confirmDialog.visible} onDismiss={hideConfirm}>
-          <Dialog.Title>{confirmDialog.title}</Dialog.Title>
-          <Dialog.Content>
-            <Text>{confirmDialog.message}</Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={hideConfirm}>取消</Button>
-            <Button
-              onPress={() => {
-                confirmDialog.onConfirm();
-              }}
-            >
-              确定
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      {/* 确认对话框（统一弹出框） */}
+      <UnifiedDialog
+        visible={confirmDialog.visible}
+        onClose={hideConfirm}
+        title={confirmDialog.title}
+        icon="alert-circle"
+        actions={[
+          { text: '取消', type: 'cancel', onPress: hideConfirm },
+          { text: '确定', type: 'primary', onPress: confirmDialog.onConfirm },
+        ]}
+      >
+        <Text>{confirmDialog.message}</Text>
+      </UnifiedDialog>
 
       {/* 加载指示器 */}
       {loading && (

@@ -6,9 +6,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { Dialog, Portal, Button, Text, Searchbar, useTheme, Chip } from 'react-native-paper';
+import { Button, Text, Searchbar, useTheme, Chip } from 'react-native-paper';
 import { AssistantsRepository } from '@/storage/repositories/assistants';
 import type { Assistant } from '@/types/assistant';
+import { UnifiedDialog } from '@/components/common/UnifiedDialog';
 
 interface AssistantPickerDialogProps {
   visible: boolean;
@@ -75,15 +76,15 @@ export function AssistantPickerDialog({ visible, onDismiss, onSelect }: Assistan
   };
 
   return (
-    <Portal>
-      <Dialog
-        visible={visible}
-        onDismiss={onDismiss}
-        style={[styles.dialog, { backgroundColor: '#FFFFFF' }]}
-      >
-        <Dialog.Title style={styles.title}>添加助手</Dialog.Title>
-
-        <Dialog.Content style={styles.content}>
+    <UnifiedDialog
+      visible={visible}
+      onClose={onDismiss}
+      title="添加助手"
+      icon="account"
+      actions={[{ text: '关闭', type: 'cancel', onPress: onDismiss }]}
+      maxHeight={'80%'}
+    >
+        <View style={styles.content}>
           {/* 搜索框 */}
           <Searchbar
             placeholder="搜索助手..."
@@ -192,28 +193,12 @@ export function AssistantPickerDialog({ visible, onDismiss, onSelect }: Assistan
               </View>
             )}
           </ScrollView>
-        </Dialog.Content>
-
-        <Dialog.Actions style={styles.actions}>
-          <Button
-            onPress={onDismiss}
-            textColor="#6B7280"
-            style={styles.closeButton}
-          >
-            关闭
-          </Button>
-        </Dialog.Actions>
-      </Dialog>
-    </Portal>
+        </View>
+    </UnifiedDialog>
   );
 }
 
 const styles = StyleSheet.create({
-  dialog: {
-    maxHeight: '80%',
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-  },
   title: {
     fontSize: 20,
     fontWeight: '600',
@@ -333,8 +318,5 @@ const styles = StyleSheet.create({
   actions: {
     paddingHorizontal: 20,
     paddingBottom: 16,
-  },
-  closeButton: {
-    borderRadius: 8,
   },
 });

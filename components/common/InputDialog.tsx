@@ -1,28 +1,12 @@
 /**
- * ⚡ 现代化输入对话框组件
- *
- * 功能：
- * - 优雅的输入弹窗，用于重命名、编辑等场景
- * - 支持圆角设计和流畅动画
- * - 支持单/多行输入
- * - 支持输入验证和提示
- * - 自动聚焦和键盘优化
+ * ⚡ 现代化输入对话框组件（基于 UnifiedDialog）
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  View,
-  StyleSheet,
-  Modal,
-  Animated,
-  TouchableWithoutFeedback,
-  Platform,
-  KeyboardAvoidingView,
-  Pressable,
-  TextInput as RNTextInput,
-} from 'react-native';
+import { View, StyleSheet, Platform, TextInput as RNTextInput } from 'react-native';
 import { useTheme, Text, TextInput } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { UnifiedDialog, type UnifiedDialogAction } from './UnifiedDialog';
 
 interface InputDialogButton {
   text: string;
@@ -66,8 +50,6 @@ export function InputDialog({
   validation,
 }: InputDialogProps) {
   const theme = useTheme();
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
   const inputRef = useRef<RNTextInput>(null);
 
   const [inputValue, setInputValue] = useState(defaultValue);
@@ -80,39 +62,9 @@ export function InputDialog({
       setError(undefined);
       setIsProcessing(false);
 
-      // 打开动画
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          useNativeDriver: true,
-          tension: 80,
-          friction: 8,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      // 延迟聚焦，确保动画流畅
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 250);
-    } else {
-      // 关闭动画
-      Animated.parallel([
-        Animated.timing(scaleAnim, {
-          toValue: 0.9,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      // 延迟聚焦，确保弹窗动画完成后聚焦
+      const t = setTimeout(() => inputRef.current?.focus(), 250);
+      return () => clearTimeout(t);
     }
   }, [visible, defaultValue]);
 
@@ -150,17 +102,6 @@ export function InputDialog({
     }
   };
 
-  const getButtonColor = (style?: string) => {
-    switch (style) {
-      case 'primary':
-        return theme.colors.primary;
-      case 'cancel':
-        return theme.colors.onSurfaceVariant;
-      default:
-        return theme.colors.primary;
-    }
-  };
-
   const getIconConfig = () => {
     if (icon) return icon;
 
@@ -170,236 +111,81 @@ export function InputDialog({
   };
 
   const iconConfig = getIconConfig();
+  const actions: UnifiedDialogAction[] = (buttons || []).map((b) => ({
+    text: isProcessing && b.style === 'primary' ? '处理中...' : b.text,
+    type: b.style === 'primary' ? 'primary' : b.style === 'cancel' ? 'cancel' : undefined,
+    disabled: b.disabled ? b.disabled(inputValue) || isProcessing : isProcessing,
+    onPress: async () => {
+      await handleButtonPress(b);
+    },
+  }));
 
   return (
-    <Modal
+    <UnifiedDialog
       visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onDismiss}
-      statusBarTranslucent
+      onClose={onDismiss || (() => {})}
+      title={title}
+      icon={iconConfig?.name as any}
+      iconColor={iconConfig?.color}
+      actions={actions}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <TouchableWithoutFeedback onPress={onDismiss}>
-          <Animated.View
-            style={[
-              styles.overlay,
-              {
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                opacity: opacityAnim,
-              },
-            ]}
-          >
-            <TouchableWithoutFeedback>
-              <Animated.View
-                style={[
-                  styles.dialogContainer,
-                  {
-                    backgroundColor: theme.colors.surface,
-                    transform: [{ scale: scaleAnim }],
-                  },
-                ]}
-              >
-                {/* 图标 */}
-                {iconConfig && (
-                  <View
-                    style={[
-                      styles.iconContainer,
-                      {
-                        backgroundColor: `${iconConfig.color}15`,
-                      },
-                    ]}
-                  >
-                    <Icon
-                      name={iconConfig.name as any}
-                      color={iconConfig.color}
-                      size={28}
-                    />
-                  </View>
-                )}
+      {/* 描述消息 */}
+      {message && (
+        <Text variant="bodyMedium" style={styles.message}>
+          {message}
+        </Text>
+      )}
 
-                {/* 标题 */}
-                <Text
-                  variant="titleLarge"
-                  style={[
-                    styles.title,
-                    { color: theme.colors.onSurface },
-                  ]}
-                >
-                  {title}
-                </Text>
+      {/* 输入框 */}
+      <TextInput
+        ref={inputRef}
+        mode="outlined"
+        value={inputValue}
+        onChangeText={(text) => {
+          setInputValue(text);
+          setError(undefined);
+        }}
+        placeholder={placeholder}
+        multiline={multiline}
+        maxLength={maxLength}
+        error={!!error}
+        style={[styles.input, multiline && styles.inputMultiline]}
+        outlineStyle={{ borderRadius: 12 }}
+        onSubmitEditing={() => {
+          if (!multiline && buttons.length > 0) {
+            const primaryButton = buttons.find((b) => b.style === 'primary') || buttons[buttons.length - 1];
+            void handleButtonPress(primaryButton);
+          }
+        }}
+        blurOnSubmit={!multiline}
+        returnKeyType={multiline ? 'default' : 'done'}
+      />
 
-                {/* 描述消息 */}
-                {message && (
-                  <Text
-                    variant="bodyMedium"
-                    style={[
-                      styles.message,
-                      { color: theme.colors.onSurfaceVariant },
-                    ]}
-                  >
-                    {message}
-                  </Text>
-                )}
+      {/* 错误提示 */}
+      {error && (
+        <View style={styles.errorContainer}>
+          <Icon name="alert-circle" color={theme.colors.error} size={16} />
+          <Text variant="bodySmall" style={[styles.errorText, { color: theme.colors.error }]}>
+            {error}
+          </Text>
+        </View>
+      )}
 
-                {/* 输入框 */}
-                <TextInput
-                  ref={inputRef}
-                  mode="outlined"
-                  value={inputValue}
-                  onChangeText={(text) => {
-                    setInputValue(text);
-                    setError(undefined);
-                  }}
-                  placeholder={placeholder}
-                  multiline={multiline}
-                  maxLength={maxLength}
-                  error={!!error}
-                  style={[
-                    styles.input,
-                    multiline && styles.inputMultiline,
-                  ]}
-                  outlineStyle={{
-                    borderRadius: 12,
-                  }}
-                  onSubmitEditing={() => {
-                    if (!multiline && buttons.length > 0) {
-                      const primaryButton = buttons.find(b => b.style === 'primary') || buttons[buttons.length - 1];
-                      handleButtonPress(primaryButton);
-                    }
-                  }}
-                  blurOnSubmit={!multiline}
-                  returnKeyType={multiline ? 'default' : 'done'}
-                />
+      {/* 字数统计 */}
+      {maxLength && (
+        <Text variant="bodySmall" style={styles.charCount}>
+          {inputValue.length} / {maxLength}
+        </Text>
+      )}
 
-                {/* 错误提示 */}
-                {error && (
-                  <View style={styles.errorContainer}>
-                    <Icon
-                      name="alert-circle"
-                      color={theme.colors.error}
-                      size={16}
-                    />
-                    <Text
-                      variant="bodySmall"
-                      style={[
-                        styles.errorText,
-                        { color: theme.colors.error },
-                      ]}
-                    >
-                      {error}
-                    </Text>
-                  </View>
-                )}
-
-                {/* 字数统计 */}
-                {maxLength && (
-                  <Text
-                    variant="bodySmall"
-                    style={[
-                      styles.charCount,
-                      { color: theme.colors.onSurfaceVariant },
-                    ]}
-                  >
-                    {inputValue.length} / {maxLength}
-                  </Text>
-                )}
-
-                {/* 按钮组 */}
-                <View style={styles.buttonsContainer}>
-                  {buttons.map((button, index) => {
-                    const isPrimary = button.style === 'primary';
-                    const isCancel = button.style === 'cancel';
-                    const buttonColor = getButtonColor(button.style);
-                    const isDisabled = button.disabled ? button.disabled(inputValue) : false;
-
-                    return (
-                      <Pressable
-                        key={index}
-                        style={({ pressed }) => [
-                          styles.button,
-                          {
-                            backgroundColor: isPrimary
-                              ? theme.colors.primary
-                              : isCancel
-                              ? 'transparent'
-                              : `${theme.colors.primary}15`,
-                            borderWidth: isCancel ? 1 : 0,
-                            borderColor: isCancel ? theme.colors.outlineVariant : 'transparent',
-                            opacity: pressed ? 0.7 : isDisabled ? 0.4 : 1,
-                          },
-                          index > 0 && { marginLeft: 12 },
-                        ]}
-                        onPress={() => handleButtonPress(button)}
-                        disabled={isDisabled || isProcessing}
-                        android_ripple={{
-                          color: `${buttonColor}30`,
-                        }}
-                      >
-                        <Text
-                          variant="bodyLarge"
-                          style={{
-                            color: isPrimary ? theme.colors.onPrimary : buttonColor,
-                            fontWeight: isPrimary ? '600' : '500',
-                            textAlign: 'center',
-                          }}
-                        >
-                          {isProcessing && isPrimary ? '处理中...' : button.text}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </Animated.View>
-            </TouchableWithoutFeedback>
-          </Animated.View>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
-    </Modal>
+      {/* actions 交由 UnifiedDialog 渲染 */}
+      {/* 通过 props 传递 */}
+      {null}
+    </UnifiedDialog>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  dialogContainer: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 24,
-    padding: 24,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.2,
-        shadowRadius: 24,
-      },
-      android: {
-        elevation: 12,
-      },
-    }),
-  },
-  iconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
   message: {
     textAlign: 'center',
     lineHeight: 22,
@@ -425,20 +211,5 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginBottom: 16,
     fontSize: 12,
-  },
-  buttonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginTop: 8,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48,
   },
 });

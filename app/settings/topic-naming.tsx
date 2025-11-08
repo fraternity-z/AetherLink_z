@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { List, Switch, TextInput, Button, Portal, Dialog, RadioButton, useTheme } from 'react-native-paper';
+import { List, Switch, TextInput, Button, RadioButton, useTheme } from 'react-native-paper';
 import { SettingScreen } from '@/components/settings/SettingScreen';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
@@ -76,33 +76,32 @@ export default function TopicNamingSettings() {
         />
       </List.Section>
 
-      <Portal>
-        <Dialog visible={modelPickerOpen} onDismiss={() => setModelPickerOpen(false)}>
-          <Dialog.Title>选择模型</Dialog.Title>
-          <Dialog.ScrollArea>
-            <RadioButton.Group
-              onValueChange={async (val) => {
-                const [pvd, mdl] = String(val).split('|');
-                await saveModel(pvd as ProviderId, mdl);
-                setModelPickerOpen(false);
-              }}
-              value={selected ? `${selected.provider}|${selected.model}` : ''}
-            >
-              {enabledProviders.map((pvd) => (
-                <React.Fragment key={pvd}>
-                  <List.Subheader>{pvd}</List.Subheader>
-                  {(models[pvd] || []).map((m) => (
-                    <RadioButton.Item key={`${pvd}:${m.id}`} label={`${m.label}`} value={`${pvd}|${m.id}`} />
-                  ))}
-                </React.Fragment>
+      <UnifiedDialog
+        visible={modelPickerOpen}
+        onClose={() => setModelPickerOpen(false)}
+        title="选择模型"
+        icon="robot"
+        actions={[{ text: '取消', type: 'cancel', onPress: () => setModelPickerOpen(false) }]}
+      >
+        <RadioButton.Group
+          onValueChange={async (val) => {
+            const [pvd, mdl] = String(val).split('|');
+            await saveModel(pvd as ProviderId, mdl);
+            setModelPickerOpen(false);
+          }}
+          value={selected ? `${selected.provider}|${selected.model}` : ''}
+        >
+          {enabledProviders.map((pvd) => (
+            <React.Fragment key={pvd}>
+              <List.Subheader>{pvd}</List.Subheader>
+              {(models[pvd] || []).map((m) => (
+                <RadioButton.Item key={`${pvd}:${m.id}`} label={`${m.label}`} value={`${pvd}|${m.id}`} />
               ))}
-            </RadioButton.Group>
-          </Dialog.ScrollArea>
-          <Dialog.Actions>
-            <Button onPress={() => setModelPickerOpen(false)}>取消</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+            </React.Fragment>
+          ))}
+        </RadioButton.Group>
+      </UnifiedDialog>
     </SettingScreen>
   );
 }
+import { UnifiedDialog } from '@/components/common/UnifiedDialog';

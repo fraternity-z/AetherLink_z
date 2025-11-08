@@ -2,12 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { View, StyleSheet } from 'react-native';
-import { Avatar, Button, HelperText, List, SegmentedButtons, Surface, Switch, Text, TextInput, useTheme, Snackbar, Portal, Dialog } from 'react-native-paper';
+import { Avatar, Button, HelperText, List, SegmentedButtons, Surface, Switch, Text, TextInput, useTheme, Snackbar, Portal } from 'react-native-paper';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 import { ProviderModelsRepository } from '@/storage/repositories/provider-models';
 import { fetchProviderModels, type DiscoveredModel } from '@/services/ai/ModelDiscovery';
 import { validateProviderModel } from '@/services/ai/ModelValidation';
 import { ModelDiscoveryDialog } from '@/components/settings/ModelDiscoveryDialog';
+import { UnifiedDialog } from '@/components/common/UnifiedDialog';
 
 type VendorMeta = {
   id: string;
@@ -281,42 +282,44 @@ export default function ProviderConfig() {
           }}
         />
 
-        <Dialog visible={addDialog.visible} onDismiss={() => setAddDialog({ visible: false, id: '', label: '' })}>
-          <Dialog.Title>添加模型</Dialog.Title>
-          <Dialog.Content>
-            <TextInput
-              label="模型 ID"
-              value={addDialog.id}
-              onChangeText={(t) => setAddDialog((s) => ({ ...s, id: t }))}
-              autoCapitalize="none"
-              style={{ marginBottom: 8 }}
-            />
-            <TextInput
-              label="显示名称（可选）"
-              value={addDialog.label}
-              onChangeText={(t) => setAddDialog((s) => ({ ...s, label: t }))}
-              autoCapitalize="none"
-            />
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setAddDialog({ visible: false, id: '', label: '' })}>取消</Button>
-            <Button
-              onPress={async () => {
+        <UnifiedDialog
+          visible={addDialog.visible}
+          onClose={() => setAddDialog({ visible: false, id: '', label: '' })}
+          title="添加模型"
+          icon="cube"
+          actions={[
+            { text: '取消', type: 'cancel', onPress: () => setAddDialog({ visible: false, id: '', label: '' }) },
+            {
+              text: '保存',
+              type: 'primary',
+              onPress: async () => {
                 if (!addDialog.id.trim()) return;
                 await ProviderModelsRepository.upsert(
                   meta.id as ProviderId,
                   addDialog.id.trim(),
                   addDialog.label?.trim() || addDialog.id.trim(),
-                  true
+                  true,
                 );
                 setAddDialog({ visible: false, id: '', label: '' });
                 await loadModels();
-              }}
-            >
-              保存
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
+              },
+            },
+          ]}
+        >
+          <TextInput
+            label="模型 ID"
+            value={addDialog.id}
+            onChangeText={(t) => setAddDialog((s) => ({ ...s, id: t }))}
+            autoCapitalize="none"
+            style={{ marginBottom: 8 }}
+          />
+          <TextInput
+            label="显示名称（可选）"
+            value={addDialog.label}
+            onChangeText={(t) => setAddDialog((s) => ({ ...s, label: t }))}
+            autoCapitalize="none"
+          />
+        </UnifiedDialog>
       </Portal>
 
       {/* 保存状态提示 */}
