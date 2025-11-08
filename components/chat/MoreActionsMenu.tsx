@@ -26,6 +26,8 @@ interface MoreActionsMenuProps {
   onClose: () => void;
   onClearConversation: () => void;
   conversationId: string | null;
+  onClearContext?: () => void;
+  hasContextReset?: boolean;
 }
 
 export function MoreActionsMenu({
@@ -33,6 +35,8 @@ export function MoreActionsMenu({
   onClose,
   onClearConversation,
   conversationId,
+  onClearContext,
+  hasContextReset,
 }: MoreActionsMenuProps) {
   const theme = useTheme();
   const { confirmAction, alert } = useConfirmDialog();
@@ -97,6 +101,25 @@ export function MoreActionsMenu({
     );
   };
 
+  const handleClearContext = () => {
+    if (!conversationId) {
+      alert('提示', '当前没有对话');
+      onClose();
+      return;
+    }
+    confirmAction(
+      '清除上下文',
+      '从下次提问起不再引用之前上文，历史消息不会被删除。',
+      () => {
+        onClose();
+        setTimeout(() => { onClearContext?.(); }, 200);
+      },
+      { confirmText: '清除上下文', cancelText: '取消', destructive: true }
+    );
+  };
+
+  // no undo entry per product decision
+
   const menuItems = [
     {
       id: 'clear',
@@ -106,6 +129,15 @@ export function MoreActionsMenu({
       color: '#EF4444',
       onPress: handleClearConversation,
       disabled: !conversationId,
+    },
+    {
+      id: 'clear-context',
+      title: '清除上下文',
+      description: '从下次提问起不引用之前上文',
+      icon: 'history',
+      color: '#A855F7',
+      onPress: handleClearContext,
+      disabled: !conversationId || !!hasContextReset,
     },
     // 可以在这里添加更多功能
     // {

@@ -85,16 +85,17 @@ export const MessageRepository = {
     };
   },
 
-  async listMessages(conversationId: string, opts?: { limit?: number; before?: number }): Promise<Message[]> {
+  async listMessages(conversationId: string, opts?: { limit?: number; before?: number; after?: number }): Promise<Message[]> {
     const limit = Math.max(1, opts?.limit ?? 50);
     const before = opts?.before ?? Number.MAX_SAFE_INTEGER;
+    const after = opts?.after ?? -1;
     const rows = await queryAll<any>(
       `SELECT id, conversation_id as conversationId, role, text, created_at as createdAt, status, parent_id as parentId
        FROM messages
-       WHERE conversation_id = ? AND created_at < ?
+       WHERE conversation_id = ? AND created_at < ? AND created_at > ?
        ORDER BY created_at ASC
        LIMIT ?`,
-      [conversationId, before, limit]
+      [conversationId, before, after, limit]
     );
     return rows;
   },

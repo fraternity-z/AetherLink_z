@@ -45,6 +45,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
   const [enterToSend, setEnterToSend] = useState(false);
   const [attachmentMenuVisible, setAttachmentMenuVisible] = useState(false);
   const [moreActionsMenuVisible, setMoreActionsMenuVisible] = useState(false);
+  const [hasContextReset, setHasContextReset] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   // 加载 Enter 键发送设置
@@ -223,8 +224,9 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         // 系统提示词
         msgs.push({ role: 'system', content: systemPrompt });
 
-        // 获取并添加历史消息（只取最近的 contextCount 条对话，每条对话包含 user 和 assistant）
-        const historyMessages = await MessageRepository.listMessages(cid!, { limit: contextCount * 2 });
+        // 获取并添加历史消息（断点之后的最近 contextCount 条对话，每条包含 user 和 assistant）
+        const resetAt = cid ? (await ChatRepository.getContextResetAt(cid)) ?? undefined : undefined;
+        const historyMessages = await MessageRepository.listMessages(cid!, { limit: contextCount * 2, after: resetAt });
         const recentHistory = historyMessages.slice(-contextCount * 2);
         for (const msg of recentHistory) {
           if (msg.role === 'user' || msg.role === 'assistant') {
@@ -507,8 +509,16 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
   };
 
   const handleMoreActions = () => {
-    // 显示更多功能菜单
-    setMoreActionsMenuVisible(true);
+    // 打开前刷新“清除上下文”状态
+    (async () => {
+      if (conversationId) {
+        const ts = await ChatRepository.getContextResetAt(conversationId);
+        setHasContextReset(!!ts);
+      } else {
+        setHasContextReset(false);
+      }
+      setMoreActionsMenuVisible(true);
+    })();
   };
 
   const handleClearConversation = async () => {
@@ -527,6 +537,13 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       console.error('[ChatInput] 清除对话失败', error);
       alert('错误', '清除对话失败，请重试');
     }
+  };
+
+  const handleClearContext = async () => {
+    if (!conversationId) return;
+    await ChatRepository.setContextResetAt(conversationId, Date.now());
+    setHasContextReset(true);
+    alert('已清除上下文', '从下次提问起不再引用之前上文');
   };
 
   const handleStop = () => {
@@ -552,6 +569,8 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         onClose={() => setMoreActionsMenuVisible(false)}
         onClearConversation={handleClearConversation}
         conversationId={conversationId}
+        onClearContext={handleClearContext}
+        hasContextReset={hasContextReset}
       />
 
       <View className="px-4 pt-2 pb-2">

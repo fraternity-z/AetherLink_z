@@ -1,4 +1,4 @@
-import { Conversation, now, uuid } from '@/storage/core';
+import { Conversation, now, uuid, safeJSON } from '@/storage/core';
 import { execute, queryAll, queryOne } from '@/storage/sqlite/db';
 
 export const ChatRepository = {
@@ -74,5 +74,32 @@ export const ChatRepository = {
     // ON DELETE CASCADE will remove messages and links; attachments cleanup is handled via orphan GC elsewhere if needed
     await execute(`DELETE FROM conversations WHERE id = ?`, [id]);
   },
-};
 
+  async getContextResetAt(id: string): Promise<number | null> {
+    const row = await queryOne<any>(`SELECT extra FROM conversations WHERE id = ?`, [id]);
+    if (!row || !row.extra) return null;
+    const obj = safeJSON.parse<any>(row.extra);
+    const v = obj?.contextResetAt;
+    return typeof v === 'number' ? v : null;
+  },
+
+  async setContextResetAt(id: string, ts: number): Promise<void> {
+    const row = await queryOne<any>(`SELECT extra FROM conversations WHERE id = ?`, [id]);
+    let obj: any = {};
+    if (row?.extra) {
+      const parsed = safeJSON.parse<any>(row.extra);
+      if (parsed && typeof parsed === 'object') obj = parsed;
+    }
+    obj.contextResetAt = ts;
+    await execute(`UPDATE conversations SET extra = ?, updated_at = ? WHERE id = ?`, [JSON.stringify(obj), now(), id]);
+  },
+
+  async clearContextReset(id: string): Promise<void> {
+    const row = await queryOne<any>(`SELECT extra FROM conversations WHERE id = ?`, [id]);
+    if (!row?.extra) return;
+    const obj = safeJSON.parse<any>(row.extra) || {};
+    if (obj.contextResetAt !== undefined) delete obj.contextResetAt;
+    const newExtra = Object.keys(obj).length ? JSON.stringify(obj) : null;
+    await execute(`UPDATE conversations SET extra = ?, updated_at = ? WHERE id = ?`, [newExtra, now(), id]);
+  },
+};
