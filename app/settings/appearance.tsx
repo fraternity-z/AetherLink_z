@@ -5,6 +5,7 @@ import Slider from '@react-native-community/slider';
 import { SettingScreen } from '@/components/settings/SettingScreen';
 import { ThemeStyleCard, ThemePreview } from '@/components/settings/ThemeStyleCard';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
+import { useAppSettings } from '@/components/providers/SettingsProvider';
 
 // 主题风格枚举
 export type ThemeStyle =
@@ -36,15 +37,13 @@ export default function AppearanceSettings() {
 
   // 状态：主题风格、字体大小
   const [styleId, setStyleId] = useState<ThemeStyle>('default');
-  const [fontScale, setFontScale] = useState<number>(16);
+  const { fontScale, setFontScale } = useAppSettings();
 
-  // 加载持久化设置（仅保留风格与字体大小）
+  // 加载持久化设置（仅保留风格）
   useEffect(() => {
     (async () => {
       const s = await sr.get<ThemeStyle>(SettingKey.ThemeStyle);
-      const fs = await sr.get<number>(SettingKey.FontScale);
       if (s) setStyleId(s);
-      if (fs) setFontScale(fs);
     })();
   }, []);
 
@@ -55,8 +54,7 @@ export default function AppearanceSettings() {
 
   const saveFontScale = async (v: number) => {
     const rounded = Math.round(v);
-    setFontScale(rounded);
-    await sr.set(SettingKey.FontScale, rounded);
+    await setFontScale(rounded);
   };
 
   const fontScaleLabel = useMemo(() => {

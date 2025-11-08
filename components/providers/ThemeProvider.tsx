@@ -16,12 +16,38 @@ interface AppThemeProviderProps {
   children: React.ReactNode;
 }
 
+import { useAppSettings } from './SettingsProvider';
+
 export function AppThemeProvider({ children }: AppThemeProviderProps) {
   // 获取系统主题偏好
   const colorScheme = useColorScheme();
+  const baseTheme = colorScheme === 'dark' ? paperDarkTheme : paperLightTheme;
+  // 从全局设置读取字体缩放
+  // 由 SettingsProvider 提供的上下文获取字体大小
+  const { fontScale } = useAppSettings();
 
-  // 根据系统主题选择对应的 Paper 主题
-  const theme = colorScheme === 'dark' ? paperDarkTheme : paperLightTheme;
+  const ratio = Math.max(0.5, Math.min(3, fontScale / 16));
+
+  const scaledFonts = React.useMemo(() => {
+    const f: any = baseTheme.fonts as any;
+    const out: any = {};
+    for (const k in f) {
+      const item = f[k];
+      if (item && typeof item === 'object') {
+        const newSize = typeof item.fontSize === 'number' ? Math.round(item.fontSize * ratio) : item.fontSize;
+        const newLine = typeof item.lineHeight === 'number' ? Math.round(item.lineHeight * ratio) : item.lineHeight;
+        out[k] = { ...item, fontSize: newSize, lineHeight: newLine };
+      } else {
+        out[k] = item;
+      }
+    }
+    return out;
+  }, [baseTheme, ratio]);
+
+  const theme = React.useMemo(() => ({
+    ...baseTheme,
+    fonts: scaledFonts,
+  }), [baseTheme, scaledFonts]);
 
   return (
     <PaperProvider theme={theme}>

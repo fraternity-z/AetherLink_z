@@ -6,13 +6,13 @@ import '../global.css';
 import HiddenWebViewHost from '@/components/providers/HiddenWebViewHost'
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppThemeProvider } from '@/components/providers/ThemeProvider';
+import { SettingsProvider } from '@/components/providers/SettingsProvider';
 import { AppDataProvider } from '@/components/providers/DataProvider';
 import { ConfirmDialogProvider } from '@/hooks/use-confirm-dialog';
 
 
 function RootLayoutInner() {
   return (
-    
       <ThemeProvider value={useColorScheme() === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack>
         {/* 根聊天页，无头部 */}
@@ -37,13 +37,15 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <AppThemeProvider>
+    <SettingsProvider>
+      <AppThemeProvider>
       <AppDataProvider>
         <ConfirmDialogProvider>
           <HiddenWebViewHost />
           <RootLayoutInner />
         </ConfirmDialogProvider>
       </AppDataProvider>
-    </AppThemeProvider>
+      </AppThemeProvider>
+    </SettingsProvider>
   );
 }

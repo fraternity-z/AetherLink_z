@@ -107,37 +107,50 @@ export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererPr
   }, [content, parsedContent.hasMath, parsedContent.markdownContent]);
 
   // 定义 HTML 标签样式
+  const baseFontSize = (theme as any)?.fonts?.bodyMedium?.fontSize ?? 14;
+  const lineHeight = Math.round(baseFontSize * 1.5);
+
   const tagsStyles = useMemo(() => ({
     body: {
       color: theme.colors.onSurface,
+      fontSize: baseFontSize,
+      lineHeight,
     },
     p: {
       color: theme.colors.onSurface,
       marginBottom: 8,
+      fontSize: baseFontSize,
+      lineHeight,
     },
     h1: {
       color: theme.colors.onSurface,
       fontWeight: 'bold' as const,
       marginBottom: 8,
       marginTop: 16,
+      fontSize: Math.round(baseFontSize * 1.6),
+      lineHeight: Math.round(baseFontSize * 1.9),
     },
     h2: {
       color: theme.colors.onSurface,
       fontWeight: 'bold' as const,
       marginBottom: 6,
       marginTop: 12,
+      fontSize: Math.round(baseFontSize * 1.4),
+      lineHeight: Math.round(baseFontSize * 1.7),
     },
     h3: {
       color: theme.colors.onSurface,
       fontWeight: 'bold' as const,
       marginBottom: 4,
       marginTop: 8,
+      fontSize: Math.round(baseFontSize * 1.2),
+      lineHeight: Math.round(baseFontSize * 1.6),
     },
     code: {
       backgroundColor: theme.colors.surfaceVariant,
       color: theme.colors.onSurfaceVariant,
       fontFamily: 'monospace',
-      fontSize: 14,
+      fontSize: Math.round(baseFontSize * 0.9),
       paddingHorizontal: 4,
       paddingVertical: 2,
       borderRadius: 4,
@@ -164,6 +177,8 @@ export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererPr
     li: {
       color: theme.colors.onSurface,
       marginBottom: 4,
+      fontSize: baseFontSize,
+      lineHeight,
     },
     strong: {
       fontWeight: 'bold' as const,
@@ -171,7 +186,7 @@ export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererPr
     em: {
       fontStyle: 'italic' as const,
     },
-  }), [theme.colors]);
+  }), [theme.colors, baseFontSize, lineHeight]);
 
   // 如果没有内容，返回空
   if (!htmlContent || htmlContent.trim() === '') {
@@ -187,6 +202,8 @@ export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererPr
         tagsStyles={tagsStyles}
         baseStyle={{
           color: theme.colors.onSurface,
+          fontSize: baseFontSize,
+          lineHeight,
         }}
       />
     </View>

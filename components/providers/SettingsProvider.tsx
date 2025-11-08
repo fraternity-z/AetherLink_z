@@ -1,0 +1,58 @@
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
+
+export type ThemeStyle =
+  | 'default'
+  | 'claude'
+  | 'business'
+  | 'lively'
+  | 'nature'
+  | 'ocean'
+  | 'sunset'
+  | 'mono'
+  | 'cyberpunk';
+
+export type AppSettings = {
+  fontScale: number; // 基准 16
+  setFontScale: (v: number) => Promise<void>;
+  themeStyle: ThemeStyle;
+  setThemeStyle: (s: ThemeStyle) => Promise<void>;
+};
+
+const SettingsContext = createContext<AppSettings | null>(null);
+
+export function SettingsProvider({ children }: { children: React.ReactNode }) {
+  const sr = SettingsRepository();
+  const [fontScale, _setFontScale] = useState<number>(16);
+  const [themeStyle, _setThemeStyle] = useState<ThemeStyle>('default');
+
+  useEffect(() => {
+    (async () => {
+      const fs = await sr.get<number>(SettingKey.FontScale);
+      const ts = await sr.get<ThemeStyle>(SettingKey.ThemeStyle);
+      if (typeof fs === 'number' && !Number.isNaN(fs)) _setFontScale(fs);
+      if (ts) _setThemeStyle(ts);
+    })();
+  }, []);
+
+  const setFontScale = async (v: number) => {
+    const rounded = Math.round(v);
+    _setFontScale(rounded);
+    await sr.set(SettingKey.FontScale, rounded);
+  };
+
+  const setThemeStyle = async (s: ThemeStyle) => {
+    _setThemeStyle(s);
+    await sr.set(SettingKey.ThemeStyle, s);
+  };
+
+  const value = useMemo<AppSettings>(() => ({ fontScale, setFontScale, themeStyle, setThemeStyle }), [fontScale, themeStyle]);
+
+  return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
+}
+
+export function useAppSettings() {
+  const ctx = useContext(SettingsContext);
+  if (!ctx) throw new Error('useAppSettings must be used within SettingsProvider');
+  return ctx;
+}

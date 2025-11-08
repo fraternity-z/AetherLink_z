@@ -30,7 +30,7 @@ export interface MathJaxRendererProps {
 /**
  * MathJax HTML 模板
  */
-const MATHJAX_TEMPLATE = (theme: 'light' | 'dark') => `
+const MATHJAX_TEMPLATE = (theme: 'light' | 'dark', baseFontPx: number) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -72,7 +72,7 @@ const MATHJAX_TEMPLATE = (theme: 'light' | 'dark') => `
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background-color: ${theme === 'dark' ? '#1e1e1e' : '#ffffff'};
       color: ${theme === 'dark' ? '#ffffff' : '#000000'};
-      font-size: 16px;
+      font-size: ${baseFontPx}px;
       line-height: 1.5;
       overflow-x: hidden;
     }
@@ -316,9 +316,10 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
   }, [formulas, isLoading]);
 
   // 生成 HTML 内容
+  const baseFontSize = (theme as any)?.fonts?.bodyMedium?.fontSize ?? 16;
   const htmlContent = React.useMemo(() => {
-    return MATHJAX_TEMPLATE(theme.dark ? 'dark' : 'light');
-  }, [theme.dark]);
+    return MATHJAX_TEMPLATE(theme.dark ? 'dark' : 'light', baseFontSize);
+  }, [theme.dark, baseFontSize]);
 
   if (error) {
     return (
