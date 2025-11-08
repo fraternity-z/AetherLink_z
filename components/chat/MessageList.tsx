@@ -107,6 +107,7 @@ export function MessageList({ conversationId }: { conversationId: string | null 
       timestamp={new Date(item.createdAt).toLocaleTimeString()}
       attachments={attachmentsMap[item.id] || []}
       thinkingChain={thinkingChainsMap[item.id] || null}
+      modelId={item.extra?.model} // 传递模型 ID
     />
   );
 

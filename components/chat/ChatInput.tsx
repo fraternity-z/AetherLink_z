@@ -187,16 +187,27 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       // 判断是否首轮对话：在写入用户消息前检查是否已有历史
       const __prev = await MessageRepository.listMessages(cid!, { limit: 1 });
       isFirstTurn = __prev.length === 0;
+
+      // 获取聊天设置参数（提前获取以便保存到消息）
+      const sr = SettingsRepository();
+      const provider = ((await sr.get<string>(SettingKey.DefaultProvider)) ?? 'openai') as Provider;
+      const model = (await sr.get<string>(SettingKey.DefaultModel)) ?? (provider === 'openai' ? 'gpt-4o-mini' : provider === 'anthropic' ? 'claude-3-5-haiku-latest' : 'gemini-1.5-flash');
+
       // 先创建用户消息，并关联所选附件
       const attachmentIds = selectedAttachments.map(a => a.id);
       await MessageRepository.addMessage({ conversationId: cid!, role: 'user', text: userMessage, status: 'sent', attachmentIds });
-      assistant = await MessageRepository.addMessage({ conversationId: cid!, role: 'assistant', text: '', status: 'pending' });
+
+      // 创建 assistant 消息，保存模型信息到 extra 字段
+      assistant = await MessageRepository.addMessage({
+        conversationId: cid!,
+        role: 'assistant',
+        text: '',
+        status: 'pending',
+        extra: { model, provider } // 保存模型和提供商信息
+      });
 
       const controller = new AbortController();
       abortRef.current = controller;
-
-      // 获取聊天设置参数
-      const sr = SettingsRepository();
       const temperature = (await sr.get<number>(SettingKey.ChatTemperature)) ?? 0.7;
       const maxTokensEnabled = (await sr.get<boolean>(SettingKey.ChatMaxTokensEnabled)) ?? false;
       const maxTokens = maxTokensEnabled ? ((await sr.get<number>(SettingKey.ChatMaxTokens)) ?? 2048) : undefined;
@@ -240,9 +251,6 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
 
       // 添加当前用户消息（当 contextCount === 0 时，不包含上文和系统提示）
       // 若包含图片附件且模型支持多模态，则构造为多段内容
-      const provider = ((await sr.get<string>(SettingKey.DefaultProvider)) ?? 'openai') as Provider;
-      const model = (await sr.get<string>(SettingKey.DefaultModel)) ?? (provider === 'openai' ? 'gpt-4o-mini' : provider === 'anthropic' ? 'claude-3-5-haiku-latest' : 'gemini-1.5-flash');
-
       const images = selectedAttachments.filter(a => a.kind === 'image' && a.uri);
       if (images.length > 0 && supportsVision(provider, model)) {
         const parts: any[] = [];

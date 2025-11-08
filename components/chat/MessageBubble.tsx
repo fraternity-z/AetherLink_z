@@ -15,6 +15,7 @@ import type { Attachment, ThinkingChain } from '@/storage/core';
 import { MixedRenderer } from './MixedRenderer';
 import { ThinkingBlock } from './ThinkingBlock';
 import { cn } from '@/utils/classnames';
+import { useModelLogo } from '@/utils/model-logo';
 
 interface MessageBubbleProps {
   content: string;
@@ -23,10 +24,12 @@ interface MessageBubbleProps {
   status?: 'pending' | 'sent' | 'failed';
   attachments?: Attachment[];
   thinkingChain?: ThinkingChain | null; // 思考链数据(仅AI消息)
+  modelId?: string; // AI 模型 ID（用于显示对应的 logo）
 }
 
-function MessageBubbleComponent({ content, isUser, timestamp, status, attachments = [], thinkingChain }: MessageBubbleProps) {
+function MessageBubbleComponent({ content, isUser, timestamp, status, attachments = [], thinkingChain, modelId }: MessageBubbleProps) {
   const theme = useTheme();
+  const modelLogo = useModelLogo(modelId); // 获取模型 logo
 
   // 调试日志: 检查思考链数据
   if (!isUser && thinkingChain) {
@@ -66,12 +69,31 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
       {/* 头像（上方） */}
       <View className="mb-1.5">
         {!isUser ? (
-          <Avatar.Icon
-            size={36}
-            icon="robot"
-            className="mx-0"
-            style={{ backgroundColor: theme.colors.primary }}
-          />
+          modelLogo ? (
+            // 使用模型官方 logo
+            <View
+              className="rounded-full overflow-hidden"
+              style={{
+                width: 36,
+                height: 36,
+                backgroundColor: theme.dark ? '#2A2A2A' : '#FFFFFF',
+              }}
+            >
+              <Image
+                source={modelLogo}
+                className="w-full h-full"
+                contentFit="contain"
+              />
+            </View>
+          ) : (
+            // 没有 logo 则使用默认机器人图标
+            <Avatar.Icon
+              size={36}
+              icon="robot"
+              className="mx-0"
+              style={{ backgroundColor: theme.colors.primary }}
+            />
+          )
         ) : (
           <Avatar.Icon
             size={36}
