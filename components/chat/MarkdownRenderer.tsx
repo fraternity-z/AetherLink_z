@@ -11,7 +11,7 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import { useTheme } from 'react-native-paper';
-import RenderHtml from 'react-native-render-html';
+import RenderHtml, { HTMLContentModel, HTMLElementModel } from 'react-native-render-html';
 import { marked } from 'marked';
 
 // 内容解析结果类型
@@ -116,6 +116,15 @@ export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererPr
       fontSize: baseFontSize,
       lineHeight,
     },
+    think: {
+      // 自定义 <think> 标签的样式：作为块级容器渲染
+      color: theme.colors.onSurface,
+      backgroundColor: theme.dark ? '#242424' : '#fafafa',
+      borderRadius: 6,
+      paddingVertical: 6,
+      paddingHorizontal: 8,
+      marginVertical: 6,
+    },
     p: {
       color: theme.colors.onSurface,
       marginBottom: 8,
@@ -200,6 +209,13 @@ export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererPr
         contentWidth={width}
         source={{ html: htmlContent }}
         tagsStyles={tagsStyles}
+        // 注册自定义 <think> 标签，使其作为容器渲染，消除警告
+        customHTMLElementModels={{
+          think: HTMLElementModel.fromCustomModel({
+            tagName: 'think',
+            contentModel: HTMLContentModel.mixed,
+          }),
+        }}
         baseStyle={{
           color: theme.colors.onSurface,
           fontSize: baseFontSize,

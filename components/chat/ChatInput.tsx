@@ -15,7 +15,6 @@ import { ChatRepository } from '@/storage/repositories/chat';
 import { MessageRepository } from '@/storage/repositories/messages';
 import { ThinkingChainRepository } from '@/storage/repositories/thinking-chains';
 import { streamCompletion, type Provider } from '@/services/ai/AiClient';
-import { uuid } from '@/storage/core';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import { AssistantsRepository } from '@/storage/repositories/assistants';
 import type { CoreMessage } from 'ai';
@@ -291,6 +290,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       let thinkingId: string | null = null;
       let thinkingContent = '';
       let thinkingStartTime: number | null = null;
+      let lastThinkingUpdateAt = 0;
 
       await streamCompletion({
         provider,
@@ -304,43 +304,60 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
           await MessageRepository.updateMessageText(assistant.id, acc);
         },
         // 思考链开始回调
-        onThinkingStart: () => {
+        onThinkingStart: async () => {
           thinkingStartTime = Date.now();
           thinkingContent = '';
-          thinkingId = uuid();
-          console.log('[ChatInput] 思考链开始', { thinkingId });
+
+          try {
+            const rec = await ThinkingChainRepository.addThinkingChain({
+              messageId: assistant.id,
+              content: '',
+              startTime: thinkingStartTime,
+              endTime: thinkingStartTime,
+              durationMs: 0,
+            });
+            thinkingId = rec.id;
+            console.log('[ChatInput] 思考链开始并创建记录', { thinkingId });
+            appEvents.emit(AppEvents.MESSAGE_CHANGED);
+          } catch (e) {
+            console.error('[ChatInput] 创建思考链记录失败', e);
+          }
         },
         // 思考链流式内容回调(每100ms防抖更新)
-        onThinkingToken: (delta) => {
+        onThinkingToken: async (delta) => {
           thinkingContent += delta;
-          // 这里不需要每次都写数据库,等思考结束时统一保存
+          if (thinkingId) {
+            const now = Date.now();
+            if (now - lastThinkingUpdateAt > 120) {
+              lastThinkingUpdateAt = now;
+              try {
+                await ThinkingChainRepository.updateThinkingChainContent(thinkingId, thinkingContent);
+                appEvents.emit(AppEvents.MESSAGE_CHANGED);
+              } catch (e) {
+                // 忽略单次失败，最终会在结束时写入完整内容
+              }
+            }
+          }
         },
         // 思考链结束回调
         onThinkingEnd: async () => {
-          if (thinkingId && thinkingStartTime && thinkingContent) {
+          if (thinkingId && thinkingStartTime) {
             const endTime = Date.now();
             const durationMs = endTime - thinkingStartTime;
-
             try {
-              await ThinkingChainRepository.addThinkingChain({
-                messageId: assistant.id,
-                content: thinkingContent,
-                startTime: thinkingStartTime,
-                endTime,
-                durationMs,
-              });
+              await ThinkingChainRepository.updateThinkingChainContent(thinkingId, thinkingContent);
+              await ThinkingChainRepository.updateThinkingChainEnd(thinkingId, endTime, durationMs);
 
-              console.log('[ChatInput] 思考链已保存', {
+              console.log('[ChatInput] 思考链已完成并保存', {
                 thinkingId,
                 messageId: assistant.id,
                 durationMs: `${(durationMs / 1000).toFixed(1)}秒`,
                 contentLength: thinkingContent.length,
               });
 
-              // 触发消息列表刷新(如果需要)
               appEvents.emit(AppEvents.MESSAGE_CHANGED);
             } catch (e) {
-              console.error('[ChatInput] 保存思考链失败', e);
+              console.error('[ChatInput] 结束保存思考链失败', e);
             }
           }
         },

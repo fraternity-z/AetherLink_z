@@ -13,7 +13,7 @@
  * 创建日期: 2025-11-08
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
@@ -24,6 +24,7 @@ export interface ThinkingBlockProps {
   durationMs: number;      // 思考耗时(毫秒)
   isExpanded?: boolean;    // 是否默认展开(默认 false)
   onToggle?: () => void;   // 展开/折叠回调
+  isStreaming?: boolean;   // 正文是否仍在流式输出（用于自动展开/折叠）
 }
 
 /**
@@ -38,14 +39,33 @@ export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({
   durationMs,
   isExpanded: initialExpanded = false,
   onToggle,
+  isStreaming = false,
 }) => {
   const theme = useTheme();
-  const [isExpanded, setIsExpanded] = useState(initialExpanded);
+  // 初始展开：若正在流式或未结束(duration=0)，则默认展开
+  const [isExpanded, setIsExpanded] = useState(
+    initialExpanded || isStreaming || durationMs === 0
+  );
+  const userInteractedRef = useRef(false);
+  const prevStreamingRef = useRef(isStreaming);
 
   const handleToggle = () => {
     setIsExpanded(!isExpanded);
+    userInteractedRef.current = true;
     onToggle?.();
   };
+
+  // 当流式开始：若之前不是流式，自动展开（除非用户已手动操作）
+  useEffect(() => {
+    if (!prevStreamingRef.current && isStreaming && !userInteractedRef.current) {
+      setIsExpanded(true);
+    }
+    // 当流式结束：自动折叠（除非用户手动操作）
+    if (prevStreamingRef.current && !isStreaming && !userInteractedRef.current) {
+      setIsExpanded(false);
+    }
+    prevStreamingRef.current = isStreaming;
+  }, [isStreaming]);
 
   // 动画样式(展开/折叠)
   const animatedContentStyle = useAnimatedStyle(() => ({
@@ -81,7 +101,9 @@ export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({
 
         {/* 标题文本 */}
         <Text style={[styles.title, { color: textColor }]}>
-          已深度思考（用时 {formatDuration(durationMs)} 秒）
+          {durationMs > 0
+            ? `已深度思考（用时 ${formatDuration(durationMs)} 秒）`
+            : '正在深度思考…'}
         </Text>
 
         {/* 展开/折叠箭头 */}

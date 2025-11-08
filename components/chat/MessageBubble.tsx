@@ -111,6 +111,7 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
           <ThinkingBlock
             content={thinkingChain.content}
             durationMs={thinkingChain.durationMs}
+            isStreaming={status === 'pending'}
           />
         )}
 
