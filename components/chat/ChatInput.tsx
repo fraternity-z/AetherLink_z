@@ -212,8 +212,8 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       const maxTokens = maxTokensEnabled ? ((await sr.get<number>(SettingKey.ChatMaxTokens)) ?? 2048) : undefined;
       const contextCount = (await sr.get<number>(SettingKey.ChatContextCount)) ?? 10;
 
-      // 获取当前助手的系统提示词
-      let systemPrompt = 'You are a helpful assistant.';
+      // 获取当前助手的系统提示词（仅使用助手定义的提示词）
+      let systemPrompt: string | null = null;
       const currentAssistantId = (await sr.get<string>(SettingKey.CurrentAssistantId)) ?? 'default';
       const assistantsRepo = AssistantsRepository();
       const currentAssistant = await assistantsRepo.getById(currentAssistantId);
@@ -222,17 +222,17 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         systemPrompt = currentAssistant.systemPrompt;
         console.log('[ChatInput] 使用助手提示词:', currentAssistant.name);
       } else {
-        // 如果助手没有自定义提示词，使用设置中的默认提示词
-        systemPrompt = (await sr.get<string>(SettingKey.ChatSystemPrompt)) ?? 'You are a helpful assistant.';
-        console.log('[ChatInput] 使用默认提示词');
+        console.log('[ChatInput] 无系统提示词（使用纯对话上下文）');
       }
 
     // 构建消息数组（根据上下文数目）
       const msgs: CoreMessage[] = [];
 
       if (contextCount > 0) {
-        // 系统提示词
-        msgs.push({ role: 'system', content: systemPrompt });
+        // 仅在存在助手提示词时添加 system 消息
+        if (systemPrompt && systemPrompt.trim()) {
+          msgs.push({ role: 'system', content: systemPrompt });
+        }
 
         // 获取并添加历史消息（断点之后的最近 contextCount 条对话，每条包含 user 和 assistant）
         const resetAt = cid ? (await ChatRepository.getContextResetAt(cid)) ?? undefined : undefined;

@@ -5,14 +5,12 @@
  * - 模型温度（Temperature）调节
  * - 最大令牌数（Max tokens）设置
  * - 上下文数目（Context count）设置
- * - 系统提示词（System prompt）编辑
  * - 流式输出（Stream output）开关
  */
 
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, List, Switch, Button, Portal, TextInput, useTheme } from 'react-native-paper';
-import { UnifiedDialog } from '@/components/common/UnifiedDialog';
+import { Text, Switch, useTheme } from 'react-native-paper';
 import Slider from '@react-native-community/slider';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 
@@ -26,9 +24,7 @@ export function ChatSettings() {
   const [maxTokensEnabled, setMaxTokensEnabled] = useState(false);
   const [contextCount, setContextCount] = useState(10);
   const [streamOutput, setStreamOutput] = useState(true);
-  const [systemPrompt, setSystemPrompt] = useState('You are a helpful assistant.');
-  const [showPromptDialog, setShowPromptDialog] = useState(false);
-  const [tempPrompt, setTempPrompt] = useState('');
+  // 移除系统提示词设置，统一使用助手的提示词
 
   // 加载设置
   useEffect(() => {
@@ -38,14 +34,13 @@ export function ChatSettings() {
       const tokensEnabled = await sr.get<boolean>(SettingKey.ChatMaxTokensEnabled);
       const context = await sr.get<number>(SettingKey.ChatContextCount);
       const stream = await sr.get<boolean>(SettingKey.ChatStreamOutput);
-      const prompt = await sr.get<string>(SettingKey.ChatSystemPrompt);
 
       if (temp !== null) setTemperature(temp);
       if (tokens !== null) setMaxTokens(tokens);
       if (tokensEnabled !== null) setMaxTokensEnabled(tokensEnabled);
       if (context !== null) setContextCount(context);
       if (stream !== null) setStreamOutput(stream);
-      if (prompt !== null) setSystemPrompt(prompt);
+      // no-op: 系统提示词设置已移除
     })();
   }, []);
 
@@ -77,16 +72,7 @@ export function ChatSettings() {
     await sr.set(SettingKey.ChatStreamOutput, value);
   };
 
-  const saveSystemPrompt = async () => {
-    setSystemPrompt(tempPrompt);
-    await sr.set(SettingKey.ChatSystemPrompt, tempPrompt);
-    setShowPromptDialog(false);
-  };
-
-  const openPromptDialog = () => {
-    setTempPrompt(systemPrompt);
-    setShowPromptDialog(true);
-  };
+  // 已移除系统提示词编辑逻辑
 
   return (
     <ScrollView style={styles.container}>
@@ -166,14 +152,7 @@ export function ChatSettings() {
         />
       </View>
 
-      {/* System prompt 设置 */}
-      <List.Item
-        title="系统提示词"
-        description={systemPrompt.length > 50 ? systemPrompt.substring(0, 50) + '...' : systemPrompt}
-        right={() => <Button mode="text">编辑</Button>}
-        onPress={openPromptDialog}
-        style={styles.listItem}
-      />
+      {/* 系统提示词设置已移除：对话仅使用助手提示词 */}
 
       {/* Stream output 开关 */}
       <View style={styles.settingItem}>
@@ -188,27 +167,7 @@ export function ChatSettings() {
         </View>
       </View>
 
-      {/* System Prompt 编辑对话框（统一弹出框） */}
-      <UnifiedDialog
-        visible={showPromptDialog}
-        onClose={() => setShowPromptDialog(false)}
-        title="编辑系统提示词"
-        icon="note-text"
-        actions={[
-          { text: '取消', type: 'cancel', onPress: () => setShowPromptDialog(false) },
-          { text: '保存', type: 'primary', onPress: saveSystemPrompt },
-        ]}
-      >
-        <TextInput
-          value={tempPrompt}
-          onChangeText={setTempPrompt}
-          multiline
-          numberOfLines={6}
-          mode="outlined"
-          placeholder="输入系统提示词..."
-          style={{ maxHeight: 200 }}
-        />
-      </UnifiedDialog>
+      {/* 无系统提示词编辑弹窗 */}
     </ScrollView>
   );
 }
@@ -235,7 +194,5 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 40,
   },
-  listItem: {
-    paddingHorizontal: 16,
-  },
+  // listItem 已移除
 });
