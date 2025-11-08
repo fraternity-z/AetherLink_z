@@ -90,14 +90,25 @@ export const MessageRepository = {
     const before = opts?.before ?? Number.MAX_SAFE_INTEGER;
     const after = opts?.after ?? -1;
     const rows = await queryAll<any>(
-      `SELECT id, conversation_id as conversationId, role, text, created_at as createdAt, status, parent_id as parentId
+      `SELECT id,
+              conversation_id as conversationId,
+              role,
+              text,
+              created_at as createdAt,
+              status,
+              parent_id as parentId,
+              extra
        FROM messages
        WHERE conversation_id = ? AND created_at < ? AND created_at > ?
        ORDER BY created_at ASC
        LIMIT ?`,
       [conversationId, before, after, limit]
     );
-    return rows;
+    // 解析 extra 字段，保持与 addMessage 行为一致
+    return rows.map((r: any) => ({
+      ...r,
+      extra: r.extra ? JSON.parse(r.extra) : undefined,
+    }));
   },
 
   async updateMessageText(id: string, text: string): Promise<void> {
@@ -121,11 +132,21 @@ export const MessageRepository = {
 
   async getAllMessages(): Promise<Message[]> {
     const rows = await queryAll<any>(
-      `SELECT id, conversation_id as conversationId, role, text, created_at as createdAt, status, parent_id as parentId
+      `SELECT id,
+              conversation_id as conversationId,
+              role,
+              text,
+              created_at as createdAt,
+              status,
+              parent_id as parentId,
+              extra
        FROM messages
        ORDER BY created_at ASC`
     );
-    return rows;
+    return rows.map((r: any) => ({
+      ...r,
+      extra: r.extra ? JSON.parse(r.extra) : undefined,
+    }));
   },
 
   async getMessageCountByRole(): Promise<{ role: Role; count: number }[]> {
