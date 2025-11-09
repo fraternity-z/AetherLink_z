@@ -257,6 +257,31 @@ npm run lint
 
 ---
 
+## 🧰 CI/CD（自动构建与发布）
+
+项目已内置 GitHub Actions 工作流用于构建 Android APK，并在构建完成后自动创建 GitHub Release 并附带 APK 文件。
+
+- 工作流文件：`.github/workflows/build-android-apk-local.yml`
+- 触发方式：在 GitHub 的 Actions 页面手动触发（`workflow_dispatch`），可选输入：
+  - `versionName`（示例：`1.2.3`）
+  - `versionCode`（整数）
+- 自动发布策略：
+  - 若提供 `versionName`，发布将使用标签 `v<versionName>`，发布名为 `AetherLink_z v<versionName> (code <versionCode>)`（若提供 code）。
+  - 若未提供 `versionName`，将使用 `apk-<短提交SHA>` 作为标签，发布名为 `AetherLink_z APK <短提交SHA>`。
+
+### 必要仓库密钥（Secrets）
+
+为完成签名并成功构建发布版 APK，需要在仓库设置中配置以下 Secrets：
+
+- `ANDROID_KEYSTORE_BASE64`：签名 keystore 的 Base64 字符串
+- `ANDROID_KEYSTORE_PASSWORD`：keystore 密码
+- `ANDROID_KEY_ALIAS`：密钥别名
+- `ANDROID_KEY_PASSWORD`：密钥密码
+
+完成上述配置后，触发工作流即可在构建完成时自动创建 GitHub Release，并附加 `app-release.apk`。
+
+---
+
 ## 📊 性能优化
 
 - 使用 `React.memo` 减少不必要的组件重渲染

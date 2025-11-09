@@ -13,6 +13,8 @@ on:
 jobs:
   android-apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       CI: true
       EXPO_NO_TELEMETRY: "1"
@@ -116,3 +118,32 @@ jobs:
         with:
           name: android-apk-release
           path: android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Compute release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${VERSION_NAME}" ]; then
+            echo "RELEASE_TAG=v${VERSION_NAME}" >> "$GITHUB_ENV"
+            if [ -n "${VERSION_CODE}" ]; then
+              echo "RELEASE_NAME=AetherLink_z v${VERSION_NAME} (code ${VERSION_CODE})" >> "$GITHUB_ENV"
+            else
+              echo "RELEASE_NAME=AetherLink_z v${VERSION_NAME}" >> "$GITHUB_ENV"
+            fi
+          else
+            short_sha="${GITHUB_SHA::7}"
+            echo "RELEASE_TAG=apk-${short_sha}" >> "$GITHUB_ENV"
+            echo "RELEASE_NAME=AetherLink_z APK ${short_sha}" >> "$GITHUB_ENV"
+          fi
+          echo "Computed: tag=$RELEASE_TAG, name=$RELEASE_NAME"
+
+      - name: Create GitHub Release and upload APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_NAME }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          files: |
+            android/app/build/outputs/apk/release/app-release.apk

@@ -16,7 +16,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useTheme } from 'react-native-paper';
-import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Animated, { LinearTransition, FadeIn, FadeOut } from 'react-native-reanimated';
 import { MixedRenderer } from './MixedRenderer';
 
 export interface ThinkingBlockProps {
@@ -67,13 +67,6 @@ export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({
     prevStreamingRef.current = isStreaming;
   }, [isStreaming]);
 
-  // 动画样式(展开/折叠)
-  const animatedContentStyle = useAnimatedStyle(() => ({
-    maxHeight: withTiming(isExpanded ? 10000 : 0, { duration: 300 }),
-    opacity: withTiming(isExpanded ? 1 : 0, { duration: 200 }),
-    overflow: 'hidden',
-  }));
-
   // 主题颜色
   const backgroundColor = theme.dark ? '#2a2a2a' : '#f5f5f5';
   const borderColor = theme.dark ? '#444' : '#e0e0e0';
@@ -113,11 +106,17 @@ export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({
       </TouchableOpacity>
 
       {/* 思考内容区域(可展开/折叠) */}
-      <Animated.View style={animatedContentStyle}>
-        <View style={styles.content}>
-          <MixedRenderer content={content} />
-        </View>
-      </Animated.View>
+      {isExpanded && (
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(200)}
+          layout={LinearTransition.duration(300)}
+        >
+          <View style={styles.content}>
+            <MixedRenderer content={content} />
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 };

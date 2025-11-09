@@ -67,6 +67,27 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
     })();
   }, []);
 
+  // 卸载时中止进行中的网络请求，防止泄漏
+  React.useEffect(() => {
+    return () => {
+      if (abortRef.current) {
+        try { abortRef.current.abort(); } catch {}
+        abortRef.current = null;
+      }
+    };
+  }, []);
+
+  // 会话切换时中止上一会话的流式请求，避免旧请求写入新UI
+  React.useEffect(() => {
+    return () => {
+      if (abortRef.current) {
+        try { abortRef.current.abort(); } catch {}
+        abortRef.current = null;
+        setIsGenerating(false);
+      }
+    };
+  }, [conversationId]);
+
   // supportsVision 已抽取为统一能力判断，避免多处重复
 
   const handleSend = async () => {
@@ -363,6 +384,20 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         const finalMessage = userMessage + textFileContents + fileSuffix + (searchResults || '');
         msgs.push({ role: 'user', content: finalMessage.trim() });
       }
+
+      // 🔍 调试日志：检查消息数组是否有重复
+      console.log('[ChatInput] 🔍 消息数组详情', {
+        总消息数: msgs.length,
+        消息列表: msgs.map((m, i) => ({
+          索引: i,
+          角色: m.role,
+          内容长度: typeof m.content === 'string' ? m.content.length : (Array.isArray(m.content) ? m.content.length : 0),
+          内容预览: typeof m.content === 'string' ? m.content.substring(0, 50) : '[多段内容]'
+        })),
+        是否首轮: isFirstTurn,
+        会话ID: cid,
+        原始conversationId: conversationId
+      });
 
       console.log('[ChatInput] 发送消息', {
         提供商: provider,

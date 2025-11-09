@@ -155,8 +155,16 @@ export async function streamCompletion(opts: StreamOptions) {
       let isThinking = false;
 
       for await (const part of result.fullStream) {
+        // 🔍 调试日志：记录所有 part 类型
+        console.log('[AiClient] 🔍 fullStream part.type:', part.type);
 
-        if (part.type === 'reasoning-start') {
+        if (part.type === 'start') {
+          // 流式开始（静默忽略）
+          continue;
+        } else if (part.type === 'start-step') {
+          // 步骤开始（静默忽略）
+          continue;
+        } else if (part.type === 'reasoning-start') {
           // 思考链开始
           isThinking = true;
           opts.onThinkingStart?.();
@@ -170,6 +178,21 @@ export async function streamCompletion(opts: StreamOptions) {
         } else if (part.type === 'text-delta') {
           // 流式输出正文内容
           opts.onToken?.(part.text);
+        } else if (part.type === 'text-end') {
+          // 文本结束（静默忽略）
+          continue;
+        } else if (part.type === 'finish-step') {
+          // 步骤完成（包含 token 使用统计）
+          // 可以在这里记录 usage 信息
+          if (part.usage) {
+            console.log('[AiClient] Token 使用统计:', {
+              输入: part.usage.inputTokens,
+              输出: part.usage.outputTokens,
+              推理: part.usage.reasoningTokens,
+              总计: part.usage.totalTokens,
+            });
+          }
+          continue;
         } else if (part.type === 'finish') {
           // 流式完成
           if (isThinking) {
@@ -178,6 +201,9 @@ export async function streamCompletion(opts: StreamOptions) {
           opts.onDone?.();
         } else if (part.type === 'error') {
           opts.onError?.(part.error);
+        } else {
+          // 🔍 未知类型，记录完整信息（但不中断流程）
+          console.warn('[AiClient] ⚠️ 未处理的 fullStream 类型:', part.type, part);
         }
       }
     } else {
