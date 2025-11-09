@@ -15,6 +15,7 @@ import { ChatRepository } from '@/storage/repositories/chat';
 import { MessageRepository } from '@/storage/repositories/messages';
 import { ThinkingChainRepository } from '@/storage/repositories/thinking-chains';
 import { streamCompletion, type Provider } from '@/services/ai/AiClient';
+import { supportsVision } from '@/services/ai/ModelCapabilities';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import { AssistantsRepository } from '@/storage/repositories/assistants';
 import type { CoreMessage } from 'ai';
@@ -66,20 +67,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
     })();
   }, []);
 
-  const supportsVision = (provider: Provider, model: string) => {
-    const m = (model || '').toLowerCase();
-    switch (provider) {
-      case 'openai':
-        return m.includes('gpt-4o') || m.includes('4.1') || m.includes('o1');
-      case 'anthropic':
-        return m.includes('claude-3');
-      case 'google':
-      case 'gemini':
-        return m.includes('gemini');
-      default:
-        return false;
-    }
-  };
+  // supportsVision 已抽取为统一能力判断，避免多处重复
 
   const handleSend = async () => {
     if ((!message.trim() && selectedAttachments.length === 0) || isGenerating) return;

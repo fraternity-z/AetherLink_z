@@ -9,13 +9,14 @@
 
 import React from 'react';
 import { View, Alert } from 'react-native';
-import { Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper';
+import { Text, useTheme, Avatar } from 'react-native-paper';
 import { Image } from 'expo-image';
 import type { Attachment, ThinkingChain, Message } from '@/storage/core';
 import { MixedRenderer } from './MixedRenderer';
 import { ThinkingBlock } from './ThinkingBlock';
 import { GeneratedImageCard } from './GeneratedImageCard';
 import { ImageViewer } from './ImageViewer';
+import { TypingIndicator } from './TypingIndicator';
 import { cn } from '@/utils/classnames';
 import { useModelLogo } from '@/utils/model-logo';
 import { File, Paths } from 'expo-file-system';
@@ -115,11 +116,7 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
   }, []);
 
   const getStatusIndicator = () => {
-    if (!status || status === 'sent') return null;
-
-    if (status === 'pending') {
-      return <ActivityIndicator size="small" className="mx-1" />;
-    }
+    if (!status || status === 'sent' || status === 'pending') return null;
 
     if (status === 'failed') {
       return (
@@ -305,9 +302,11 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
             </Text>
           ) : (
             <View className={attachments.length > 0 ? 'mt-1' : 'min-h-[20px]'}>
-              <MixedRenderer
-                content={content || (status === 'pending' ? '正在思考...' : '')}
-              />
+              {status === 'pending' && !content ? (
+                <TypingIndicator />
+              ) : (
+                <MixedRenderer content={content || ''} />
+              )}
             </View>
           )}
         </View>
