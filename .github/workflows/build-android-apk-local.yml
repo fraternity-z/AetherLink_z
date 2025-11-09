@@ -3,10 +3,6 @@ name: Build Android APK (Local)
 on:
   workflow_dispatch:
     inputs:
-      buildVariant:
-        description: Build variant (debug|release)
-        required: false
-        default: release
       versionName:
         description: Android versionName (e.g. 1.2.3)
         required: false
@@ -20,7 +16,6 @@ jobs:
     env:
       CI: true
       EXPO_NO_TELEMETRY: "1"
-      BUILD_VARIANT: ${{ github.event.inputs.buildVariant || 'release' }}
       VERSION_NAME: ${{ github.event.inputs.versionName }}
       VERSION_CODE: ${{ github.event.inputs.versionCode }}
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -79,8 +74,7 @@ jobs:
       - name: Prebuild native android project (Expo)
         run: npx expo prebuild --platform android --non-interactive --no-install
 
-      - name: Configure release signing (when BUILD_VARIANT=release)
-        if: env.BUILD_VARIANT == 'release'
+      - name: Configure release signing
         run: |
           if [ -z "${ANDROID_KEYSTORE_BASE64}" ] || [ -z "${ANDROID_KEYSTORE_PASSWORD}" ] || [ -z "${ANDROID_KEY_ALIAS}" ] || [ -z "${ANDROID_KEY_PASSWORD}" ]; then
             echo "Missing signing secrets. Please set ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD in GitHub Secrets." >&2
@@ -110,27 +104,15 @@ jobs:
           fi
         shell: bash
 
-      - name: Build APK with Gradle (variant)
+      - name: Build release APK with Gradle
         run: |
           cd android
           chmod +x ./gradlew
-          if [ "$BUILD_VARIANT" = "release" ]; then
-            ./gradlew assembleRelease --no-daemon --stacktrace
-          else
-            ./gradlew assembleDebug --no-daemon --stacktrace
-          fi
+          ./gradlew assembleRelease --no-daemon --stacktrace
         shell: bash
 
       - name: Upload Release APK artifact
-        if: env.BUILD_VARIANT == 'release'
         uses: actions/upload-artifact@v4
         with:
           name: android-apk-release
           path: android/app/build/outputs/apk/release/app-release.apk
-
-      - name: Upload Debug APK artifact
-        if: env.BUILD_VARIANT != 'release'
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apk-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
