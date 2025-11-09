@@ -110,6 +110,14 @@ export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererPr
   const baseFontSize = (theme as any)?.fonts?.bodyMedium?.fontSize ?? 14;
   const lineHeight = Math.round(baseFontSize * 1.5);
 
+  // 🚀 缓存自定义 HTML 元素模型，避免频繁重建
+  const customHTMLElementModels = useMemo(() => ({
+    think: HTMLElementModel.fromCustomModel({
+      tagName: 'think',
+      contentModel: HTMLContentModel.mixed,
+    }),
+  }), []);
+
   const tagsStyles = useMemo(() => ({
     body: {
       color: theme.colors.onSurface,
@@ -195,7 +203,14 @@ export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererPr
     em: {
       fontStyle: 'italic' as const,
     },
-  }), [theme.colors, baseFontSize, lineHeight]);
+  }), [theme.colors, theme.dark, baseFontSize, lineHeight]);
+
+  // 🚀 缓存 baseStyle，避免频繁重建
+  const baseStyle = useMemo(() => ({
+    color: theme.colors.onSurface,
+    fontSize: baseFontSize,
+    lineHeight,
+  }), [theme.colors.onSurface, baseFontSize, lineHeight]);
 
   // 如果没有内容，返回空
   if (!htmlContent || htmlContent.trim() === '') {
@@ -209,18 +224,9 @@ export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererPr
         contentWidth={width}
         source={{ html: htmlContent }}
         tagsStyles={tagsStyles}
-        // 注册自定义 <think> 标签，使其作为容器渲染，消除警告
-        customHTMLElementModels={{
-          think: HTMLElementModel.fromCustomModel({
-            tagName: 'think',
-            contentModel: HTMLContentModel.mixed,
-          }),
-        }}
-        baseStyle={{
-          color: theme.colors.onSurface,
-          fontSize: baseFontSize,
-          lineHeight,
-        }}
+        // 🚀 使用缓存的配置，避免频繁重建导致性能问题
+        customHTMLElementModels={customHTMLElementModels}
+        baseStyle={baseStyle}
       />
     </View>
   );

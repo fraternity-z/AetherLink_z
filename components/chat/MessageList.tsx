@@ -29,10 +29,12 @@ export function MessageList({ conversationId }: { conversationId: string | null 
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true); // 是否启用自动滚动
   const lastScrollTimeRef = useRef(0); // 上次滚动时间（用于节流）
   const isUserScrollingRef = useRef(false); // 用户是否正在手动滚动
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined); // 用于清理定时器，防止内存泄漏
 
   // 🚀 智能滚动到底部函数（带节流优化，300ms 间隔）
-  const scrollToBottom = useCallback((animated: boolean = true) => {
-    if (!autoScrollEnabled || isUserScrollingRef.current) {
+  const scrollToBottom = useCallback((animated: boolean = true, force: boolean = false) => {
+    // force 参数：强制滚动，忽略用户滚动标记
+    if (!autoScrollEnabled || (!force && isUserScrollingRef.current)) {
       return; // 自动滚动被禁用或用户正在滚动，不执行
     }
 
@@ -46,15 +48,35 @@ export function MessageList({ conversationId }: { conversationId: string | null 
     flatListRef.current?.scrollToEnd({ animated });
   }, [autoScrollEnabled]);
 
+  // 🚀 使用 ref 存储 scrollToBottom，避免闭包陷阱
+  const scrollToBottomRef = useRef(scrollToBottom);
+  scrollToBottomRef.current = scrollToBottom;
+
   // 🚀 检测用户手动滚动（向上滚动时暂停自动滚动）
   const handleScroll = useCallback(() => {
     // 标记用户正在滚动，短时间内禁用自动滚动
     isUserScrollingRef.current = true;
 
-    // 2 秒后恢复自动滚动
-    setTimeout(() => {
+    // 清除之前的定时器，避免累积
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+
+    // 2 秒后恢复自动滚动，并主动触发一次滚动以跟上最新消息
+    scrollTimeoutRef.current = setTimeout(() => {
       isUserScrollingRef.current = false;
+      // 恢复后立即触发一次滚动，确保跟上最新消息
+      scrollToBottomRef.current?.(true);
     }, 2000);
+  }, []);
+
+  // 🧹 组件卸载时清理定时器，防止内存泄漏
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
   }, []);
 
   // 监听消息清空事件，立即刷新列表
@@ -88,11 +110,12 @@ export function MessageList({ conversationId }: { conversationId: string | null 
   useEffect(() => {
     if (items.length > 0) {
       // 延迟滚动，等待 DOM 更新完成
-      setTimeout(() => {
-        scrollToBottom(true);
+      const timer = setTimeout(() => {
+        scrollToBottomRef.current(true);
       }, 50);
+      return () => clearTimeout(timer);
     }
-  }, [items.length, items[items.length - 1]?.text, scrollToBottom]);
+  }, [items.length, items[items.length - 1]?.text]);
 
   // 🚀 性能优化：缓存消息 ID 列表的字符串，避免每次重新计算
   const messageIdsKey = useMemo(

@@ -204,11 +204,13 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
                               />
                             ) : null
                           }
-                          style={
-                            isSelected
-                              ? { backgroundColor: theme.colors.primaryContainer }
-                              : undefined
-                          }
+                          style={[
+                            styles.assistantItem,
+                            isSelected && [
+                              styles.assistantItemSelected,
+                              { backgroundColor: theme.colors.primaryContainer, borderColor: theme.colors.primary }
+                            ],
+                          ]}
                         />
                       </TouchableRipple>
                     );
@@ -356,5 +358,19 @@ const styles = StyleSheet.create({
   topTabLabel: {
     fontSize: 16,
     marginTop: 6,
+  },
+  // 🎨 助手列表项样式
+  assistantItem: {
+    marginVertical: 4,
+    marginHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    overflow: 'hidden',
+  },
+  // 🎨 选中状态的助手列表项
+  assistantItemSelected: {
+    borderWidth: 2,
+    // borderColor 在组件中动态设置为 theme.colors.primary
   },
 });

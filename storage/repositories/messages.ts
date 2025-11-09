@@ -1,5 +1,6 @@
 import { Message, Role, now, uuid, ThinkingChain } from '@/storage/core';
 import { execute, queryAll, queryOne } from '@/storage/sqlite/db';
+import { appEvents, AppEvents } from '@/utils/events';
 
 export const MessageRepository = {
   async addMessage(input: {
@@ -36,6 +37,8 @@ export const MessageRepository = {
         await execute(`INSERT OR IGNORE INTO message_attachments (message_id, attachment_id) VALUES (?, ?)`, [id, aid]);
       }
     }
+    // 触发消息变化事件，通知 UI 更新
+    appEvents.emit(AppEvents.MESSAGE_CHANGED, input.conversationId);
     return {
       id,
       conversationId: input.conversationId,
@@ -73,6 +76,8 @@ export const MessageRepository = {
         input.extra ? JSON.stringify(input.extra) : null,
       ]
     );
+    // 触发消息变化事件，通知 UI 更新
+    appEvents.emit(AppEvents.MESSAGE_CHANGED, input.conversationId);
     return {
       id: input.id,
       conversationId: input.conversationId,
@@ -113,14 +118,20 @@ export const MessageRepository = {
 
   async updateMessageText(id: string, text: string): Promise<void> {
     await execute(`UPDATE messages SET text = ? WHERE id = ?`, [text, id]);
+    // 🚀 使用节流事件触发（AI 流式响应时避免频繁重渲染）
+    appEvents.emitThrottled(AppEvents.MESSAGE_CHANGED, 200);
   },
 
   async updateMessageStatus(id: string, status: 'pending' | 'sent' | 'failed'): Promise<void> {
     await execute(`UPDATE messages SET status = ? WHERE id = ?`, [status, id]);
+    // 触发消息变化事件，通知 UI 更新
+    appEvents.emit(AppEvents.MESSAGE_CHANGED);
   },
 
   async deleteMessage(id: string): Promise<void> {
     await execute(`DELETE FROM messages WHERE id = ?`, [id]);
+    // 触发消息变化事件，通知 UI 更新
+    appEvents.emit(AppEvents.MESSAGE_CHANGED);
   },
 
   async clearConversationMessages(conversationId: string): Promise<void> {

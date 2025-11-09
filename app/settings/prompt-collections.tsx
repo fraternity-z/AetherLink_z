@@ -238,6 +238,16 @@ const styles = StyleSheet.create({
   },
   assistantCard: {
     marginBottom: 12,
+    // 🎨 添加边框样式
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    borderRadius: 12,
+    // 添加轻微阴影增强视觉效果
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   assistantHeader: {
     flexDirection: 'row',

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Message } from '@/storage/core';
 import { MessageRepository } from '@/storage/repositories/messages';
+import { appEvents, AppEvents } from '@/utils/events';
 
 export function useMessages(conversationId: string | null, pageSize = 50) {
   const [items, setItems] = useState<Message[]>([]);
@@ -30,34 +31,24 @@ export function useMessages(conversationId: string | null, pageSize = 50) {
     if (conversationId) void load(true);
   }, [conversationId]);
 
-  // 实时轮询更新消息（用于流式响应和消息变化）
+  // 🎯 事件驱动更新消息（替代轮询机制，性能优化）
   useEffect(() => {
     if (!conversationId) return;
 
-    const interval = setInterval(async () => {
-      try {
-        const latestMessages = await MessageRepository.listMessages(conversationId, { limit: pageSize });
-
-        // 消息数量发生变化（增加或减少）
-        if (latestMessages.length !== items.length) {
-          setItems(latestMessages);
-        } else if (latestMessages.length > 0 && items.length > 0) {
-          // 消息数量相同，检查最后一条消息是否有更新（流式响应）
-          const lastMessage = latestMessages[latestMessages.length - 1];
-          const currentLastMessage = items[items.length - 1];
-          if (lastMessage && currentLastMessage && lastMessage.id === currentLastMessage.id) {
-            if (lastMessage.text !== currentLastMessage.text || lastMessage.status !== currentLastMessage.status) {
-              setItems(latestMessages);
-            }
-          }
-        }
-      } catch (e) {
-        console.error('[useMessages] Polling error', e);
+    // 监听消息变化事件，当消息有任何变化时触发重载
+    const handleMessageChanged = (changedConversationId?: string) => {
+      // 如果事件携带 conversationId，则仅在匹配时重载
+      if (!changedConversationId || changedConversationId === conversationId) {
+        void load(true); // 重新加载消息列表
       }
-    }, 500); // 每500ms检查一次
+    };
 
-    return () => clearInterval(interval);
-  }, [conversationId, pageSize, items.length]);
+    appEvents.on(AppEvents.MESSAGE_CHANGED, handleMessageChanged);
+
+    return () => {
+      appEvents.off(AppEvents.MESSAGE_CHANGED, handleMessageChanged);
+    };
+  }, [conversationId, load]);
 
   return { items, loading, error, loadMore: () => load(false), reload: () => load(true) } as const;
 }

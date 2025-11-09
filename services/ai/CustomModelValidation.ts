@@ -1,15 +1,7 @@
 import type { CustomProvider } from '@/storage/repositories/custom-providers';
+import { withTimeout } from '@/services/ai/utils/withTimeout';
 
 export type ValidateResult = { ok: boolean; message: string };
-
-function withTimeout<T>(p: Promise<T>, ms = 8000): Promise<T> {
-  const ac = new AbortController();
-  const t = setTimeout(() => ac.abort(new Error('timeout')), ms);
-  return new Promise((resolve, reject) => {
-    p.then((v) => { clearTimeout(t); resolve(v); })
-     .catch((e) => { clearTimeout(t); reject(e); });
-  });
-}
 
 export async function validateCustomProviderModel(cp: CustomProvider, modelId: string): Promise<ValidateResult> {
   if (!modelId || !modelId.trim()) return { ok: false, message: '模型 ID 为空' };
@@ -62,4 +54,3 @@ export async function validateCustomProviderModel(cp: CustomProvider, modelId: s
 
   return { ok: false, message: '暂未支持该提供商的校验' };
 }
-
