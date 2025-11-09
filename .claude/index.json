@@ -1,134 +1,435 @@
 {
-  "timestamp": "2025-11-05T13:45:09.000Z",
+  "timestamp": "2025-11-09T19:11:47.000Z",
   "project": {
     "name": "AetherLink_z",
     "version": "1.0.0",
     "type": "React Native Expo Application",
-    "description": "跨平台 AI 聊天助手应用"
+    "description": "跨平台 AI 聊天助手应用，支持多 AI 提供商、本地存储、网络搜索、思考链显示等功能"
   },
   "scan_summary": {
-    "total_files": 85,
-    "scanned_files": 42,
-    "coverage_percentage": 49.4,
+    "total_files": 91,
+    "scanned_files": 91,
+    "coverage_percentage": 100,
     "truncated": false,
+    "scan_strategy": "阶段B完成：模块优先扫描，覆盖所有核心模块",
+    "code_lines": {
+      "app": 2552,
+      "components": 7695,
+      "services": 2670,
+      "storage": 1329,
+      "hooks": 400,
+      "constants": 150,
+      "utils": 50,
+      "total": 14846
+    },
     "ignored_patterns": [
       "node_modules/**",
+      ".expo/**",
+      "dist/**",
+      "web-build/**",
       ".git/**",
       "*.lock",
-      "*.bin",
-      "*.log"
+      "*.log",
+      "ios/**",
+      "android/**"
     ]
   },
   "modules": [
     {
       "path": "app/",
       "type": "pages",
-      "description": "应用页面和路由结构",
-      "entry_files": ["index.tsx", "_layout.tsx"],
+      "description": "应用页面和路由结构，基于 Expo Router 文件路由系统",
+      "entry_files": ["_layout.tsx", "index.tsx"],
       "key_files": [
-        "index.tsx",
         "_layout.tsx",
+        "index.tsx",
         "settings/index.tsx",
+        "settings/appearance.tsx",
+        "settings/providers/[vendor].tsx",
         "topics/index.tsx"
       ],
       "coverage": {
-        "files_scanned": 3,
-        "total_files": 18,
-        "percentage": 16.7
+        "files_scanned": 21,
+        "total_files": 21,
+        "percentage": 100.0
       },
-      "gaps": [
-        "Missing analysis of settings pages (appearance, behavior, etc.)",
-        "Topic management pages not analyzed",
-        "Modal components not reviewed"
-      ]
+      "key_interfaces": [
+        "RootLayoutInner",
+        "ChatScreen",
+        "设置页面组"
+      ],
+      "dependencies": [
+        "expo-router",
+        "@react-navigation/native",
+        "react-native-paper",
+        "react-native-safe-area-context"
+      ],
+      "has_tests": false,
+      "documentation": "E:\\code\\AetherLink_z\\CLAUDE.md",
+      "gaps": []
     },
     {
-      "path": "components/",
+      "path": "components/chat/",
       "type": "ui",
-      "description": "React Native UI 组件",
+      "description": "聊天界面核心 UI 组件，包括消息显示、输入、附件、思考链等",
       "entry_files": [
-        "chat/ChatInput.tsx",
-        "settings/SettingsList.tsx",
-        "providers/ThemeProvider.tsx"
+        "ChatInput.tsx",
+        "MessageList.tsx",
+        "MessageBubble.tsx",
+        "ChatHeader.tsx"
       ],
       "key_files": [
-        "chat/ChatInput.tsx",
-        "chat/MessageList.tsx",
-        "chat/ModelPickerDialog.tsx",
-        "settings/ThemeStyleCard.tsx",
-        "providers/ThemeProvider.tsx"
+        "ChatInput.tsx",
+        "MessageList.tsx",
+        "MessageBubble.tsx",
+        "ChatHeader.tsx",
+        "TopicsSidebar.tsx",
+        "ModelPickerDialog.tsx",
+        "ThinkingBlock.tsx",
+        "MarkdownRenderer.tsx",
+        "AttachmentMenu.tsx",
+        "ImageViewer.tsx"
+      ],
+      "coverage": {
+        "files_scanned": 21,
+        "total_files": 21,
+        "percentage": 100.0
+      },
+      "key_interfaces": [
+        "ChatInputProps",
+        "MessageListProps",
+        "MessageBubbleProps",
+        "ThinkingBlockProps"
+      ],
+      "dependencies": [
+        "react-native-paper",
+        "react-native-reanimated",
+        "marked",
+        "react-native-render-html"
+      ],
+      "has_tests": false,
+      "documentation": "E:\\code\\AetherLink_z\\components\\chat\\CLAUDE.md",
+      "features": [
+        "消息输入与发送",
+        "流式消息显示",
+        "附件管理（图片、文件）",
+        "思考链显示（推理模型）",
+        "Markdown 渲染",
+        "图片查看器",
+        "模型选择器",
+        "话题管理侧边栏"
+      ],
+      "gaps": []
+    },
+    {
+      "path": "components/settings/",
+      "type": "ui",
+      "description": "设置界面组件，提供统一的设置页面布局和主题预览",
+      "entry_files": [
+        "SettingScreen.tsx",
+        "SettingsList.tsx",
+        "ThemeStyleCard.tsx"
+      ],
+      "key_files": [
+        "SettingScreen.tsx",
+        "SettingsList.tsx",
+        "ThemeStyleCard.tsx",
+        "ModelDiscoveryDialog.tsx"
       ],
       "coverage": {
         "files_scanned": 4,
-        "total_files": 21,
-        "percentage": 19.0
+        "total_files": 4,
+        "percentage": 100.0
       },
-      "gaps": [
-        "Chat components (MessageList, MessageBubble) not analyzed",
-        "Provider components need detailed review",
-        "UI component theme integration not fully mapped"
-      ]
+      "key_interfaces": [
+        "SettingItem",
+        "ThemePreview"
+      ],
+      "dependencies": [
+        "react-native-paper",
+        "@rneui/themed"
+      ],
+      "has_tests": false,
+      "documentation": "E:\\code\\AetherLink_z\\components\\settings\\CLAUDE.md",
+      "gaps": []
     },
     {
-      "path": "services/",
+      "path": "components/common/",
+      "type": "ui",
+      "description": "通用 UI 组件，包括统一的对话框系统",
+      "entry_files": [
+        "ConfirmDialog.tsx",
+        "InputDialog.tsx",
+        "UnifiedDialog.tsx"
+      ],
+      "key_files": [
+        "ConfirmDialog.tsx",
+        "InputDialog.tsx",
+        "UnifiedDialog.tsx"
+      ],
+      "coverage": {
+        "files_scanned": 3,
+        "total_files": 3,
+        "percentage": 100.0
+      },
+      "key_interfaces": [
+        "ConfirmDialogProps",
+        "InputDialogProps"
+      ],
+      "has_tests": false,
+      "documentation": "E:\\code\\AetherLink_z\\components\\common\\CLAUDE.md",
+      "features": [
+        "确认对话框",
+        "输入对话框",
+        "统一弹窗系统"
+      ],
+      "gaps": []
+    },
+    {
+      "path": "components/providers/",
+      "type": "ui",
+      "description": "React Context 提供者组件，管理全局状态",
+      "entry_files": [
+        "ThemeProvider.tsx",
+        "DataProvider.tsx",
+        "SettingsProvider.tsx",
+        "HiddenWebViewHost.tsx"
+      ],
+      "key_files": [
+        "ThemeProvider.tsx",
+        "DataProvider.tsx",
+        "SettingsProvider.tsx",
+        "HiddenWebViewHost.tsx"
+      ],
+      "coverage": {
+        "files_scanned": 4,
+        "total_files": 4,
+        "percentage": 100.0
+      },
+      "key_interfaces": [
+        "ThemeContext",
+        "DataContext",
+        "SettingsContext"
+      ],
+      "has_tests": false,
+      "documentation": "E:\\code\\AetherLink_z\\components\\providers\\CLAUDE.md",
+      "features": [
+        "主题管理",
+        "数据初始化",
+        "设置管理",
+        "WebView 宿主"
+      ],
+      "gaps": []
+    },
+    {
+      "path": "services/ai/",
       "type": "business",
-      "description": "业务逻辑服务层",
+      "description": "AI 服务集成，支持多提供商、流式对话、思考链、图片生成",
       "entry_files": [
-        "ai/AiClient.ts",
-        "search/SearchClient.ts",
-        "data/DataBackup.ts"
+        "AiClient.ts",
+        "ModelDiscovery.ts",
+        "TopicNaming.ts"
       ],
       "key_files": [
-        "ai/AiClient.ts",
-        "ai/ModelDiscovery.ts",
-        "search/SearchClient.ts",
-        "search/engines/BingSearch.ts",
-        "search/engines/GoogleSearch.ts",
-        "search/engines/TavilySearch.ts"
+        "AiClient.ts",
+        "ModelDiscovery.ts",
+        "ModelValidation.ts",
+        "ModelCapabilities.ts",
+        "TopicNaming.ts",
+        "CustomModelDiscovery.ts",
+        "errors.ts"
       ],
       "coverage": {
-        "files_scanned": 7,
-        "total_files": 17,
-        "percentage": 41.2
+        "files_scanned": 9,
+        "total_files": 9,
+        "percentage": 100.0
       },
-      "gaps": [
-        "AI service model validation and discovery not analyzed",
-        "Data service components (backup, cleanup, stats) not reviewed",
-        "Search engine implementations need detailed analysis"
-      ]
+      "key_interfaces": [
+        "StreamOptions",
+        "Provider",
+        "GenerateImageOptions",
+        "ImageGenerationResult"
+      ],
+      "dependencies": [
+        "ai",
+        "@ai-sdk/openai",
+        "@ai-sdk/anthropic",
+        "@ai-sdk/google",
+        "@ai-sdk/openai-compatible"
+      ],
+      "has_tests": false,
+      "documentation": "E:\\code\\AetherLink_z\\services\\ai\\CLAUDE.md",
+      "features": [
+        "多提供商支持（OpenAI、Anthropic、Google、DeepSeek、火山方舟、智谱）",
+        "流式对话生成",
+        "思考链支持（o1/o3/R1 等推理模型）",
+        "图片生成（DALL-E）",
+        "模型发现与验证",
+        "自定义模型支持",
+        "话题自动命名"
+      ],
+      "gaps": []
     },
     {
-      "path": "storage/",
-      "type": "data",
-      "description": "数据存储和访问层",
+      "path": "services/search/",
+      "type": "business",
+      "description": "网络搜索服务，支持多搜索引擎集成",
       "entry_files": [
-        "core.ts",
-        "sqlite/db.ts",
-        "repositories/chat.ts"
+        "SearchClient.ts",
+        "engines/BingSearch.ts",
+        "engines/GoogleSearch.ts",
+        "engines/TavilySearch.ts"
       ],
       "key_files": [
-        "core.ts",
-        "sqlite/db.ts",
-        "repositories/chat.ts",
-        "repositories/messages.ts",
-        "repositories/providers.ts",
-        "repositories/settings.ts"
+        "SearchClient.ts",
+        "types.ts",
+        "engines/BingSearch.ts",
+        "engines/GoogleSearch.ts",
+        "engines/TavilySearch.ts",
+        "utils/html-parser.ts",
+        "utils/http-client.ts",
+        "utils/search-cache.ts"
       ],
       "coverage": {
-        "files_scanned": 6,
-        "total_files": 13,
-        "percentage": 46.2
+        "files_scanned": 9,
+        "total_files": 9,
+        "percentage": 100.0
       },
-      "gaps": [
-        "Database migrations not analyzed",
-        "Repository implementations need detailed review",
-        "Storage adapters for cross-platform compatibility not mapped"
-      ]
+      "key_interfaces": [
+        "SearchOptions",
+        "SearchResult",
+        "SearchError"
+      ],
+      "has_tests": false,
+      "documentation": "E:\\code\\AetherLink_z\\services\\search\\CLAUDE.md",
+      "features": [
+        "Bing 网页搜索",
+        "Google 网页搜索",
+        "Tavily API 搜索",
+        "搜索结果缓存",
+        "HTML 解析",
+        "User-Agent 管理"
+      ],
+      "gaps": []
+    },
+    {
+      "path": "services/data/",
+      "type": "business",
+      "description": "数据处理服务，包括备份、清理、统计",
+      "entry_files": [
+        "DataBackup.ts",
+        "DataCleanup.ts",
+        "DataStats.ts"
+      ],
+      "key_files": [
+        "DataBackup.ts",
+        "DataCleanup.ts",
+        "DataStats.ts"
+      ],
+      "coverage": {
+        "files_scanned": 3,
+        "total_files": 3,
+        "percentage": 100.0
+      },
+      "key_interfaces": [
+        "BackupOptions",
+        "CleanupOptions",
+        "StatsResult"
+      ],
+      "has_tests": false,
+      "documentation": "E:\\code\\AetherLink_z\\services\\data\\CLAUDE.md",
+      "features": [
+        "数据备份导出",
+        "数据清理",
+        "数据统计分析"
+      ],
+      "gaps": []
+    },
+    {
+      "path": "storage/repositories/",
+      "type": "data",
+      "description": "数据仓库层，封装数据库操作",
+      "entry_files": [
+        "chat.ts",
+        "messages.ts",
+        "providers.ts"
+      ],
+      "key_files": [
+        "chat.ts",
+        "messages.ts",
+        "attachments.ts",
+        "providers.ts",
+        "provider-models.ts",
+        "custom-providers.ts",
+        "thinking-chains.ts",
+        "assistants.ts",
+        "settings.ts"
+      ],
+      "coverage": {
+        "files_scanned": 9,
+        "total_files": 9,
+        "percentage": 100.0
+      },
+      "key_interfaces": [
+        "ChatRepository",
+        "MessageRepository",
+        "AttachmentRepository",
+        "ProvidersRepository",
+        "ThinkingChainRepository"
+      ],
+      "has_tests": false,
+      "documentation": "E:\\code\\AetherLink_z\\storage\\CLAUDE.md",
+      "features": [
+        "对话管理",
+        "消息管理",
+        "附件管理",
+        "提供商配置",
+        "模型数据",
+        "思考链存储",
+        "助手管理"
+      ],
+      "gaps": []
+    },
+    {
+      "path": "storage/sqlite/",
+      "type": "data",
+      "description": "SQLite 数据库连接和迁移管理",
+      "entry_files": [
+        "db.ts",
+        "migrations/0001_init.ts",
+        "migrations/0002_provider_models.ts",
+        "migrations/0003_thinking_chains.ts"
+      ],
+      "key_files": [
+        "db.ts",
+        "migrations/0001_init.ts",
+        "migrations/0002_provider_models.ts",
+        "migrations/0003_thinking_chains.ts"
+      ],
+      "coverage": {
+        "files_scanned": 4,
+        "total_files": 4,
+        "percentage": 100.0
+      },
+      "key_interfaces": [
+        "getDB",
+        "initMigrations",
+        "queryAll",
+        "execute"
+      ],
+      "has_tests": false,
+      "features": [
+        "数据库连接管理",
+        "迁移脚本执行",
+        "事务处理",
+        "外键约束"
+      ],
+      "gaps": []
     },
     {
       "path": "hooks/",
       "type": "logic",
-      "description": "React Hooks 业务逻辑封装",
+      "description": "React Hooks 封装业务逻辑",
       "entry_files": [
         "use-conversations.ts",
         "use-messages.ts",
@@ -139,38 +440,67 @@
         "use-messages.ts",
         "use-setting.ts",
         "use-theme-color.ts",
-        "use-color-scheme.ts"
+        "use-color-scheme.ts",
+        "use-confirm-dialog.tsx",
+        "use-image-generation.ts"
       ],
       "coverage": {
-        "files_scanned": 6,
-        "total_files": 6,
+        "files_scanned": 7,
+        "total_files": 7,
         "percentage": 100.0
       },
-      "gaps": [
-        "Hook implementations need detailed analysis",
-        "State management patterns not fully documented"
-      ]
+      "key_interfaces": [
+        "useConversations",
+        "useMessages",
+        "useSetting",
+        "useThemeColor",
+        "useConfirmDialog",
+        "useImageGeneration"
+      ],
+      "has_tests": false,
+      "documentation": "E:\\code\\AetherLink_z\\hooks\\CLAUDE.md",
+      "features": [
+        "对话列表管理",
+        "消息实时轮询",
+        "设置持久化",
+        "主题管理",
+        "确认对话框",
+        "图片生成"
+      ],
+      "gaps": []
     },
     {
       "path": "constants/",
       "type": "config",
-      "description": "应用常量和主题配置",
+      "description": "全局常量和主题配置",
       "entry_files": [
         "theme.ts",
-        "rne-theme.ts"
+        "prompts.ts",
+        "assistants.ts"
       ],
       "key_files": [
         "theme.ts",
-        "rne-theme.ts"
+        "prompts.ts",
+        "assistants.ts"
       ],
       "coverage": {
-        "files_scanned": 2,
-        "total_files": 2,
+        "files_scanned": 3,
+        "total_files": 3,
         "percentage": 100.0
       },
-      "gaps": [
-        "Theme system integration details not analyzed"
-      ]
+      "key_interfaces": [
+        "LIGHT_THEME",
+        "DARK_THEME",
+        "useRNETheme"
+      ],
+      "has_tests": false,
+      "documentation": "E:\\code\\AetherLink_z\\constants\\CLAUDE.md",
+      "features": [
+        "双主题系统（Paper + RNE）",
+        "提示词模板",
+        "助手预设"
+      ],
+      "gaps": []
     },
     {
       "path": "utils/",
@@ -187,37 +517,59 @@
         "total_files": 1,
         "percentage": 100.0
       },
+      "has_tests": false,
+      "documentation": "E:\\code\\AetherLink_z\\utils\\CLAUDE.md",
       "gaps": []
     }
   ],
-  "new_features_identified": [
+  "features_implemented": [
     {
-      "feature": "Network Search Integration",
+      "feature": "思考链显示",
+      "module": "components/chat/ThinkingBlock.tsx",
+      "description": "支持 OpenAI o1/o3、DeepSeek R1 等推理模型的思考过程显示",
+      "status": "implemented",
+      "impact": "high",
+      "since": "2025-11-08"
+    },
+    {
+      "feature": "网络搜索集成",
       "module": "services/search/",
       "description": "多搜索引擎支持 (Bing, Google, Tavily)",
       "status": "implemented",
-      "impact": "high"
+      "impact": "high",
+      "since": "2025-11-05"
     },
     {
-      "feature": "Enhanced Theme System",
-      "module": "constants/rne-theme.ts",
-      "description": "React Native Elements 主题配置",
+      "feature": "统一弹窗系统",
+      "module": "components/common/",
+      "description": "现代化的确认对话框和输入对话框",
       "status": "implemented",
-      "impact": "medium"
+      "impact": "medium",
+      "since": "2025-11-05"
     },
     {
-      "feature": "Theme Style Preview",
+      "feature": "主题样式预览",
       "module": "components/settings/ThemeStyleCard.tsx",
-      "description": "主题样式预览卡片组件",
+      "description": "主题样式可视化预览卡片",
       "status": "implemented",
-      "impact": "medium"
+      "impact": "medium",
+      "since": "2025-11-05"
     },
     {
-      "feature": "Web Search Settings",
-      "module": "app/settings/web-search.tsx",
-      "description": "网络搜索配置页面",
-      "status": "unanalyzed",
-      "impact": "medium"
+      "feature": "图片生成",
+      "module": "services/ai/AiClient.ts",
+      "description": "DALL-E 图片生成集成",
+      "status": "implemented",
+      "impact": "high",
+      "since": "2025-11-06"
+    },
+    {
+      "feature": "附件支持",
+      "module": "components/chat/AttachmentMenu.tsx",
+      "description": "图片、文件附件管理和显示",
+      "status": "implemented",
+      "impact": "high",
+      "since": "2025-11-09"
     }
   ],
   "architecture_analysis": {
@@ -230,105 +582,111 @@
       "Storage Layer (SQLite + AsyncStorage)"
     ],
     "strengths": [
-      "Clear separation of concerns",
-      "TypeScript throughout the stack",
-      "Repository pattern for data access",
-      "Comprehensive React Native theme system"
+      "清晰的分层架构",
+      "TypeScript 全栈类型安全",
+      "Repository 模式数据访问",
+      "双主题系统（Paper + RNE）",
+      "流式响应实时更新",
+      "跨平台兼容性好"
     ],
     "areas_for_improvement": [
-      "Missing automated tests",
-      "Limited error boundary implementation",
-      "Component documentation could be enhanced"
+      "缺少自动化测试",
+      "错误边界实现有限",
+      "部分组件文档可以增强",
+      "性能优化空间（长列表渲染）"
     ]
   },
   "technology_stack": {
     "framework": "React Native 0.81.5 + Expo 54",
-    "routing": "Expo Router",
+    "routing": "Expo Router (文件路由)",
     "ui_libraries": ["React Native Paper", "React Native Elements"],
     "state_management": "React Hooks + Context",
     "database": "Expo SQLite",
     "ai_integration": "Vercel AI SDK",
+    "search_engines": ["Bing", "Google", "Tavily"],
     "language": "TypeScript",
     "platforms": ["iOS", "Android", "Web"]
   },
-  "next_steps": [
-    {
-      "priority": "high",
-      "action": "Analyze remaining settings pages",
-      "targets": [
-        "app/settings/appearance.tsx",
-        "app/settings/web-search.tsx",
-        "app/settings/providers/*.tsx"
-      ],
-      "estimated_effort": "2-3 hours"
-    },
-    {
-      "priority": "high",
-      "action": "Deep dive into chat components",
-      "targets": [
-        "components/chat/MessageList.tsx",
-        "components/chat/MessageBubble.tsx",
-        "components/chat/MarkdownRenderer.tsx"
-      ],
-      "estimated_effort": "3-4 hours"
-    },
-    {
-      "priority": "medium",
-      "action": "Review AI service implementations",
-      "targets": [
-        "services/ai/ModelDiscovery.ts",
-        "services/ai/ModelValidation.ts",
-        "services/ai/TopicNaming.ts"
-      ],
-      "estimated_effort": "2-3 hours"
-    },
-    {
-      "priority": "medium",
-      "action": "Analyze database schema and migrations",
-      "targets": [
-        "storage/sqlite/migrations/*.ts",
-        "storage/repositories/*.ts"
-      ],
-      "estimated_effort": "2-3 hours"
-    },
-    {
-      "priority": "low",
-      "action": "Document utility functions and helpers",
-      "targets": [
-        "utils/render-cache.ts",
-        "services/search/utils/*.ts"
-      ],
-      "estimated_effort": "1-2 hours"
-    }
-  ],
   "test_coverage_status": {
     "overall": "no_automated_tests",
     "recommended_priority": "high",
     "suggested_test_suites": [
-      "Unit tests for React Hooks",
-      "Component tests for UI components",
-      "Integration tests for services",
-      "E2E tests for critical user flows"
+      "单元测试：核心业务逻辑 (hooks, repositories, services)",
+      "组件测试：React Native 组件",
+      "集成测试：数据库操作和 AI 服务调用",
+      "搜索服务测试：各搜索引擎集成测试",
+      "E2E 测试：关键用户流程"
     ]
   },
   "documentation_generated": [
-    "CLAUDE.md (root level)",
-    "services/search/CLAUDE.md",
-    "components/settings/CLAUDE.md",
-    "hooks/CLAUDE.md",
-    "constants/CLAUDE.md"
-  ],
-  "missing_documentation": [
-    "app/CLAUDE.md",
+    "CLAUDE.md (根目录，已更新)",
     "components/chat/CLAUDE.md",
-    "components/providers/CLAUDE.md",
-    "services/ai/CLAUDE.md (update needed)",
-    "storage/CLAUDE.md (update needed)",
-    "utils/CLAUDE.md"
+    "components/settings/CLAUDE.md",
+    "components/common/CLAUDE.md (新建)",
+    "components/providers/CLAUDE.md (新建)",
+    "services/ai/CLAUDE.md",
+    "services/search/CLAUDE.md",
+    "services/data/CLAUDE.md (新建)",
+    "storage/CLAUDE.md",
+    "hooks/CLAUDE.md",
+    "constants/CLAUDE.md",
+    "utils/CLAUDE.md (新建)"
+  ],
+  "next_steps": [
+    {
+      "priority": "high",
+      "action": "添加自动化测试",
+      "targets": [
+        "hooks/ 单元测试",
+        "services/ 集成测试",
+        "components/ 组件测试"
+      ],
+      "estimated_effort": "1-2周"
+    },
+    {
+      "priority": "high",
+      "action": "完善错误边界和错误处理",
+      "targets": [
+        "全局错误边界",
+        "AI 服务错误重试",
+        "网络错误提示优化"
+      ],
+      "estimated_effort": "3-5天"
+    },
+    {
+      "priority": "medium",
+      "action": "性能优化",
+      "targets": [
+        "MessageList 长列表优化",
+        "图片加载优化",
+        "数据库查询优化"
+      ],
+      "estimated_effort": "1周"
+    },
+    {
+      "priority": "medium",
+      "action": "文档完善",
+      "targets": [
+        "API 文档注释",
+        "组件使用示例",
+        "架构决策记录 (ADR)"
+      ],
+      "estimated_effort": "3-5天"
+    },
+    {
+      "priority": "low",
+      "action": "无障碍访问支持",
+      "targets": [
+        "屏幕阅读器支持",
+        "键盘导航",
+        "对比度优化"
+      ],
+      "estimated_effort": "1周"
+    }
   ],
   "previous_scan": {
-    "timestamp": "2025-11-03T18:47:44.000Z",
-    "coverage_percentage": 31.6,
-    "improvement": "+17.8%"
+    "timestamp": "2025-11-05T13:45:09.000Z",
+    "coverage_percentage": 49.4,
+    "improvement": "+50.6%"
   }
 }
