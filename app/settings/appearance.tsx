@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+
+import React, { useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, Pressable, Modal, TouchableWithoutFeedback } from 'react-native';
 import { List, Text, useTheme, Chip, Divider, Surface } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -14,8 +15,20 @@ export default function AppearanceSettings() {
   // 状态：主题模式与字体大小
   const { fontScale, setFontScale, themeMode, setThemeMode } = useAppSettings();
 
-  // 下拉菜单显示状态
+  // 下拉菜单：显示状态与定位
   const [menuVisible, setMenuVisible] = useState(false);
+  const anchorRef = useRef<View | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
+
+  const openMenu = () => {
+    // 动态测量锚点位置，确保下拉紧贴输入框
+    anchorRef.current?.measureInWindow?.((x: number, y: number, width: number, height: number) => {
+      setMenuPos({ top: y + height + 6, left: x, width });
+      setMenuVisible(true);
+    });
+    // 若测量失败，仍然打开，使用默认样式回退
+    if (!anchorRef.current) setMenuVisible(true);
+  };
 
   const saveFontScale = async (v: number) => {
     const rounded = Math.round(v);
@@ -52,10 +65,20 @@ export default function AppearanceSettings() {
           >
             <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
               <View style={styles.modalOverlay}>
-                <View style={styles.menuContainer}>
+                <View
+                  style={[
+                    styles.menuContainer,
+                    menuPos.top
+                      ? { position: 'absolute', top: menuPos.top, left: menuPos.left, width: menuPos.width, paddingHorizontal: 0 }
+                      : null,
+                  ]}
+                >
                   <Surface
-                    elevation={4}
-                    style={[styles.dropdownMenu, { backgroundColor: theme.colors.surface }]}
+                    elevation={5}
+                    style={[
+                      styles.dropdownMenu,
+                      { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant },
+                    ]}
                   >
                     <Pressable
                       onPress={() => {
@@ -64,14 +87,16 @@ export default function AppearanceSettings() {
                       }}
                       style={({ pressed }) => [
                         styles.menuItem,
-                        { backgroundColor: pressed ? theme.colors.surfaceVariant : 'transparent' }
+                        themeMode === 'system' && styles.menuItemSelected,
+                        { backgroundColor: pressed ? theme.colors.surfaceVariant : undefined },
                       ]}
                     >
                       <View style={styles.menuItemContent}>
-                        {themeMode === 'system' && (
-                          <MaterialCommunityIcons name="check" size={20} color={theme.colors.primary} />
+                        {themeMode === 'system' ? (
+                          <MaterialCommunityIcons name="check" size={18} color={theme.colors.primary} />
+                        ) : (
+                          <View style={{ width: 18 }} />
                         )}
-                        {themeMode !== 'system' && <View style={{ width: 20 }} />}
                         <Text variant="bodyLarge" style={[styles.menuItemText, { marginLeft: 12 }]}>跟随系统</Text>
                       </View>
                     </Pressable>
@@ -83,14 +108,16 @@ export default function AppearanceSettings() {
                       }}
                       style={({ pressed }) => [
                         styles.menuItem,
-                        { backgroundColor: pressed ? theme.colors.surfaceVariant : 'transparent' }
+                        themeMode === 'light' && styles.menuItemSelected,
+                        { backgroundColor: pressed ? theme.colors.surfaceVariant : undefined },
                       ]}
                     >
                       <View style={styles.menuItemContent}>
-                        {themeMode === 'light' && (
-                          <MaterialCommunityIcons name="check" size={20} color={theme.colors.primary} />
+                        {themeMode === 'light' ? (
+                          <MaterialCommunityIcons name="check" size={18} color={theme.colors.primary} />
+                        ) : (
+                          <View style={{ width: 18 }} />
                         )}
-                        {themeMode !== 'light' && <View style={{ width: 20 }} />}
                         <Text variant="bodyLarge" style={[styles.menuItemText, { marginLeft: 12 }]}>浅色</Text>
                       </View>
                     </Pressable>
@@ -102,14 +129,16 @@ export default function AppearanceSettings() {
                       }}
                       style={({ pressed }) => [
                         styles.menuItem,
-                        { backgroundColor: pressed ? theme.colors.surfaceVariant : 'transparent' }
+                        themeMode === 'dark' && styles.menuItemSelected,
+                        { backgroundColor: pressed ? theme.colors.surfaceVariant : undefined },
                       ]}
                     >
                       <View style={styles.menuItemContent}>
-                        {themeMode === 'dark' && (
-                          <MaterialCommunityIcons name="check" size={20} color={theme.colors.primary} />
+                        {themeMode === 'dark' ? (
+                          <MaterialCommunityIcons name="check" size={18} color={theme.colors.primary} />
+                        ) : (
+                          <View style={{ width: 18 }} />
                         )}
-                        {themeMode !== 'dark' && <View style={{ width: 20 }} />}
                         <Text variant="bodyLarge" style={[styles.menuItemText, { marginLeft: 12 }]}>深色</Text>
                       </View>
                     </Pressable>
@@ -120,18 +149,27 @@ export default function AppearanceSettings() {
           </Modal>
         )}
 
-        <Pressable
-          onPress={() => setMenuVisible(!menuVisible)}
-          style={[styles.dropdownButton, {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.outline,
-          }]}
-        >
-          <View style={styles.dropdownContent}>
-            <Text variant="bodyLarge">{themeModeLabel}</Text>
-            <Text style={{ color: theme.colors.onSurfaceVariant }}>▼</Text>
-          </View>
-        </Pressable>
+        <View ref={anchorRef} collapsable={false}>
+          <Pressable
+            onPress={openMenu}
+            style={[
+              styles.dropdownButton,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: menuVisible ? theme.colors.primary : theme.colors.outline,
+              },
+            ]}
+          >
+            <View style={styles.dropdownContent}>
+              <Text variant="bodyLarge">{themeModeLabel}</Text>
+              <MaterialCommunityIcons
+                name={menuVisible ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={theme.colors.onSurfaceVariant}
+              />
+            </View>
+          </Pressable>
+        </View>
 
         <View style={[styles.tip, { backgroundColor: theme.colors.surfaceVariant }]}>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
@@ -178,12 +216,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   dropdownButton: {
-    borderWidth: 1,
-    borderRadius: 8,
+    borderWidth: 1.2,
+    borderRadius: 10,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    height: 48,
     marginHorizontal: 4,
     marginTop: 4,
+    justifyContent: 'center',
   },
   dropdownContent: {
     flexDirection: 'row',
@@ -193,26 +232,30 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-start',
-    paddingTop: 150, // 调整这个值来定位菜单位置
   },
   menuContainer: {
     paddingHorizontal: 16,
   },
   dropdownMenu: {
-    borderRadius: 8,
+    borderRadius: 10,
     overflow: 'hidden',
+    borderWidth: 1,
+    width: '100%',
   },
   menuItem: {
     paddingHorizontal: 16,
-    paddingVertical: 14,
-    minHeight: 48, // 提升可点击与可读性
+    paddingVertical: 18,
+    minHeight: 56, // 更宽松行高
     justifyContent: 'center',
+  },
+  menuItemSelected: {
+    backgroundColor: 'rgba(0,0,0,0.04)',
   },
   menuItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   menuItemText: {
-    lineHeight: 24,
+    lineHeight: 36,
   },
 });
