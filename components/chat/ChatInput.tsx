@@ -177,15 +177,18 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
           setIsSearching(false);
         }
       }
+      // 判断是否首轮对话：在创建话题前检查
       if (!cid) {
         const c = await ChatRepository.createConversation('新话题');
         cid = c.id;
-        onConversationChange(c.id);
+        isFirstTurn = true; // 新话题必定是首轮对话
+        // 延迟触发 UI 更新，避免竞态条件
+        // 等待用户消息写入后再通知父组件
+      } else {
+        // 已有话题，检查是否有历史消息
+        const __prev = await MessageRepository.listMessages(cid, { limit: 1 });
+        isFirstTurn = __prev.length === 0;
       }
-
-      // 判断是否首轮对话：在写入用户消息前检查是否已有历史
-      const __prev = await MessageRepository.listMessages(cid!, { limit: 1 });
-      isFirstTurn = __prev.length === 0;
 
       // 获取聊天设置参数（提前获取以便保存到消息）
       const sr = SettingsRepository();
@@ -195,6 +198,12 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       // 先创建用户消息，并关联所选附件
       const attachmentIds = selectedAttachments.map(a => a.id);
       await MessageRepository.addMessage({ conversationId: cid!, role: 'user', text: userMessage, status: 'sent', attachmentIds });
+
+      // 如果是新创建的话题，在用户消息写入后再通知父组件切换话题
+      // 避免竞态条件：确保话题和消息都已就绪后再触发 UI 更新
+      if (isFirstTurn && conversationId === null) {
+        onConversationChange(cid!);
+      }
 
       // 创建 assistant 消息，保存模型信息到 extra 字段
       assistant = await MessageRepository.addMessage({
