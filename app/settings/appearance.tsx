@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { List, Text, useTheme, Chip, SegmentedButtons } from 'react-native-paper';
+import React, { useMemo, useState } from 'react';
+import { View, StyleSheet, Pressable, Modal, TouchableWithoutFeedback } from 'react-native';
+import { List, Text, useTheme, Chip, Divider, Surface } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { SettingScreen } from '@/components/settings/SettingScreen';
 import { useAppSettings } from '@/components/providers/SettingsProvider';
@@ -13,6 +14,9 @@ export default function AppearanceSettings() {
   // 状态：主题模式与字体大小
   const { fontScale, setFontScale, themeMode, setThemeMode } = useAppSettings();
 
+  // 下拉菜单显示状态
+  const [menuVisible, setMenuVisible] = useState(false);
+
   const saveFontScale = async (v: number) => {
     const rounded = Math.round(v);
     await setFontScale(rounded);
@@ -23,22 +27,113 @@ export default function AppearanceSettings() {
     return `${fontScale}px`;
   }, [fontScale]);
 
+  // 主题模式标签映射
+  const themeModeLabel = useMemo(() => {
+    const labels: Record<string, string> = {
+      system: '跟随系统',
+      light: '浅色',
+      dark: '深色',
+    };
+    return labels[themeMode] || '跟随系统';
+  }, [themeMode]);
+
   return (
     <SettingScreen title="外观设置" description="自定义应用的外观主题和全局字体大小设置">
-      {/* 主题风格 */}
+      {/* 主题模式 */}
       <List.Section style={styles.section}>
         <Text variant="titleSmall" style={styles.sectionTitle}>主题模式</Text>
-        <SegmentedButtons
-          value={themeMode}
-          onValueChange={(v) => setThemeMode(v as any)}
-          buttons={[
-            { value: 'system', label: '跟随系统' },
-            { value: 'light', label: '浅色' },
-            { value: 'dark', label: '深色' },
-          ]}
-          style={{ marginHorizontal: 4, marginTop: 4 }}
-        />
-        <View style={[styles.tip, { backgroundColor: theme.colors.surfaceVariant }]}> 
+
+        {menuVisible && (
+          <Modal
+            transparent
+            visible={menuVisible}
+            onRequestClose={() => setMenuVisible(false)}
+            animationType="none"
+          >
+            <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
+              <View style={styles.modalOverlay}>
+                <View style={styles.menuContainer}>
+                  <Surface
+                    elevation={4}
+                    style={[styles.dropdownMenu, { backgroundColor: theme.colors.surface }]}
+                  >
+                    <Pressable
+                      onPress={() => {
+                        setThemeMode('system');
+                        setMenuVisible(false);
+                      }}
+                      style={({ pressed }) => [
+                        styles.menuItem,
+                        { backgroundColor: pressed ? theme.colors.surfaceVariant : 'transparent' }
+                      ]}
+                    >
+                      <View style={styles.menuItemContent}>
+                        {themeMode === 'system' && (
+                          <MaterialCommunityIcons name="check" size={20} color={theme.colors.primary} />
+                        )}
+                        {themeMode !== 'system' && <View style={{ width: 20 }} />}
+                        <Text variant="bodyLarge" style={{ marginLeft: 12 }}>跟随系统</Text>
+                      </View>
+                    </Pressable>
+                    <Divider />
+                    <Pressable
+                      onPress={() => {
+                        setThemeMode('light');
+                        setMenuVisible(false);
+                      }}
+                      style={({ pressed }) => [
+                        styles.menuItem,
+                        { backgroundColor: pressed ? theme.colors.surfaceVariant : 'transparent' }
+                      ]}
+                    >
+                      <View style={styles.menuItemContent}>
+                        {themeMode === 'light' && (
+                          <MaterialCommunityIcons name="check" size={20} color={theme.colors.primary} />
+                        )}
+                        {themeMode !== 'light' && <View style={{ width: 20 }} />}
+                        <Text variant="bodyLarge" style={{ marginLeft: 12 }}>浅色</Text>
+                      </View>
+                    </Pressable>
+                    <Divider />
+                    <Pressable
+                      onPress={() => {
+                        setThemeMode('dark');
+                        setMenuVisible(false);
+                      }}
+                      style={({ pressed }) => [
+                        styles.menuItem,
+                        { backgroundColor: pressed ? theme.colors.surfaceVariant : 'transparent' }
+                      ]}
+                    >
+                      <View style={styles.menuItemContent}>
+                        {themeMode === 'dark' && (
+                          <MaterialCommunityIcons name="check" size={20} color={theme.colors.primary} />
+                        )}
+                        {themeMode !== 'dark' && <View style={{ width: 20 }} />}
+                        <Text variant="bodyLarge" style={{ marginLeft: 12 }}>深色</Text>
+                      </View>
+                    </Pressable>
+                  </Surface>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </Modal>
+        )}
+
+        <Pressable
+          onPress={() => setMenuVisible(!menuVisible)}
+          style={[styles.dropdownButton, {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.outline,
+          }]}
+        >
+          <View style={styles.dropdownContent}>
+            <Text variant="bodyLarge">{themeModeLabel}</Text>
+            <Text style={{ color: theme.colors.onSurfaceVariant }}>▼</Text>
+          </View>
+        </Pressable>
+
+        <View style={[styles.tip, { backgroundColor: theme.colors.surfaceVariant }]}>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
             提示：选择浅色/深色或跟随系统，切换后立即生效。
           </Text>
@@ -81,5 +176,38 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     marginTop: 8,
+  },
+  dropdownButton: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 4,
+    marginTop: 4,
+  },
+  dropdownContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    paddingTop: 150, // 调整这个值来定位菜单位置
+  },
+  menuContainer: {
+    paddingHorizontal: 16,
+  },
+  dropdownMenu: {
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  menuItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  menuItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });
