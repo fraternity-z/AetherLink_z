@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, useWindowDimensions, View, ScrollView } from 'react-native';
-import { Surface, Text, SegmentedButtons, List, TouchableRipple, useTheme, Avatar, IconButton } from 'react-native-paper';
+import { Surface, Text, List, TouchableRipple, useTheme, Avatar, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChatSettings } from './ChatSettings';
@@ -152,16 +152,19 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
           pointerEvents="auto"
         >
           {/* 顶部 Tabs */}
-          <View style={styles.header}>
-            <SegmentedButtons
-              value={tab}
-              onValueChange={(v) => setTab(v as TabKey)}
-              buttons={[
-                { value: 'assistants', label: '助手', icon: 'robot' },
-                // 只保留两项：助手与设置
-                { value: 'settings', label: '设置', icon: 'cog' },
-              ]}
-            />
+          <View style={[styles.header, { flexDirection: 'row' }]}> 
+            <TouchableRipple onPress={() => setTab('assistants')} borderless style={styles.topTabItem}>
+              <View style={styles.topTabInner}>
+                <Avatar.Icon size={28} icon="robot" style={{ backgroundColor: 'transparent' }} color={tab === 'assistants' ? theme.colors.primary : theme.colors.onSurface} />
+                <Text style={[styles.topTabLabel, { color: tab === 'assistants' ? theme.colors.primary : theme.colors.onSurface }]}>助手</Text>
+              </View>
+            </TouchableRipple>
+            <TouchableRipple onPress={() => setTab('settings')} borderless style={styles.topTabItem}>
+              <View style={styles.topTabInner}>
+                <Avatar.Icon size={28} icon="cog" style={{ backgroundColor: 'transparent' }} color={tab === 'settings' ? theme.colors.primary : theme.colors.onSurface} />
+                <Text style={[styles.topTabLabel, { color: tab === 'settings' ? theme.colors.primary : theme.colors.onSurface }]}>设置</Text>
+              </View>
+            </TouchableRipple>
           </View>
 
           {/* 内容 */}
@@ -320,7 +323,9 @@ const styles = StyleSheet.create({
     borderRightColor: '#E5E7EB',
   },
   header: {
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   content: {
     flex: 1,
@@ -339,5 +344,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  topTabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  topTabInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topTabLabel: {
+    fontSize: 16,
+    marginTop: 6,
   },
 });
