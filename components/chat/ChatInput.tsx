@@ -282,28 +282,27 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         const parts: any[] = [];
         if (userMessage.trim()) parts.push({ type: 'text', text: userMessage });
 
-        // 读取图片为 data URL 片段
+        // 读取图片为字节数组（Uint8Array 格式，符合 AI SDK 规范）
         for (const img of images) {
           try {
             console.log('[ChatInput] 📖 读取图片:', { uri: img.uri, mime: img.mime });
 
-            // 使用 File API 读取图片为字节数组，直接传 Uint8Array，避免 data: URL 走网络下载路径
+            // 使用 File API 读取图片为字节数组（Uint8Array），AI SDK 会自动识别图片格式
             const bytes = await new File(img.uri as string).bytes();
 
-            const mime = img.mime || 'image/png';
-            
             console.log('[ChatInput] ✅ 图片读取成功', {
-              mime,
+              mime: img.mime,
               byteLength: bytes.length,
+              sizeKB: (bytes.length / 1024).toFixed(2),
             });
 
-            // 直接传字节 + 媒体类型，AI SDK 会用签名/提供的 mediaType 识别，无需 data:URL
-            parts.push({ type: 'image', image: bytes, mediaType: mime });
+            // 直接传递字节数组，AI SDK 会自动识别图片格式（无需 mediaType 字段）
+            parts.push({ type: 'image', image: bytes });
           } catch (e: any) {
             console.error('[ChatInput] ❌ 读取图片失败，跳过该图片', {
               uri: img.uri,
+              mime: img.mime,
               error: e.message,
-              stack: e.stack
             });
           }
         }
