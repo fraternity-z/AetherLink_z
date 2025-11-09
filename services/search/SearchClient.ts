@@ -57,7 +57,6 @@ export async function performSearch(
   if (useCache) {
     const cachedResults = searchCache.get(engine, query);
     if (cachedResults) {
-      console.log('[SearchClient] 使用缓存结果');
       // 根据 maxResults 限制返回数量
       return cachedResults.slice(0, maxResults);
     }

@@ -74,7 +74,6 @@ export class SearchCache {
     if (now - entry.timestamp > this.ttl) {
       // 过期，删除并返回 null
       this.cache.delete(key);
-      console.log('[SearchCache] 缓存已过期:', key);
       return null;
     }
 
@@ -82,7 +81,6 @@ export class SearchCache {
     this.cache.delete(key);
     this.cache.set(key, entry);
 
-    console.log('[SearchCache] 缓存命中:', key, `结果数: ${entry.results.length}`);
     return entry.results;
   }
 
@@ -97,7 +95,6 @@ export class SearchCache {
       const firstKey = this.cache.keys().next().value;
       if (firstKey) {
         this.cache.delete(firstKey);
-        console.log('[SearchCache] 缓存已满，淘汰最旧条目:', firstKey);
       }
     }
 
@@ -109,7 +106,6 @@ export class SearchCache {
     };
 
     this.cache.set(key, entry);
-    console.log('[SearchCache] 缓存已设置:', key, `结果数: ${results.length}`);
   }
 
   /**
@@ -117,7 +113,6 @@ export class SearchCache {
    */
   clear(): void {
     this.cache.clear();
-    console.log('[SearchCache] 缓存已清空');
   }
 
   /**
@@ -140,7 +135,6 @@ export class SearchCache {
     }
 
     if (expiredKeys.length > 0) {
-      console.log('[SearchCache] 清理了 ${expiredKeys.length} 个过期条目');
     }
   }
 

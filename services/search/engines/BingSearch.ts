@@ -36,7 +36,6 @@ export async function searchBing(
     const encodedQuery = encodeURIComponent(query);
     const searchUrl = `https://www.bing.com/search?q=${encodedQuery}&count=${Math.min(maxResults * 2, 20)}`;
 
-    console.log('[Bing Search] 开始搜索:', query);
 
     // 2. 发送 HTTP 请求（带 User-Agent 和其他请求头）
     let html: string
@@ -65,12 +64,10 @@ export async function searchBing(
       })
     }
 
-    console.log('[Bing Search] 获取到 HTML，长度:', html.length);
 
     // 3. 解析 HTML 提取搜索结果
     const parsedResults = parseBingSearchResults(html);
 
-    console.log('[Bing Search] 解析到结果数量:', parsedResults.length);
 
     // 4. 验证并过滤结果
     const validResults = validateSearchResults(parsedResults);
@@ -90,7 +87,6 @@ export async function searchBing(
       );
     }
 
-    console.log('[Bing Search] 返回有效结果数量:', results.length);
 
     return results;
   } catch (error) {

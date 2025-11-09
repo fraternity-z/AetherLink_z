@@ -79,7 +79,6 @@ export const DataCleanupService = {
       await AsyncStorage.multiRemove(alKeys);
     }
 
-    console.log('[DataCleanup] All data cleared');
   },
 
   /**

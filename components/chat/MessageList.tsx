@@ -79,14 +79,11 @@ export function MessageList({ conversationId }: { conversationId: string | null 
           setThinkingChainsMap({});
           return;
         }
-        console.log('[MessageList] 开始加载思考链数据，消息数:', ids.length);
         const map = await ThinkingChainRepository.getThinkingChainsByMessageIds(ids);
-        console.log('[MessageList] 加载到的思考链数量:', map.size);
 
         // 将 Map 转换为普通对象
         const objMap: Record<string, ThinkingChain> = {};
         map.forEach((value, key) => {
-          console.log('[MessageList] 思考链数据:', { messageId: key, contentLength: value.content.length, durationMs: value.durationMs });
           objMap[key] = value;
         });
         setThinkingChainsMap(objMap);

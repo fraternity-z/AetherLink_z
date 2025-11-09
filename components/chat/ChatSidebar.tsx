@@ -67,7 +67,6 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
     // 发送助手切换事件
     appEvents.emit(AppEvents.ASSISTANT_CHANGED, assistantId);
 
-    console.log('[ChatSidebar] 切换助手:', assistantId);
   };
 
   // 添加助手
@@ -77,7 +76,6 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
     // 重新加载助手列表
     const allAssistants = await repo.getAll();
     setAssistants(allAssistants);
-    console.log('[ChatSidebar] 添加助手:', assistant.name);
   };
 
   // 移除助手
@@ -106,7 +104,6 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
             // 重新加载助手列表
             const allAssistants = await repo.getAll();
             setAssistants(allAssistants);
-            console.log('[ChatSidebar] 移除助手:', assistant.name);
           },
         },
       ],

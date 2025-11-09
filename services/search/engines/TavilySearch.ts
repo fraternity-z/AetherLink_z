@@ -49,7 +49,6 @@ export async function searchTavily(
   }
 
   try {
-    console.log('[Tavily Search] 开始搜索:', query);
 
     // 创建 AbortController 用于超时控制
     const controller = new AbortController();
@@ -104,7 +103,6 @@ export async function searchTavily(
       // 解析响应数据
       const data: TavilyApiResponse = await response.json();
 
-      console.log('[Tavily Search] API 返回结果数量:', data.results?.length || 0);
 
       // 检查结果是否为空
       if (!data.results || data.results.length === 0) {
@@ -119,7 +117,6 @@ export async function searchTavily(
         source: 'tavily',
       }));
 
-      console.log('[Tavily Search] 返回有效结果数量:', results.length);
 
       return results;
     } catch (error) {

@@ -55,7 +55,6 @@ export function ChatHeader({ onMenuPress, onTopicsPress, onModelPickerPress }: C
       <Appbar.Action
         icon="menu"
         onPress={() => {
-          console.log('打开侧边栏');
           onMenuPress?.();
         }}
       />

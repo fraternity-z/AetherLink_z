@@ -39,7 +39,6 @@ export async function searchGoogle(
     // 使用 num 参数控制返回数量，hl 设置语言
     const searchUrl = `https://www.google.com/search?q=${encodedQuery}&num=${Math.min(maxResults * 2, 20)}&hl=zh-CN`;
 
-    console.log('[Google Search] 开始搜索:', query);
 
     // 2. 发送 HTTP 请求（使用移动端 User-Agent，更容易通过）
     let html: string
@@ -71,7 +70,6 @@ export async function searchGoogle(
       })
     }
 
-    console.log('[Google Search] 获取到 HTML，长度:', html.length);
 
     // 3. 检查是否遇到 CAPTCHA
     if (html.includes('captcha') || html.includes('unusual traffic')) {
@@ -85,7 +83,6 @@ export async function searchGoogle(
     // 4. 解析 HTML 提取搜索结果
     const parsedResults = parseGoogleSearchResults(html);
 
-    console.log('[Google Search] 解析到结果数量:', parsedResults.length);
 
     // 5. 验证并过滤结果
     const validResults = validateSearchResults(parsedResults);
@@ -105,7 +102,6 @@ export async function searchGoogle(
       );
     }
 
-    console.log('[Google Search] 返回有效结果数量:', results.length);
 
     return results;
   } catch (error) {

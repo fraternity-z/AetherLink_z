@@ -5,7 +5,8 @@
       "Bash(npx tsc:*)",
       "Bash(npm install:*)",
       "mcp__mcp-router__resolve-library-id",
-      "mcp__mcp-router__get-library-docs"
+      "mcp__mcp-router__get-library-docs",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

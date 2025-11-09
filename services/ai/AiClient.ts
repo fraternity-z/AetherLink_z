@@ -137,12 +137,6 @@ export async function streamCompletion(opts: StreamOptions) {
   // 检查模型是否支持思考链
   const hasReasoningSupport = supportsReasoning(opts.provider, opts.model);
 
-  console.log('[AiClient] 模型思考链支持检测', {
-    provider: opts.provider,
-    model: opts.model,
-    hasReasoningSupport,
-    hasCallbacks: !!(opts.onThinkingToken || opts.onThinkingStart || opts.onThinkingEnd),
-  });
 
   const result = streamText({
     model: factory()(opts.model),
@@ -161,20 +155,16 @@ export async function streamCompletion(opts: StreamOptions) {
       let isThinking = false;
 
       for await (const part of result.fullStream) {
-        console.log('[AiClient] fullStream part:', part.type);
 
         if (part.type === 'reasoning-start') {
           // 思考链开始
-          console.log('[AiClient] ✅ 思考链开始');
           isThinking = true;
           opts.onThinkingStart?.();
         } else if (part.type === 'reasoning-delta') {
           // 流式输出思考链内容
-          console.log('[AiClient] 💡 思考链内容:', part.text.substring(0, 50));
           opts.onThinkingToken?.(part.text);
         } else if (part.type === 'reasoning-end') {
           // 思考链结束
-          console.log('[AiClient] ✅ 思考链结束');
           isThinking = false;
           opts.onThinkingEnd?.();
         } else if (part.type === 'text-delta') {
@@ -317,14 +307,6 @@ export async function generateImageWithAI(
     onCreated?.();
     onProgress?.(10);
 
-    console.log('[AiClient] 开始图片生成', {
-      provider,
-      model,
-      promptLength: prompt.length,
-      size,
-      quality,
-      style,
-    });
 
     // 6. 获取 baseURL（如果有自定义）
     let baseURL: string | undefined;
@@ -384,11 +366,6 @@ export async function generateImageWithAI(
       }
     }
 
-    console.log('[AiClient] 图片生成成功', {
-      provider,
-      model,
-      imageCount: images.length,
-    });
 
     // 10. 处理返回结果
     const imageData: ImageGenerationResult = {

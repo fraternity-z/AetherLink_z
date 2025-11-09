@@ -164,7 +164,6 @@ export function SettingsList() {
       router.push(item.route as any);
     } else {
       // TODO: 实现各项设置跳转逻辑
-      console.log('打开设置:', item.id);
     }
   };
 

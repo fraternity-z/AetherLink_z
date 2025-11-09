@@ -62,12 +62,6 @@ export function useImageGeneration(options: UseImageGenerationOptions) {
     setError(null);
 
     try {
-      console.log('[useImageGeneration] 开始图片生成流程', {
-        conversationId,
-        provider,
-        model,
-        promptLength: genOptions.prompt.length,
-      });
 
       // 1. 调用 AI 服务生成图片
       const result = await generateImageWithAI({
@@ -82,14 +76,10 @@ export function useImageGeneration(options: UseImageGenerationOptions) {
         onProgress: (p) => setProgress(p),
         onComplete: async (imageData: ImageGenerationResult) => {
           // 2. 保存图片到本地
-          console.log('[useImageGeneration] 开始保存图片', {
-            imageCount: imageData.images.length,
-          });
 
           const savedAttachmentIds = await saveImages(imageData.images);
 
           // 3. 创建消息记录
-          console.log('[useImageGeneration] 创建消息记录');
 
           const messageText = imageData.revisedPrompt
             ? `[图片生成]\n原提示词: ${genOptions.prompt}\nAI 优化后: ${imageData.revisedPrompt}`
@@ -113,16 +103,11 @@ export function useImageGeneration(options: UseImageGenerationOptions) {
           });
 
           // 4. 关联附件到消息
-          console.log('[useImageGeneration] 关联附件到消息');
 
           for (const attachmentId of savedAttachmentIds) {
             await AttachmentRepository.linkToMessage(message.id, attachmentId);
           }
 
-          console.log('[useImageGeneration] ✅ 图片生成流程完成', {
-            messageId: message.id,
-            attachmentCount: savedAttachmentIds.length,
-          });
 
           setProgress(100);
         },
@@ -174,7 +159,6 @@ export function useImageGeneration(options: UseImageGenerationOptions) {
         const fileName = `generated_${Date.now()}_${uuid().slice(0, 8)}.${imageType}`;
         const tempFile = new File(Paths.cache, fileName);
 
-        console.log('[useImageGeneration] 写入图片文件', { uri: tempFile.uri });
 
         // 写入 Base64 数据到临时文件
         await tempFile.write(pureBase64, { encoding: 'base64' });
@@ -191,11 +175,6 @@ export function useImageGeneration(options: UseImageGenerationOptions) {
           }
         });
 
-        console.log('[useImageGeneration] 附件保存成功', {
-          id: attachment.id,
-          uri: attachment.uri,
-          size: attachment.size,
-        });
 
         savedAttachmentIds.push(attachment.id);
 

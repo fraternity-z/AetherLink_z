@@ -144,7 +144,6 @@ export const DataBackupService = {
         }
       }
 
-      console.log('[DataBackup] Data restored successfully');
     } catch (error) {
       console.error('[DataBackup] Restore failed:', error);
       throw new Error(`数据恢复失败: ${error instanceof Error ? error.message : '未知错误'}`);

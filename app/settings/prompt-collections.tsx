@@ -156,7 +156,6 @@ export default function PromptCollections() {
                   icon="content-copy"
                   onPress={() => {
                     // TODO: 复制提示词到剪贴板
-                    console.log('复制提示词：', assistant.systemPrompt);
                   }}
                   style={styles.actionButton}
                 >
@@ -167,7 +166,6 @@ export default function PromptCollections() {
                   icon="eye"
                   onPress={() => {
                     // TODO: 在聊天中预览
-                    console.log('预览助手：', assistant.name);
                   }}
                   style={styles.actionButton}
                 >

@@ -47,10 +47,8 @@ const MATHJAX_TEMPLATE = (theme: 'light' | 'dark', baseFontPx: number) => `
       },
       startup: {
         ready: () => {
-          console.log('MathJax is ready');
           MathJax.startup.defaultReady();
           MathJax.startup.promise.then(() => {
-            console.log('MathJax startup complete');
             window.ReactNativeWebView.postMessage(JSON.stringify({
               type: 'ready'
             }));
@@ -126,7 +124,6 @@ const MATHJAX_TEMPLATE = (theme: 'light' | 'dark', baseFontPx: number) => `
 
     // 接收公式数据
     window.setFormulas = function(formulaData) {
-      console.log('Setting formulas:', formulaData);
       formulas = formulaData;
       renderFormulas();
     };
@@ -158,7 +155,6 @@ const MATHJAX_TEMPLATE = (theme: 'light' | 'dark', baseFontPx: number) => `
       // 触发 MathJax 重新渲染
       if (window.MathJax && window.MathJax.typesetPromise) {
         MathJax.typesetPromise([root]).then(() => {
-          console.log('MathJax rendering complete');
           calculateHeights();
         }).catch((error) => {
           console.error('MathJax rendering error:', error);
@@ -188,7 +184,6 @@ const MATHJAX_TEMPLATE = (theme: 'light' | 'dark', baseFontPx: number) => `
         }
       });
 
-      console.log('Calculated heights:', heights);
       window.ReactNativeWebView.postMessage(JSON.stringify({
         type: 'heights',
         heights: heights
@@ -208,7 +203,6 @@ const MATHJAX_TEMPLATE = (theme: 'light' | 'dark', baseFontPx: number) => `
       }
     };
 
-    console.log('MathJax WebView loaded');
   </script>
 </body>
 </html>
@@ -243,7 +237,6 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
       try {
         const cachedHeights = await mathJaxCache.get(cacheKey);
         if (cachedHeights) {
-          console.log('Using cached MathJax heights:', cachedHeights);
           setFormulaHeights(cachedHeights);
           onComplete?.(cachedHeights);
           setIsLoading(false);
@@ -265,7 +258,6 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
 
       switch (data.type) {
         case 'ready':
-          console.log('MathJax WebView ready');
           setIsLoading(false);
           // 发送公式数据到 WebView
           webViewRef.current?.postMessage(
@@ -277,7 +269,6 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
           break;
 
         case 'heights':
-          console.log('Received heights:', data.heights);
           setFormulaHeights(data.heights);
 
           // 缓存高度数据
@@ -296,7 +287,6 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
           break;
 
         default:
-          console.log('Unknown message type:', data.type);
       }
     } catch (err) {
       console.error('Failed to parse WebView message:', err);
@@ -368,7 +358,6 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
           setIsLoading(false);
         }}
         onLoad={() => {
-          console.log('WebView loaded');
         }}
       />
     </View>

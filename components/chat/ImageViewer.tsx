@@ -157,7 +157,6 @@ export function ImageViewer({ visible, imageUri, onClose, prompt }: ImageViewerP
       const filename = `aetherlink_image_${timestamp}.png`;
       const file = new File(Paths.document, filename);
 
-      console.log('[ImageViewer] 开始下载图片:', imageUri);
 
       // 使用 fetch 下载图片
       const response = await fetch(imageUri);
@@ -174,7 +173,6 @@ export function ImageViewer({ visible, imageUri, onClose, prompt }: ImageViewerP
       // 写入文件
       await file.write(base64, { encoding: 'base64' });
 
-      console.log('[ImageViewer] 下载成功:', file.uri);
 
       // 分享/保存图片
       const isAvailable = await Sharing.isAvailableAsync();

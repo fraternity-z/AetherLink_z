@@ -44,11 +44,6 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
 
   // 调试日志: 检查思考链数据
   if (!isUser && thinkingChain) {
-    console.log('[MessageBubble] 🎯 显示思考链:', {
-      contentLength: thinkingChain.content.length,
-      durationMs: thinkingChain.durationMs,
-      messageContent: content.substring(0, 50),
-    });
   }
 
   // 打开图片查看器
@@ -86,7 +81,6 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
       const filename = `aetherlink_image_${timestamp}.png`;
       const file = new File(Paths.document, filename);
 
-      console.log('[MessageBubble] 开始下载图片:', imageUri);
 
       // 使用 fetch 下载图片
       const response = await fetch(imageUri);
@@ -103,7 +97,6 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
       // 写入文件
       await file.write(base64, { encoding: 'base64' });
 
-      console.log('[MessageBubble] 下载成功:', file.uri);
 
       // 分享/保存图片
       const isAvailable = await Sharing.isAvailableAsync();
