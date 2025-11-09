@@ -53,7 +53,17 @@ export function MessageList({ conversationId }: { conversationId: string | null 
   scrollToBottomRef.current = scrollToBottom;
 
   // 🚀 检测用户手动滚动（向上滚动时暂停自动滚动）
+  // 计算是否处于 AI 流式回复（最后一条为 assistant 且 pending）
+  const isAssistantStreaming = useMemo(() => {
+    if (items.length === 0) return false;
+    const last = items[items.length - 1];
+    return last.role === 'assistant' && last.status === 'pending';
+  }, [items.length, items[items.length - 1]?.role, items[items.length - 1]?.status]);
+
   const handleScroll = useCallback(() => {
+    // 流式期间始终保持底部：忽略用户滚动打断
+    if (isAssistantStreaming) return;
+
     // 标记用户正在滚动，短时间内禁用自动滚动
     isUserScrollingRef.current = true;
 
@@ -68,7 +78,7 @@ export function MessageList({ conversationId }: { conversationId: string | null 
       // 恢复后立即触发一次滚动，确保跟上最新消息
       scrollToBottomRef.current?.(true);
     }, 2000);
-  }, []);
+  }, [isAssistantStreaming]);
 
   // 🧹 组件卸载时清理定时器，防止内存泄漏
   useEffect(() => {
@@ -111,11 +121,12 @@ export function MessageList({ conversationId }: { conversationId: string | null 
     if (items.length > 0) {
       // 延迟滚动，等待 DOM 更新完成
       const timer = setTimeout(() => {
-        scrollToBottomRef.current(true);
+        // 流式期间强制滚动到底部；否则按原逻辑（尊重用户滚动）
+        scrollToBottomRef.current(isAssistantStreaming ? false : true, isAssistantStreaming);
       }, 50);
       return () => clearTimeout(timer);
     }
-  }, [items.length, items[items.length - 1]?.text]);
+  }, [items.length, items[items.length - 1]?.text, isAssistantStreaming]);
 
   // 🚀 性能优化：缓存消息 ID 列表的字符串，避免每次重新计算
   const messageIdsKey = useMemo(

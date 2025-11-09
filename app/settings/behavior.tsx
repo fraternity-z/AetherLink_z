@@ -18,35 +18,32 @@ export default function BehaviorSettings() {
   const theme = useTheme();
   const sr = SettingsRepository();
   const [enterToSend, setEnterToSend] = React.useState(false);
-  const [mobileInputMode, setMobileInputMode] = React.useState(false);
 
   // 加载持久化设置
   React.useEffect(() => {
     (async () => {
       const ets = await sr.get<boolean>(SettingKey.EnterToSend);
-      const mim = await sr.get<boolean>(SettingKey.MobileInputMode);
       if (ets !== null) setEnterToSend(ets);
-      if (mim !== null) setMobileInputMode(mim);
     })();
   }, []);
 
   return (
     <SettingScreen title="行为设置" description="自定义应用的交互方式和通知设置">
       <List.Section>
-          {/* 使用Enter键发送清息 */}
+          {/* 使用Enter键发送消息 */}
           <View style={[styles.settingCard, {
             backgroundColor: theme.colors.surface,
             borderColor: theme.colors.outlineVariant,
-          }]}>
+          }]}> 
             <View style={styles.settingRow}>
               <View style={styles.iconContainer}>
-                <View style={[styles.iconCircle, { backgroundColor: 'rgba(99, 102, 241, 0.15)' }]}>
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(99, 102, 241, 0.15)' }]}> 
                   <Text style={{ fontSize: 18 }}>🚀</Text>
                 </View>
               </View>
               <View style={styles.settingContent}>
                 <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>
-                  使用Enter键发送清息
+                  使用Enter键发送消息
                 </Text>
                 <Text
                   variant="bodySmall"
@@ -60,40 +57,6 @@ export default function BehaviorSettings() {
                 onValueChange={async (value) => {
                   setEnterToSend(value);
                   await sr.set(SettingKey.EnterToSend, value);
-                }}
-              />
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          {/* 移动端输入法拦截模式 */}
-          <View style={[styles.settingCard, {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.outlineVariant,
-          }]}>
-            <View style={styles.settingRow}>
-              <View style={styles.iconContainer}>
-                <View style={[styles.iconCircle, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
-                  <Text style={{ fontSize: 18 }}>📱</Text>
-                </View>
-              </View>
-              <View style={styles.settingContent}>
-                <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>
-                  移动端输入法拦截模式
-                </Text>
-                <Text
-                  variant="bodySmall"
-                  style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}
-                >
-                  开启后，移动端输入法的发送按钮将发送消息而非发送清息
-                </Text>
-              </View>
-              <Switch
-                value={mobileInputMode}
-                onValueChange={async (value) => {
-                  setMobileInputMode(value);
-                  await sr.set(SettingKey.MobileInputMode, value);
                 }}
               />
             </View>

@@ -741,7 +741,11 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         >
           {/* 上层：输入框 */}
           <RNTextInput
-            placeholder={enterToSend ? "和助手说点什么… (Shift+Enter 换行)" : "和助手说点什么… (Ctrl+Enter 展开)"}
+            placeholder={
+              Platform.OS === 'web'
+                ? (enterToSend ? "和助手说点什么… (Shift+Enter 换行)" : "和助手说点什么…")
+                : (enterToSend ? "和助手说点什么… (Enter 发送)" : "和助手说点什么… (Enter 换行)")
+            }
             placeholderTextColor={theme.colors.onSurfaceVariant}
             value={message}
             onChangeText={setMessage}
@@ -752,17 +756,27 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
               textAlignVertical: 'top',
               color: theme.colors.onSurface,
             }}
+            // 提示键盘使用“发送”键（原生）
+            returnKeyType={enterToSend ? 'send' : 'default'}
+            // 不要因为提交而失焦
+            blurOnSubmit={false}
+            // Web/Native 统一的按键拦截
             onKeyPress={(e) => {
-              // Web 平台支持键盘事件
-              if (Platform.OS === 'web') {
-                const nativeEvent = e.nativeEvent as any;
-                // 如果启用了 Enter 发送，且按下 Enter 键（非 Shift+Enter）
-                if (enterToSend && nativeEvent.key === 'Enter' && !nativeEvent.shiftKey) {
-                  e.preventDefault();
-                  if (message.trim() || selectedAttachments.length > 0) {
-                    handleSend();
-                  }
+              const nativeEvent = e.nativeEvent as any;
+              if (enterToSend && nativeEvent.key === 'Enter') {
+                // Web: 允许 Shift+Enter 换行
+                if (Platform.OS === 'web' && nativeEvent.shiftKey) return;
+                e.preventDefault?.();
+                if (message.trim() || selectedAttachments.length > 0) {
+                  handleSend();
                 }
+              }
+            }}
+            // 原生键盘“发送/完成”回调兜底（部分设备不触发 onKeyPress）
+            onSubmitEditing={() => {
+              if (!enterToSend) return;
+              if (message.trim() || selectedAttachments.length > 0) {
+                handleSend();
               }
             }}
           />

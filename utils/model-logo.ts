@@ -100,19 +100,28 @@ export function getModelLogo(modelId: string | undefined, isDark?: boolean): any
     return undefined;
   }
 
+  // 全局缓存：key = `${lowerId}|${isDark?1:0}`，值为 require 结果或 null（未命中）
+  const cacheKey = `${String(modelId).toLowerCase()}|${isDark ? 1 : 0}`;
+  const cached = MODEL_LOGO_CACHE.get(cacheKey);
+  if (cached !== undefined) {
+    return cached === null ? undefined : cached;
+  }
+
   // 转为小写进行匹配
   const id = modelId.toLowerCase();
 
   // 遍历映射表，使用正则匹配
-  for (const [key, logos] of Object.entries(MODEL_LOGOS)) {
-    const regex = new RegExp(key, 'i');
-    if (regex.test(id)) {
-      // 优先使用传入的 isDark 参数，否则使用当前主题
+  for (const [key, logos] of MODEL_LOGO_ENTRIES) {
+    if (key.test(id)) {
       const useDark = isDark ?? false;
-      return useDark ? logos.dark : logos.light;
+      const res = useDark ? logos.dark : logos.light;
+      MODEL_LOGO_CACHE.set(cacheKey, res);
+      return res;
     }
   }
 
+  // 未命中缓存 null，避免重复计算
+  MODEL_LOGO_CACHE.set(cacheKey, null);
   return undefined;
 }
 
@@ -135,3 +144,13 @@ export function useModelLogo(modelId: string | undefined): any {
 export function hasModelLogo(modelId: string | undefined): boolean {
   return getModelLogo(modelId) !== undefined;
 }
+
+// ==============================
+// Cache & precompiled patterns
+// ==============================
+// 预编译正则，避免每次 new RegExp
+const MODEL_LOGO_ENTRIES: Array<[RegExp, { light: any; dark: any }]> = Object.entries(MODEL_LOGOS)
+  .map(([k, v]) => [new RegExp(k, 'i'), v]);
+
+// 全局缓存 Map（进程级别）。值为 require 结果或 null（表示未命中）。
+const MODEL_LOGO_CACHE: Map<string, any | null> = new Map();
