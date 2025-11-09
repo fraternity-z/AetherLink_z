@@ -1,22 +1,13 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 
-export type ThemeStyle =
-  | 'default'
-  | 'claude'
-  | 'business'
-  | 'lively'
-  | 'nature'
-  | 'ocean'
-  | 'sunset'
-  | 'mono'
-  | 'cyberpunk';
+export type ThemeMode = 'system' | 'light' | 'dark';
 
 export type AppSettings = {
   fontScale: number; // 基准 16
   setFontScale: (v: number) => Promise<void>;
-  themeStyle: ThemeStyle;
-  setThemeStyle: (s: ThemeStyle) => Promise<void>;
+  themeMode: ThemeMode;
+  setThemeMode: (m: ThemeMode) => Promise<void>;
 };
 
 const SettingsContext = createContext<AppSettings | null>(null);
@@ -24,14 +15,14 @@ const SettingsContext = createContext<AppSettings | null>(null);
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const sr = SettingsRepository();
   const [fontScale, _setFontScale] = useState<number>(16);
-  const [themeStyle, _setThemeStyle] = useState<ThemeStyle>('default');
+  const [themeMode, _setThemeMode] = useState<ThemeMode>('system');
 
   useEffect(() => {
     (async () => {
       const fs = await sr.get<number>(SettingKey.FontScale);
-      const ts = await sr.get<ThemeStyle>(SettingKey.ThemeStyle);
+      const tm = await sr.get<ThemeMode>(SettingKey.Theme);
       if (typeof fs === 'number' && !Number.isNaN(fs)) _setFontScale(fs);
-      if (ts) _setThemeStyle(ts);
+      if (tm === 'light' || tm === 'dark' || tm === 'system') _setThemeMode(tm);
     })();
   }, []);
 
@@ -41,12 +32,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     await sr.set(SettingKey.FontScale, rounded);
   };
 
-  const setThemeStyle = async (s: ThemeStyle) => {
-    _setThemeStyle(s);
-    await sr.set(SettingKey.ThemeStyle, s);
+  const setThemeMode = async (m: ThemeMode) => {
+    _setThemeMode(m);
+    await sr.set(SettingKey.Theme, m);
   };
 
-  const value = useMemo<AppSettings>(() => ({ fontScale, setFontScale, themeStyle, setThemeStyle }), [fontScale, themeStyle]);
+  const value = useMemo<AppSettings>(() => ({ fontScale, setFontScale, themeMode, setThemeMode }), [fontScale, themeMode]);
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }

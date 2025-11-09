@@ -21,10 +21,9 @@ import { useAppSettings } from './SettingsProvider';
 export function AppThemeProvider({ children }: AppThemeProviderProps) {
   // 获取系统主题偏好
   const colorScheme = useColorScheme();
-  const baseTheme = colorScheme === 'dark' ? paperDarkTheme : paperLightTheme;
-  // 从全局设置读取字体缩放
-  // 由 SettingsProvider 提供的上下文获取字体大小
-  const { fontScale } = useAppSettings();
+  const { fontScale, themeMode } = useAppSettings();
+  const scheme = themeMode === 'system' ? colorScheme : themeMode;
+  const baseTheme = scheme === 'dark' ? paperDarkTheme : paperLightTheme;
 
   const ratio = Math.max(0.5, Math.min(3, fontScale / 16));
 

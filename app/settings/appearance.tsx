@@ -1,56 +1,17 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
-import { List, Text, useTheme, Chip } from 'react-native-paper';
+import React, { useMemo } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { List, Text, useTheme, Chip, SegmentedButtons } from 'react-native-paper';
 import Slider from '@react-native-community/slider';
 import { SettingScreen } from '@/components/settings/SettingScreen';
-import { ThemeStyleCard, ThemePreview } from '@/components/settings/ThemeStyleCard';
-import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import { useAppSettings } from '@/components/providers/SettingsProvider';
 
-// 主题风格枚举
-export type ThemeStyle =
-  | 'default'
-  | 'claude'
-  | 'business'
-  | 'lively'
-  | 'nature'
-  | 'ocean'
-  | 'sunset'
-  | 'mono'
-  | 'cyberpunk';
 
-const STYLE_PRESETS: { id: ThemeStyle; title: string; preview: ThemePreview }[] = [
-  { id: 'default', title: '默认主题', preview: { header: '#6750A4', track: '#A78BFA', body: '#DDE1F0', accents: ['#6750A4', '#4F46E5', '#06B6D4'], icon: 'palette' } },
-  { id: 'claude', title: 'Claude 风格', preview: { header: '#FFB020', track: '#FFEDD5', body: '#E5E7EB', accents: ['#FFB020', '#10B981', '#EF4444'], icon: 'robot' } },
-  { id: 'business', title: '炫酷风格', preview: { header: '#1F2937', track: '#9CA3AF', body: '#E5E7EB', accents: ['#111827', '#6B7280', '#9CA3AF'], icon: 'briefcase-outline' } },
-  { id: 'lively', title: '活力风格', preview: { header: '#60A5FA', track: '#93C5FD', body: '#E0F2FE', accents: ['#F97316', '#60A5FA', '#22D3EE'], icon: 'fire' } },
-  { id: 'nature', title: '自然风格', preview: { header: '#4D7C0F', track: '#86EFAC', body: '#DCFCE7', accents: ['#84CC16', '#16A34A', '#10B981'], icon: 'leaf' } },
-  { id: 'ocean', title: '海洋风格', preview: { header: '#2563EB', track: '#93C5FD', body: '#DBEAFE', accents: ['#2563EB', '#38BDF8', '#60A5FA'], icon: 'waves' } },
-  { id: 'sunset', title: '日落风格', preview: { header: '#FB923C', track: '#FED7AA', body: '#FFF7ED', accents: ['#EA580C', '#F59E0B', '#F97316'], icon: 'white-balance-sunny' } },
-  { id: 'mono', title: '单色风格', preview: { header: '#111827', track: '#6B7280', body: '#E5E7EB', accents: ['#111827', '#4B5563', '#9CA3AF'], icon: 'square-outline' } },
-  { id: 'cyberpunk', title: '赛博朋克', preview: { header: '#06B6D4', track: '#D946EF', body: '#F5F3FF', accents: ['#22D3EE', '#D946EF', '#8B5CF6'], icon: 'flash-outline' } },
-];
 
 export default function AppearanceSettings() {
   const theme = useTheme();
-  const sr = SettingsRepository();
 
-  // 状态：主题风格、字体大小
-  const [styleId, setStyleId] = useState<ThemeStyle>('default');
-  const { fontScale, setFontScale } = useAppSettings();
-
-  // 加载持久化设置（仅保留风格）
-  useEffect(() => {
-    (async () => {
-      const s = await sr.get<ThemeStyle>(SettingKey.ThemeStyle);
-      if (s) setStyleId(s);
-    })();
-  }, []);
-
-  const saveStyle = async (id: ThemeStyle) => {
-    setStyleId(id);
-    await sr.set(SettingKey.ThemeStyle, id);
-  };
+  // 状态：主题模式与字体大小
+  const { fontScale, setFontScale, themeMode, setThemeMode } = useAppSettings();
 
   const saveFontScale = async (v: number) => {
     const rounded = Math.round(v);
@@ -66,21 +27,20 @@ export default function AppearanceSettings() {
     <SettingScreen title="外观设置" description="自定义应用的外观主题和全局字体大小设置">
       {/* 主题风格 */}
       <List.Section style={styles.section}>
-        <Text variant="titleSmall" style={styles.sectionTitle}>主题风格</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingHorizontal: 4 }}>
-          {STYLE_PRESETS.map(item => (
-            <ThemeStyleCard
-              key={item.id}
-              title={item.title}
-              preview={item.preview}
-              selected={styleId === item.id}
-              onPress={() => saveStyle(item.id)}
-            />
-          ))}
-        </ScrollView>
+        <Text variant="titleSmall" style={styles.sectionTitle}>主题模式</Text>
+        <SegmentedButtons
+          value={themeMode}
+          onValueChange={(v) => setThemeMode(v as any)}
+          buttons={[
+            { value: 'system', label: '跟随系统' },
+            { value: 'light', label: '浅色' },
+            { value: 'dark', label: '深色' },
+          ]}
+          style={{ marginHorizontal: 4, marginTop: 4 }}
+        />
         <View style={[styles.tip, { backgroundColor: theme.colors.surfaceVariant }]}> 
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-            提示：主题风格会影响整个应用的配色搭配。切换后可立即生效。
+            提示：选择浅色/深色或跟随系统，切换后立即生效。
           </Text>
         </View>
       </List.Section>

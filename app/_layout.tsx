@@ -6,14 +6,19 @@ import '../global.css';
 import HiddenWebViewHost from '@/components/providers/HiddenWebViewHost'
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppThemeProvider } from '@/components/providers/ThemeProvider';
-import { SettingsProvider } from '@/components/providers/SettingsProvider';
+import { SettingsProvider, useAppSettings } from '@/components/providers/SettingsProvider';
 import { AppDataProvider } from '@/components/providers/DataProvider';
 import { ConfirmDialogProvider } from '@/hooks/use-confirm-dialog';
+import { DarkTheme as NavDarkTheme, DefaultTheme as NavDefaultTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native';
 
 
 function RootLayoutInner() {
+  const system = useColorScheme();
+  const { themeMode } = useAppSettings();
+  const scheme = themeMode === 'system' ? system : themeMode;
+  const navTheme = scheme === 'dark' ? NavDarkTheme : NavDefaultTheme;
   return (
-      <ThemeProvider value={useColorScheme() === 'dark' ? DarkTheme : DefaultTheme}>
+      <NavThemeProvider value={navTheme}>
         <Stack>
         {/* 根聊天页，无头部 */}
           <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -28,14 +33,12 @@ function RootLayoutInner() {
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
         <StatusBar style="auto" />
-      </ThemeProvider>
+      </NavThemeProvider>
     
   );
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <SettingsProvider>
       <AppThemeProvider>
