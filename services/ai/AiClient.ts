@@ -1,9 +1,11 @@
-import { streamText, type CoreMessage } from 'ai';
+import { streamText, experimental_generateImage as generateImage, type CoreMessage } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
+import { ImageGenerationError, ImageModelResolutionError, createAiError } from './errors';
+import { isDedicatedImageGenerationModel } from './ModelDiscovery';
 
 export type Provider = 'openai' | 'anthropic' | 'google' | 'gemini' | 'deepseek' | 'volc' | 'zhipu';
 
@@ -207,5 +209,221 @@ export async function streamCompletion(opts: StreamOptions) {
     });
     opts.onError?.(e);
     throw e;
+  }
+}
+
+// ============================================
+// 图片生成功能
+// ============================================
+
+/**
+ * 图片生成选项接口
+ */
+export interface GenerateImageOptions {
+  provider: Provider;
+  model: string;
+  prompt: string;
+  n?: number; // 生成数量（默认 1）
+  size?: '1024x1024' | '1792x1024' | '1024x1792' | '256x256' | '512x512'; // 图片尺寸
+  quality?: 'standard' | 'hd'; // 图片质量（仅 DALL-E 3）
+  style?: 'vivid' | 'natural'; // 风格（仅 DALL-E 3）
+  abortSignal?: AbortSignal;
+
+  // 流式回调
+  onCreated?: () => void;
+  onProgress?: (progress: number) => void; // 进度（0-100）
+  onComplete?: (imageData: ImageGenerationResult) => void;
+  onError?: (error: ImageGenerationError) => void;
+}
+
+/**
+ * 图片生成结果接口
+ */
+export interface ImageGenerationResult {
+  type: 'url' | 'base64';
+  images: string[]; // URL 列表或 Base64 数据（Data URI 格式：data:image/png;base64,...）
+  revisedPrompt?: string; // DALL-E 3 返回的优化后提示词（注：当前 Vercel AI SDK 未提供）
+}
+
+/**
+ * 生成图片（使用 Vercel AI SDK 官方 API）
+ *
+ * @example
+ * ```typescript
+ * const result = await generateImageWithAI({
+ *   provider: 'openai',
+ *   model: 'dall-e-3',
+ *   prompt: '一只可爱的橘猫坐在月球上',
+ *   size: '1024x1024',
+ *   quality: 'hd',
+ *   onCreated: () => console.log('开始生成'),
+ *   onComplete: (data) => console.log('生成完成', data),
+ * });
+ * ```
+ */
+export async function generateImageWithAI(
+  options: GenerateImageOptions
+): Promise<ImageGenerationResult> {
+  const {
+    provider,
+    model,
+    prompt,
+    n = 1,
+    size = '1024x1024',
+    quality = 'standard',
+    style = 'vivid',
+    abortSignal,
+    onCreated,
+    onProgress,
+    onComplete,
+    onError,
+  } = options;
+
+  try {
+    // 1. 验证模型支持
+    if (!isDedicatedImageGenerationModel(model)) {
+      throw new ImageModelResolutionError(model, provider);
+    }
+
+    // 2. 验证提示词
+    if (!prompt || prompt.trim().length === 0) {
+      throw new ImageGenerationError(
+        '请输入图片描述提示词',
+        provider,
+        model
+      );
+    }
+
+    // 3. 验证提示词长度（DALL-E 限制）
+    if (prompt.length > 4000) {
+      throw new ImageGenerationError(
+        '提示词过长，请控制在 4000 字符以内',
+        provider,
+        model
+      );
+    }
+
+    // 4. 获取 API Key
+    const apiKey = await getApiKey(provider);
+    if (!apiKey) {
+      throw new ImageGenerationError(
+        `缺少 ${provider} 的 API Key，请先在设置中配置`,
+        provider,
+        model
+      );
+    }
+
+    // 5. 发送创建事件
+    onCreated?.();
+    onProgress?.(10);
+
+    console.log('[AiClient] 开始图片生成', {
+      provider,
+      model,
+      promptLength: prompt.length,
+      size,
+      quality,
+      style,
+    });
+
+    // 6. 获取 baseURL（如果有自定义）
+    let baseURL: string | undefined;
+    if (provider === 'openai' || provider === 'deepseek' || provider === 'volc' || provider === 'zhipu') {
+      const cfg = await ProvidersRepository.getConfig(provider as ProviderId);
+      baseURL = cfg.baseURL || undefined;
+    }
+
+    // 7. 创建提供商实例
+    const factory = provider === 'openai'
+      ? () => createOpenAI({ apiKey, baseURL })
+      : provider === 'deepseek' || provider === 'volc' || provider === 'zhipu'
+      ? () => createOpenAICompatible({
+          apiKey,
+          baseURL: baseURL ?? 'https://api.openai.com/v1',
+          name: provider
+        })
+      : () => {
+          throw new ImageGenerationError(
+            `提供商 ${provider} 暂不支持图片生成`,
+            provider,
+            model
+          );
+        };
+
+    onProgress?.(30);
+
+    // 8. 调用 Vercel AI SDK 官方 API
+    const result = await generateImage({
+      model: factory().imageModel(model), // 使用 imageModel 方法
+      prompt: prompt,
+      n: n,
+      size: size,
+      ...(model.toLowerCase().includes('dall-e-3') && {
+        // DALL-E 3 专属参数（通过 providerOptions 传递）
+        providerOptions: {
+          openai: {
+            quality: quality,
+            style: style,
+          }
+        }
+      }),
+      abortSignal: abortSignal,
+    });
+
+    onProgress?.(80);
+
+    // 9. 转换结果格式：GeneratedFile[] -> string[]
+    const images: string[] = [];
+    if (result.images) {
+      for (const image of result.images) {
+        if ('base64' in image && image.base64) {
+          // 将 Base64 转换为 Data URI 格式
+          const mediaType = image.mediaType || 'image/png';
+          images.push(`data:${mediaType};base64,${image.base64}`);
+        }
+      }
+    }
+
+    console.log('[AiClient] 图片生成成功', {
+      provider,
+      model,
+      imageCount: images.length,
+    });
+
+    // 10. 处理返回结果
+    const imageData: ImageGenerationResult = {
+      type: 'base64',
+      images: images,
+      revisedPrompt: undefined, // 当前 Vercel AI SDK 未提供此字段
+    };
+
+    onProgress?.(90);
+
+    // 10. 发送完成事件
+    onComplete?.(imageData);
+    onProgress?.(100);
+
+    return imageData;
+  } catch (error: any) {
+    // 错误处理
+    console.error('[AiClient] 图片生成失败', {
+      provider,
+      model,
+      error: error,
+      message: error?.message,
+      stack: error?.stack,
+    });
+
+    const imageError = error instanceof ImageGenerationError
+      ? error
+      : new ImageGenerationError(
+          error.message || '图片生成失败',
+          provider,
+          model,
+          error
+        );
+
+    onError?.(imageError);
+    throw imageError;
   }
 }

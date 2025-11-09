@@ -108,6 +108,7 @@ export function MessageList({ conversationId }: { conversationId: string | null 
       attachments={attachmentsMap[item.id] || []}
       thinkingChain={thinkingChainsMap[item.id] || null}
       modelId={item.extra?.model} // 传递模型 ID
+      extra={item.extra} // 传递完整的 extra 数据（用于图片生成等特殊消息）
     />
   );
 

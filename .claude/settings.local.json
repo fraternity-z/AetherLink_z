@@ -1,16 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(mkdir:*)",
-      "Bash(npm install:*)",
-      "Bash(npx tsc:*)",
-      "Bash(npm run:*)",
-      "Bash(npm uninstall:*)",
-      "Bash(npx expo start:*)",
-      "Bash(git log:*)",
-      "Bash(npx tailwindcss init)",
-      "Bash(cat:*)",
-      "Bash(cp \"E:\\code\\cherry-studio-main\\src\\renderer\\src\\assets\\images\\models\"\"{claude.png,claude_dark.png,gpt_3.5.png,gpt_4.png,gpt_dark.png,gpt_o1.png,gemini.png,gemini_dark.png,deepseek.png,deepseek_dark.png,qwen.png,qwen_dark.png,moonshot.png,moonshot_dark.png,doubao.png,doubao_dark.png,chatglm.png,chatglm_dark.png,llama.png,llama_dark.png,yi.png,yi_dark.png,mistral.png,mistral_dark.png,cohere.png,cohere_dark.png} \"assets/images/models/ \")"
+      "mcp__ide__getDiagnostics",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

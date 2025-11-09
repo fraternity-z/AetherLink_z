@@ -20,6 +20,8 @@ import {
 import { useTheme, Text } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
+import { supportsImageGeneration } from '@/services/ai/ModelDiscovery';
+import type { Provider } from '@/services/ai/AiClient';
 
 interface MoreActionsMenuProps {
   visible: boolean;
@@ -28,6 +30,9 @@ interface MoreActionsMenuProps {
   conversationId: string | null;
   onClearContext?: () => void;
   hasContextReset?: boolean;
+  onOpenImageGeneration?: () => void; // 新增：打开图片生成对话框
+  provider?: Provider; // 新增：当前 AI 提供商
+  model?: string; // 新增：当前模型
 }
 
 export function MoreActionsMenu({
@@ -37,6 +42,9 @@ export function MoreActionsMenu({
   conversationId,
   onClearContext,
   hasContextReset,
+  onOpenImageGeneration,
+  provider,
+  model,
 }: MoreActionsMenuProps) {
   const theme = useTheme();
   const { confirmAction, alert } = useConfirmDialog();
@@ -118,9 +126,49 @@ export function MoreActionsMenu({
     );
   };
 
+  const handleImageGeneration = () => {
+    if (!conversationId) {
+      alert('提示', '请先创建或选择对话');
+      onClose();
+      return;
+    }
+
+    if (!provider || !model) {
+      alert('提示', '请先选择 AI 模型');
+      onClose();
+      return;
+    }
+
+    if (!supportsImageGeneration(provider, model)) {
+      alert('提示', '当前模型不支持图片生成功能\\n\\n请切换到 DALL-E 3、GPT-Image-1 等专用图片生成模型');
+      onClose();
+      return;
+    }
+
+    onClose();
+    // 延迟打开对话框，让菜单先关闭
+    setTimeout(() => {
+      onOpenImageGeneration?.();
+    }, 300);
+  };
+
   // no undo entry per product decision
 
+  // 判断是否支持图片生成
+  const imageGenerationSupported = provider && model && supportsImageGeneration(provider, model);
+
   const menuItems = [
+    {
+      id: 'image-generation',
+      title: '图片生成',
+      description: imageGenerationSupported
+        ? '使用 AI 生成图片（支持 DALL-E 3 等模型）'
+        : '当前模型不支持，请切换到图片生成模型',
+      icon: 'image-plus',
+      color: '#F59E0B',
+      onPress: handleImageGeneration,
+      disabled: !conversationId || !imageGenerationSupported,
+    },
     {
       id: 'clear',
       title: '清除对话',

@@ -11,9 +11,10 @@ import React from 'react';
 import { View } from 'react-native';
 import { Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper';
 import { Image } from 'expo-image';
-import type { Attachment, ThinkingChain } from '@/storage/core';
+import type { Attachment, ThinkingChain, Message } from '@/storage/core';
 import { MixedRenderer } from './MixedRenderer';
 import { ThinkingBlock } from './ThinkingBlock';
+import { GeneratedImageCard } from './GeneratedImageCard';
 import { cn } from '@/utils/classnames';
 import { useModelLogo } from '@/utils/model-logo';
 
@@ -25,9 +26,10 @@ interface MessageBubbleProps {
   attachments?: Attachment[];
   thinkingChain?: ThinkingChain | null; // 思考链数据(仅AI消息)
   modelId?: string; // AI 模型 ID（用于显示对应的 logo）
+  extra?: Message['extra']; // 消息额外数据（用于图片生成等特殊消息类型）
 }
 
-function MessageBubbleComponent({ content, isUser, timestamp, status, attachments = [], thinkingChain, modelId }: MessageBubbleProps) {
+function MessageBubbleComponent({ content, isUser, timestamp, status, attachments = [], thinkingChain, modelId, extra }: MessageBubbleProps) {
   const theme = useTheme();
   const modelLogo = useModelLogo(modelId); // 获取模型 logo
   const [logoError, setLogoError] = React.useState(false);
@@ -119,48 +121,72 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
                 : '#F0F0F0'
           }}
         >
-          {/* 附件预览（图片缩略图 + 文件条目） */}
+          {/* 附件预览 */}
           {attachments.length > 0 && (
-            <View className="flex-row flex-wrap gap-2 mb-2">
-              {attachments.map(att => (
-                att.kind === 'image' && att.uri ? (
-                  <Image
-                    key={att.id}
-                    source={{ uri: att.uri }}
-                    className="w-[120px] h-20 rounded-[10px]"
-                    contentFit="cover"
-                  />
-                ) : (
-                  <View
-                    key={att.id}
-                    className="flex-row items-center border rounded-lg px-2 py-1 max-w-[200px]"
-                    style={{
-                      borderColor: isUser
-                        ? theme.colors.onPrimary
-                        : theme.colors.outlineVariant,
-                      backgroundColor: isUser
-                        ? 'rgba(255, 255, 255, 0.2)'
-                        : 'rgba(0, 0, 0, 0.05)'
-                    }}
-                  >
-                    <Avatar.Icon
-                      size={16}
-                      icon="paperclip"
-                      className="mr-1 m-0"
-                      color={isUser ? theme.colors.onPrimary : theme.colors.onSurface}
-                    />
-                    <Text
-                      variant="bodySmall"
-                      numberOfLines={1}
-                      className="flex-shrink"
-                      style={{ color: isUser ? theme.colors.onPrimary : theme.colors.onSurface }}
-                    >
-                      {att.name || '附件'}
-                    </Text>
-                  </View>
-                )
-              ))}
-            </View>
+            <>
+              {/* AI 图片生成消息：使用专门的 GeneratedImageCard */}
+              {extra?.type === 'image_generation' ? (
+                <View className="mb-2">
+                  {attachments.map(att => (
+                    att.kind === 'image' && att.uri ? (
+                      <GeneratedImageCard
+                        key={att.id}
+                        attachment={att}
+                        prompt={extra.prompt}
+                        revisedPrompt={extra.revisedPrompt}
+                        model={extra.model}
+                        onPress={() => {
+                          // TODO: 可以在这里添加点击查看大图的逻辑
+                          console.log('[MessageBubble] 点击查看大图:', att.uri);
+                        }}
+                      />
+                    ) : null
+                  ))}
+                </View>
+              ) : (
+                /* 普通附件：图片缩略图 + 文件条目 */
+                <View className="flex-row flex-wrap gap-2 mb-2">
+                  {attachments.map(att => (
+                    att.kind === 'image' && att.uri ? (
+                      <Image
+                        key={att.id}
+                        source={{ uri: att.uri }}
+                        className="w-[120px] h-20 rounded-[10px]"
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View
+                        key={att.id}
+                        className="flex-row items-center border rounded-lg px-2 py-1 max-w-[200px]"
+                        style={{
+                          borderColor: isUser
+                            ? theme.colors.onPrimary
+                            : theme.colors.outlineVariant,
+                          backgroundColor: isUser
+                            ? 'rgba(255, 255, 255, 0.2)'
+                            : 'rgba(0, 0, 0, 0.05)'
+                        }}
+                      >
+                        <Avatar.Icon
+                          size={16}
+                          icon="paperclip"
+                          className="mr-1 m-0"
+                          color={isUser ? theme.colors.onPrimary : theme.colors.onSurface}
+                        />
+                        <Text
+                          variant="bodySmall"
+                          numberOfLines={1}
+                          className="flex-shrink"
+                          style={{ color: isUser ? theme.colors.onPrimary : theme.colors.onSurface }}
+                        >
+                          {att.name || '附件'}
+                        </Text>
+                      </View>
+                    )
+                  ))}
+                </View>
+              )}
+            </>
           )}
 
           {/* 智能内容渲染：用户消息使用纯文本，AI 消息支持 Markdown 和数学公式 */}

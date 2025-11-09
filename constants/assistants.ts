@@ -207,6 +207,6 @@ export function getAssistantById(id: string): Assistant | undefined {
 /**
  * 根据标签筛选助手
  */
-export function getAssistantsByTag(tag: string): Assistant[] {
+  export function getAssistantsByTag(tag: string): Assistant[] {
   return SYSTEM_ASSISTANTS.filter((a) => a.tags?.includes(tag));
 }

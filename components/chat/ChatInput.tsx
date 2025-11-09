@@ -29,6 +29,7 @@ import type { SearchEngine } from '@/services/search/types';
 import { SearchLoadingIndicator } from './SearchLoadingIndicator';
 import { AttachmentMenu } from './AttachmentMenu';
 import { MoreActionsMenu } from './MoreActionsMenu';
+import { ImageGenerationDialog } from './ImageGenerationDialog';
 import { appEvents, AppEvents } from '@/utils/events';
 
 export function ChatInput({ conversationId, onConversationChange }: { conversationId: string | null; onConversationChange: (id: string) => void; }) {
@@ -44,15 +45,24 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
   const [enterToSend, setEnterToSend] = useState(false);
   const [attachmentMenuVisible, setAttachmentMenuVisible] = useState(false);
   const [moreActionsMenuVisible, setMoreActionsMenuVisible] = useState(false);
+  const [imageDialogVisible, setImageDialogVisible] = useState(false);
   const [hasContextReset, setHasContextReset] = useState(false);
+  const [currentProvider, setCurrentProvider] = useState<Provider>('openai');
+  const [currentModel, setCurrentModel] = useState<string>('gpt-4o-mini');
   const abortRef = useRef<AbortController | null>(null);
 
-  // 加载 Enter 键发送设置
+  // 加载 Enter 键发送设置和当前模型配置
   React.useEffect(() => {
     (async () => {
       const sr = SettingsRepository();
       const ets = await sr.get<boolean>(SettingKey.EnterToSend);
       if (ets !== null) setEnterToSend(ets);
+
+      // 加载当前 provider 和 model（用于图片生成）
+      const provider = ((await sr.get<string>(SettingKey.DefaultProvider)) ?? 'openai') as Provider;
+      const model = (await sr.get<string>(SettingKey.DefaultModel)) ?? (provider === 'openai' ? 'gpt-4o-mini' : provider === 'anthropic' ? 'claude-3-5-haiku-latest' : 'gemini-1.5-flash');
+      setCurrentProvider(provider);
+      setCurrentModel(model);
     })();
   }, []);
 
@@ -605,6 +615,18 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         conversationId={conversationId}
         onClearContext={handleClearContext}
         hasContextReset={hasContextReset}
+        onOpenImageGeneration={() => setImageDialogVisible(true)}
+        provider={currentProvider}
+        model={currentModel}
+      />
+
+      {/* 图片生成对话框 */}
+      <ImageGenerationDialog
+        visible={imageDialogVisible}
+        onDismiss={() => setImageDialogVisible(false)}
+        conversationId={conversationId}
+        provider={currentProvider}
+        model={currentModel}
       />
 
       <View className="px-4 pt-2 pb-2">
