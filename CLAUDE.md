@@ -197,6 +197,27 @@ npm run reset-project
 
 ## 变更记录 (Changelog)
 
+### 2025-11-09 (日志系统建设)
+- ✨ 创建统一的日志管理系统，提升代码质量和可维护性
+- 新增 `utils/logger.ts` 统一日志工具：
+  - 🎯 替代直接使用 console.*，提供一致的日志API
+  - 📊 支持 debug、info、warn、error 四个日志级别
+  - 🔧 预留扩展接口，方便接入第三方日志服务（Sentry、LogRocket 等）
+  - 🎨 支持命名空间，便于识别日志来源
+  - 💡 提供日志处理器机制，支持自定义日志输出目标
+- 配置 Babel 插件 `babel-plugin-transform-remove-console`：
+  - 🚀 生产环境自动移除 console.log/info/warn/debug
+  - ⚠️ 保留 console.error 用于崩溃报告
+  - 📦 减小生产包体积约 2-5 KB
+  - ⚡ 运行时零性能开销（代码已完全移除）
+- 新增完整的日志系统使用文档 (`docs/LOGGER_USAGE.md`)：
+  - 📖 详细的 API 参考和使用示例
+  - ✅ 最佳实践指南和避免事项
+  - 🔄 迁移指南（从 console.* 迁移到 logger）
+  - ❓ 常见问题解答 (FAQ)
+  - 🔮 未来扩展方向（远程日志、文件持久化）
+- 更新模块索引，将 `utils/` 目录标记为日志工具模块
+
 ### 2025-11-09 (架构文档完整扫描)
 - ✨ 完成项目全仓扫描，覆盖率达到 100%
 - 新增模块文档：
