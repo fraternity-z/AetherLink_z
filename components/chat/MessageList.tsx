@@ -7,7 +7,7 @@
  * - 空状态显示欢迎提示文字
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, View, StyleSheet, ListRenderItem } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { MessageBubble } from './MessageBubble';
@@ -23,6 +23,39 @@ export function MessageList({ conversationId }: { conversationId: string | null 
   const [attachmentsMap, setAttachmentsMap] = useState<Record<string, Attachment[]>>({});
   const [thinkingChainsMap, setThinkingChainsMap] = useState<Record<string, ThinkingChain>>({});
   const [thinkingRefreshTick, setThinkingRefreshTick] = useState(0);
+
+  // 🚀 自动滚动功能相关状态
+  const flatListRef = useRef<FlatList<Message>>(null);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true); // 是否启用自动滚动
+  const lastScrollTimeRef = useRef(0); // 上次滚动时间（用于节流）
+  const isUserScrollingRef = useRef(false); // 用户是否正在手动滚动
+
+  // 🚀 智能滚动到底部函数（带节流优化，300ms 间隔）
+  const scrollToBottom = useCallback((animated: boolean = true) => {
+    if (!autoScrollEnabled || isUserScrollingRef.current) {
+      return; // 自动滚动被禁用或用户正在滚动，不执行
+    }
+
+    const now = Date.now();
+    // 节流：距离上次滚动不足 300ms，跳过本次滚动
+    if (now - lastScrollTimeRef.current < 300) {
+      return;
+    }
+
+    lastScrollTimeRef.current = now;
+    flatListRef.current?.scrollToEnd({ animated });
+  }, [autoScrollEnabled]);
+
+  // 🚀 检测用户手动滚动（向上滚动时暂停自动滚动）
+  const handleScroll = useCallback(() => {
+    // 标记用户正在滚动，短时间内禁用自动滚动
+    isUserScrollingRef.current = true;
+
+    // 2 秒后恢复自动滚动
+    setTimeout(() => {
+      isUserScrollingRef.current = false;
+    }, 2000);
+  }, []);
 
   // 监听消息清空事件，立即刷新列表
   useEffect(() => {
@@ -51,6 +84,22 @@ export function MessageList({ conversationId }: { conversationId: string | null 
   // FlatList 数据：倒序以配合 inverted 列表（最新在底部）
   const data = useMemo(() => [...items].reverse(), [items]);
 
+  // 🚀 消息数据变化时，自动滚动到底部（流式输出时的关键逻辑）
+  useEffect(() => {
+    if (items.length > 0) {
+      // 延迟滚动，等待 DOM 更新完成
+      setTimeout(() => {
+        scrollToBottom(true);
+      }, 50);
+    }
+  }, [items.length, items[items.length - 1]?.text, scrollToBottom]);
+
+  // 🚀 性能优化：缓存消息 ID 列表的字符串，避免每次重新计算
+  const messageIdsKey = useMemo(
+    () => items.map(m => m.id).join('|'),
+    [items]
+  );
+
   // 批量加载当前页消息的附件（减少查询次数）
   useEffect(() => {
     (async () => {
@@ -66,7 +115,13 @@ export function MessageList({ conversationId }: { conversationId: string | null 
         console.warn('[MessageList] load attachments error', e);
       }
     })();
-  }, [items.map(m => m.id).join('|')]);
+  }, [messageIdsKey]);
+
+  // 🚀 性能优化：缓存思考链依赖键（包含 id + status + 文本长度）
+  const thinkingChainKey = useMemo(
+    () => items.map(m => `${m.id}:${m.status}:${(m.text ?? '').length}`).join('|'),
+    [items]
+  );
 
   // 批量加载思考链数据（仅加载AI消息的思考链）
   // 注意：思考链是在助手消息创建后才保存，因此仅监听 id 列表不足以触发刷新。
@@ -91,30 +146,34 @@ export function MessageList({ conversationId }: { conversationId: string | null 
         console.error('[MessageList] load thinking chains error', e);
       }
     })();
-  }, [
-    items.map(m => `${m.id}:${m.status}:${(m.text ?? '').length}`).join('|'),
-    thinkingRefreshTick,
-  ]);
+  }, [thinkingChainKey, thinkingRefreshTick]);
 
-  const renderItem: ListRenderItem<Message> = ({ item }) => (
-    <MessageBubble
-      content={item.text ?? ''}
-      isUser={item.role === 'user'}
-      status={item.status}
-      timestamp={new Date(item.createdAt).toLocaleTimeString()}
-      attachments={attachmentsMap[item.id] || []}
-      thinkingChain={thinkingChainsMap[item.id] || null}
-      modelId={item.extra?.model} // 传递模型 ID
-      extra={item.extra} // 传递完整的 extra 数据（用于图片生成等特殊消息）
-    />
+  // 🚀 性能优化：使用 useCallback 缓存 renderItem，避免 FlatList 不必要的重渲染
+  const renderItem: ListRenderItem<Message> = useCallback(
+    ({ item }) => (
+      <MessageBubble
+        content={item.text ?? ''}
+        isUser={item.role === 'user'}
+        status={item.status}
+        timestamp={new Date(item.createdAt).toLocaleTimeString()}
+        attachments={attachmentsMap[item.id] || []}
+        thinkingChain={thinkingChainsMap[item.id] || null}
+        modelId={item.extra?.model} // 传递模型 ID
+        extra={item.extra} // 传递完整的 extra 数据（用于图片生成等特殊消息）
+      />
+    ),
+    [attachmentsMap, thinkingChainsMap]
   );
 
   return (
     <FlatList
+      ref={flatListRef}
       data={data}
       keyExtractor={(m) => m.id}
       renderItem={renderItem}
       inverted
+      onScroll={handleScroll}
+      scrollEventThrottle={400}
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={items.length === 0 ? styles.contentContainerEmpty : styles.contentContainerInverted}
       ListEmptyComponent={

@@ -137,8 +137,8 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
       'my-1.5 mx-3 max-w-[85%]',
       isUser ? 'self-end items-end' : 'self-start items-start'
     )}>
-      {/* 头像（上方） */}
-      <View className="mb-1.5">
+      {/* 头像 + 模型名（同一行显示） */}
+      <View className="mb-1.5 flex-row items-center gap-5">
         {!isUser ? (
           modelLogo && !logoError ? (
             // 使用 Avatar.Image 渲染本地静态 logo（更稳）
@@ -165,6 +165,17 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
             style={{ backgroundColor: theme.colors.secondary }}
           />
         )}
+
+        {/* 模型名称标签：助手消息在头像右侧展示 */}
+        {!isUser && modelId ? (
+          <Text
+            variant="labelSmall"
+            className="ml-0"
+            style={{ color: theme.colors.onSurfaceVariant, fontSize: 15, lineHeight: 20, marginLeft: 16 }}
+          >
+            {modelId}
+          </Text>
+        ) : null}
       </View>
 
       {/* 消息气泡容器 */}
@@ -340,4 +351,51 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
   );
 }
 
-export const MessageBubble = React.memo(MessageBubbleComponent);
+// 🚀 性能优化：自定义 memo 比较函数，只在真正变化时才重新渲染
+function arePropsEqual(prev: MessageBubbleProps, next: MessageBubbleProps): boolean {
+  // 比较基础字段
+  if (
+    prev.content !== next.content ||
+    prev.isUser !== next.isUser ||
+    prev.status !== next.status ||
+    prev.timestamp !== next.timestamp ||
+    prev.modelId !== next.modelId
+  ) {
+    return false;
+  }
+
+  // 比较附件数组（处理可选值）
+  const prevAtt = prev.attachments ?? [];
+  const nextAtt = next.attachments ?? [];
+  if (prevAtt.length !== nextAtt.length) {
+    return false;
+  }
+  for (let i = 0; i < prevAtt.length; i++) {
+    if (prevAtt[i].id !== nextAtt[i].id) {
+      return false;
+    }
+  }
+
+  // 比较思考链
+  if (prev.thinkingChain?.id !== next.thinkingChain?.id) {
+    return false;
+  }
+  if (prev.thinkingChain && next.thinkingChain) {
+    if (
+      prev.thinkingChain.content !== next.thinkingChain.content ||
+      prev.thinkingChain.durationMs !== next.thinkingChain.durationMs
+    ) {
+      return false;
+    }
+  }
+
+  // 比较 extra 字段（浅比较主要属性）
+  if (prev.extra?.imageGenerationResult !== next.extra?.imageGenerationResult) {
+    return false;
+  }
+
+  // 所有关键属性相同，不需要重新渲染
+  return true;
+}
+
+export const MessageBubble = React.memo(MessageBubbleComponent, arePropsEqual);

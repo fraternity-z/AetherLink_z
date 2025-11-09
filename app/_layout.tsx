@@ -1,5 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
+import { LogBox } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import '../global.css';
@@ -40,15 +42,21 @@ function RootLayoutInner() {
 
 export default function RootLayout() {
   return (
-    <SettingsProvider>
-      <AppThemeProvider>
-      <AppDataProvider>
-        <ConfirmDialogProvider>
-          <HiddenWebViewHost />
-          <RootLayoutInner />
-        </ConfirmDialogProvider>
-      </AppDataProvider>
-      </AppThemeProvider>
-    </SettingsProvider>
+    <SafeAreaProvider>
+      <SettingsProvider>
+        <AppThemeProvider>
+        <AppDataProvider>
+          <ConfirmDialogProvider>
+            <HiddenWebViewHost />
+            <RootLayoutInner />
+          </ConfirmDialogProvider>
+        </AppDataProvider>
+        </AppThemeProvider>
+      </SettingsProvider>
+    </SafeAreaProvider>
   );
 }
+// 忽略第三方依赖内部仍使用 RN SafeAreaView 的开发期警告
+LogBox.ignoreLogs([
+  'SafeAreaView has been deprecated and will be removed',
+]);

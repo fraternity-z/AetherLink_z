@@ -120,14 +120,6 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         route: '/settings/workspace',
       },
       {
-        id: 'knowledge',
-        title: '知识库设置',
-        description: '管理知识库配置和嵌入模型',
-        icon: 'database-search',
-        color: '#34d399',
-        route: '/settings/knowledge',
-      },
-      {
         id: 'data-settings',
         title: '数据设置',
         description: '管理数据存储和隐私选项',
