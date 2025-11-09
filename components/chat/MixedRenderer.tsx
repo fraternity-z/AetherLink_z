@@ -50,7 +50,9 @@ function parseContentToFragments(content: string): ContentFragment[] {
     let fragmentIndex = 0;
 
     // 替换数学公式占位符为片段
-    const parts = markdownContent.split(/{{MATH_(\w+)}}/);
+    // 修复: 占位 id 包含连字符(如 "math-block-2"), 原先使用 (\w+) 导致匹配中断并残留占位文本。
+    // 使用 ([\w-]+) 以正确捕获包含连字符的占位 id。
+    const parts = markdownContent.split(/{{MATH_([\w-]+)}}/);
 
     parts.forEach((part, index) => {
       if (part.startsWith('math-block-') || part.startsWith('math-inline-')) {
@@ -61,6 +63,13 @@ function parseContentToFragments(content: string): ContentFragment[] {
             type: 'math',
             content: '',
             formula: formula,
+          });
+        } else {
+          // 容错：若未找到对应公式，按原文本占位符回退显示，避免内容“消失”
+          fragments.push({
+            id: `md-${fragmentIndex++}`,
+            type: 'markdown',
+            content: `{{MATH_${part}}}`,
           });
         }
       } else if (part.trim()) {
@@ -94,12 +103,7 @@ export function MixedRenderer({ content, style }: MixedRendererProps) {
     setFormulaHeights((prev: { [key: string]: number }) => ({ ...prev, ...heights }));
   }, []);
 
-  // 提取所有数学公式
-  const mathFormulas = useMemo(() => {
-    return fragments
-      .filter(f => f.type === 'math' && f.formula)
-      .map(f => f.formula!);
-  }, [fragments]);
+  // 按序渲染，不再单独汇总数学公式
 
   // 如果没有内容，返回空视图
   if (!content.trim()) {
@@ -115,28 +119,30 @@ export function MixedRenderer({ content, style }: MixedRendererProps) {
     );
   }
 
-  // 混合内容渲染
+  // 按顺序渲染（修复：占位符位置的公式被挪到结尾的问题）
   return (
     <View style={[styles.container, style]}>
-      {/* 渲染 Markdown 片段 */}
-      {fragments.filter(f => f.type === 'markdown').map(fragment => (
-        <View key={fragment.id} style={styles.fragmentContainer}>
-          <MarkdownRenderer content={fragment.content} />
-        </View>
-      ))}
-
-      {/* 渲染数学公式 */}
-      {mathFormulas.length > 0 && (
-        <View style={styles.mathContainer}>
-          <MathJaxRenderer
-            formulas={mathFormulas}
-            onComplete={handleFormulaHeights}
-            onError={(error) => {
-              console.error('MathJax rendering error:', error);
-            }}
-          />
-        </View>
-      )}
+      {fragments.map(fragment => {
+        if (fragment.type === 'markdown') {
+          return (
+            <View key={fragment.id} style={styles.fragmentContainer}>
+              <MarkdownRenderer content={fragment.content} />
+            </View>
+          );
+        }
+        // 数学片段：以单条公式渲染，保持相对顺序
+        return (
+          <View key={fragment.id} style={[styles.mathContainer, fragment.formula?.isInline && styles.inlineMath]}>
+            <MathJaxRenderer
+              formulas={[fragment.formula!]}
+              onComplete={handleFormulaHeights}
+              onError={(error) => {
+                console.error('MathJax rendering error:', error);
+              }}
+            />
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -153,5 +159,9 @@ const styles = StyleSheet.create({
   },
   mathContainer: {
     marginVertical: 4,
+  },
+  inlineMath: {
+    // 行内公式相邻文本更紧凑一些
+    marginVertical: 0,
   },
 });

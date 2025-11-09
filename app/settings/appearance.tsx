@@ -72,7 +72,7 @@ export default function AppearanceSettings() {
                           <MaterialCommunityIcons name="check" size={20} color={theme.colors.primary} />
                         )}
                         {themeMode !== 'system' && <View style={{ width: 20 }} />}
-                        <Text variant="bodyLarge" style={{ marginLeft: 12 }}>跟随系统</Text>
+                        <Text variant="bodyLarge" style={[styles.menuItemText, { marginLeft: 12 }]}>跟随系统</Text>
                       </View>
                     </Pressable>
                     <Divider />
@@ -91,7 +91,7 @@ export default function AppearanceSettings() {
                           <MaterialCommunityIcons name="check" size={20} color={theme.colors.primary} />
                         )}
                         {themeMode !== 'light' && <View style={{ width: 20 }} />}
-                        <Text variant="bodyLarge" style={{ marginLeft: 12 }}>浅色</Text>
+                        <Text variant="bodyLarge" style={[styles.menuItemText, { marginLeft: 12 }]}>浅色</Text>
                       </View>
                     </Pressable>
                     <Divider />
@@ -110,7 +110,7 @@ export default function AppearanceSettings() {
                           <MaterialCommunityIcons name="check" size={20} color={theme.colors.primary} />
                         )}
                         {themeMode !== 'dark' && <View style={{ width: 20 }} />}
-                        <Text variant="bodyLarge" style={{ marginLeft: 12 }}>深色</Text>
+                        <Text variant="bodyLarge" style={[styles.menuItemText, { marginLeft: 12 }]}>深色</Text>
                       </View>
                     </Pressable>
                   </Surface>
@@ -204,10 +204,15 @@ const styles = StyleSheet.create({
   },
   menuItem: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
+    minHeight: 48, // 提升可点击与可读性
+    justifyContent: 'center',
   },
   menuItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  menuItemText: {
+    lineHeight: 24,
   },
 });

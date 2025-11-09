@@ -260,6 +260,52 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       // 添加当前用户消息（当 contextCount === 0 时，不包含上文和系统提示）
       // 若包含图片附件且模型支持多模态，则构造为多段内容
       const images = userAttachments.filter(a => a.kind === 'image' && a.uri);
+
+      // 判断是否为文本类型文件（基于 MIME 类型）
+      const isTextFile = (mime: string | null | undefined): boolean => {
+        if (!mime) return false;
+        return mime.startsWith('text/') ||
+               ['application/json', 'application/xml', 'application/javascript'].includes(mime);
+      };
+
+      // 分离文本文件
+      const textFiles = userAttachments.filter(a => a.kind === 'file' && a.uri && isTextFile(a.mime));
+
+      // 读取文本文件内容
+      let textFileContents = '';
+      if (textFiles.length > 0) {
+        console.log('[ChatInput] 📄 检测到文本文件附件', { count: textFiles.length });
+
+        for (const file of textFiles) {
+          try {
+            console.log('[ChatInput] 📖 读取文本文件:', { uri: file.uri, name: file.name, mime: file.mime });
+
+            // 使用 File API 读取文本内容
+            const content = await new File(file.uri as string).text();
+            const maxLength = 50000; // 限制单个文件最大 50K 字符
+            const truncated = content.length > maxLength;
+            const finalContent = truncated ? content.substring(0, maxLength) : content;
+
+            console.log('[ChatInput] ✅ 文本文件读取成功', {
+              name: file.name,
+              length: content.length,
+              truncated,
+            });
+
+            // 格式化文本文件内容，清晰标注
+            textFileContents += `\n\n=== 📄 文件: ${file.name || '未命名文件'} ===\n${finalContent}${truncated ? '\n\n[... 文件内容过长，已截断 ...]' : ''}\n=== 文件结束 ===\n`;
+          } catch (e: any) {
+            console.error('[ChatInput] ❌ 读取文本文件失败，跳过该文件', {
+              uri: file.uri,
+              name: file.name,
+              error: e.message,
+            });
+            // 添加错误提示
+            textFileContents += `\n\n=== 📄 文件: ${file.name || '未命名文件'} ===\n[读取失败: ${e.message}]\n=== 文件结束 ===\n`;
+          }
+        }
+      }
+
       if (images.length > 0 && supportsVision(provider, model)) {
         console.log('[ChatInput] 🖼️ 检测到图片附件，准备发送多模态消息', {
           imageCount: images.length,
@@ -268,7 +314,9 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         });
 
         const parts: any[] = [];
-        if (userMessage.trim()) parts.push({ type: 'text', text: userMessage });
+        // 合并用户消息和文本文件内容
+        const combinedText = userMessage + textFileContents;
+        if (combinedText.trim()) parts.push({ type: 'text', text: combinedText });
 
         // 读取图片为字节数组（Uint8Array 格式，符合 AI SDK 规范）
         for (const img of images) {
@@ -298,18 +346,21 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         console.log('[ChatInput] 📤 多模态消息构建完成', {
           totalParts: parts.length,
           hasText: parts.some(p => p.type === 'text'),
-          imageCount: parts.filter(p => p.type === 'image').length
+          imageCount: parts.filter(p => p.type === 'image').length,
+          textFileCount: textFiles.length,
         });
 
         msgs.push({ role: 'user', content: parts });
       } else {
-        // 不支持多模态或无图片，仅发送文本，同时提示附带了文件
-        const fileSuffix = userAttachments.length > 0 && !userMessage.trim()
-          ? `(已附加 ${userAttachments.length} 个附件)`
-          : (userAttachments.length > 0 ? `\n(附加 ${userAttachments.length} 个附件)` : '');
+        // 不支持多模态或无图片，仅发送文本
+        // 统计非文本文件的数量（用于提示）
+        const otherFiles = userAttachments.filter(a => a.kind === 'file' && !isTextFile(a.mime));
+        const fileSuffix = otherFiles.length > 0
+          ? (userMessage.trim() ? `\n(附加 ${otherFiles.length} 个文件，但当前模型不支持文件识别)` : `(已附加 ${otherFiles.length} 个文件，但当前模型不支持文件识别)`)
+          : '';
 
-        // 拼接搜索结果（如果有）
-        const finalMessage = userMessage + fileSuffix + (searchResults || '');
+        // 合并用户消息、文本文件内容、文件提示、搜索结果
+        const finalMessage = userMessage + textFileContents + fileSuffix + (searchResults || '');
         msgs.push({ role: 'user', content: finalMessage.trim() });
       }
 
