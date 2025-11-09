@@ -3,7 +3,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { useTheme, Text, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { ProviderModelsRepository } from '@/storage/repositories/provider-models';
@@ -81,8 +81,7 @@ export function ModelPickerDialog({ visible, onDismiss }: Props) {
       visible={visible}
       onClose={onDismiss}
       title="选择AI模型"
-      icon="robot"
-      iconColor={theme.colors.primary}
+      maxHeight="80%"
       actions={[{ text: '完成', type: 'primary', onPress: onDismiss }]}
     >
       <View style={styles.content}>
@@ -92,7 +91,7 @@ export function ModelPickerDialog({ visible, onDismiss }: Props) {
             <Text style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>加载模型列表...</Text>
           </View>
         ) : (
-          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator bounces={false}>
+          <View style={styles.listContainer}>
             {/* 扁平化的模型列表 */}
             {enabledProviders.flatMap((p) =>
               (models[p] || []).map((m) => {
@@ -163,7 +162,7 @@ export function ModelPickerDialog({ visible, onDismiss }: Props) {
                 );
               })
             )}
-          </ScrollView>
+          </View>
         )}
       </View>
     </UnifiedDialog>
@@ -171,9 +170,7 @@ export function ModelPickerDialog({ visible, onDismiss }: Props) {
 }
 
 const styles = StyleSheet.create({
-  content: {
-    maxHeight: 400,
-  },
+  content: {},
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -184,7 +181,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 14,
   },
-  scrollView: {
+  listContainer: {
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
@@ -221,4 +218,3 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
-
