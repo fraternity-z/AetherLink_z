@@ -8,15 +8,18 @@
  */
 
 import React from 'react';
-import { View } from 'react-native';
+import { View, Alert } from 'react-native';
 import { Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper';
 import { Image } from 'expo-image';
 import type { Attachment, ThinkingChain, Message } from '@/storage/core';
 import { MixedRenderer } from './MixedRenderer';
 import { ThinkingBlock } from './ThinkingBlock';
 import { GeneratedImageCard } from './GeneratedImageCard';
+import { ImageViewer } from './ImageViewer';
 import { cn } from '@/utils/classnames';
 import { useModelLogo } from '@/utils/model-logo';
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 interface MessageBubbleProps {
   content: string;
@@ -34,6 +37,11 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
   const modelLogo = useModelLogo(modelId); // 获取模型 logo
   const [logoError, setLogoError] = React.useState(false);
 
+  // 图片查看器状态
+  const [viewerVisible, setViewerVisible] = React.useState(false);
+  const [currentImageUri, setCurrentImageUri] = React.useState<string>('');
+  const [currentImagePrompt, setCurrentImagePrompt] = React.useState<string | undefined>(undefined);
+
   // 调试日志: 检查思考链数据
   if (!isUser && thinkingChain) {
     console.log('[MessageBubble] 🎯 显示思考链:', {
@@ -42,6 +50,76 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
       messageContent: content.substring(0, 50),
     });
   }
+
+  // 打开图片查看器
+  const handleImagePress = React.useCallback((imageUri: string, prompt?: string) => {
+    setCurrentImageUri(imageUri);
+    setCurrentImagePrompt(prompt);
+    setViewerVisible(true);
+  }, []);
+
+  // 关闭图片查看器
+  const handleCloseViewer = React.useCallback(() => {
+    setViewerVisible(false);
+    setCurrentImageUri('');
+    setCurrentImagePrompt(undefined);
+  }, []);
+
+  // 长按下载图片
+  const handleImageLongPress = React.useCallback(async (imageUri: string) => {
+    if (!imageUri) return;
+
+    try {
+      // 如果是本地文件，直接分享
+      if (imageUri.startsWith('file://')) {
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(imageUri);
+        } else {
+          Alert.alert('提示', '当前平台不支持分享功能');
+        }
+        return;
+      }
+
+      // 如果是网络图片，先下载
+      const timestamp = new Date().getTime();
+      const filename = `aetherlink_image_${timestamp}.png`;
+      const file = new File(Paths.document, filename);
+
+      console.log('[MessageBubble] 开始下载图片:', imageUri);
+
+      // 使用 fetch 下载图片
+      const response = await fetch(imageUri);
+      if (!response.ok) {
+        throw new Error(`下载失败: ${response.status}`);
+      }
+
+      // 获取图片数据并转换为 base64
+      const arrayBuffer = await response.arrayBuffer();
+      const base64 = btoa(
+        String.fromCharCode(...new Uint8Array(arrayBuffer))
+      );
+
+      // 写入文件
+      await file.write(base64, { encoding: 'base64' });
+
+      console.log('[MessageBubble] 下载成功:', file.uri);
+
+      // 分享/保存图片
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(file.uri, {
+          mimeType: 'image/png',
+          dialogTitle: '保存图片',
+        });
+      } else {
+        Alert.alert('成功', `图片已保存到: ${file.uri}`);
+      }
+    } catch (error: any) {
+      console.error('[MessageBubble] 下载失败:', error);
+      Alert.alert('错误', error.message || '下载图片失败');
+    }
+  }, []);
 
   const getStatusIndicator = () => {
     if (!status || status === 'sent') return null;
@@ -135,10 +213,8 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
                         prompt={extra.prompt}
                         revisedPrompt={extra.revisedPrompt}
                         model={extra.model}
-                        onPress={() => {
-                          // TODO: 可以在这里添加点击查看大图的逻辑
-                          console.log('[MessageBubble] 点击查看大图:', att.uri);
-                        }}
+                        onPress={() => handleImagePress(att.uri!, extra.prompt)}
+                        onLongPress={() => handleImageLongPress(att.uri!)}
                       />
                     ) : null
                   ))}
@@ -224,6 +300,14 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
           {getStatusIndicator()}
         </View>
       </View>
+
+      {/* 图片查看器 */}
+      <ImageViewer
+        visible={viewerVisible}
+        imageUri={currentImageUri}
+        onClose={handleCloseViewer}
+        prompt={currentImagePrompt}
+      />
     </View>
   );
 }

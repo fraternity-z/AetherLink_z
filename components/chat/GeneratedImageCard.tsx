@@ -21,6 +21,7 @@ interface GeneratedImageCardProps {
   revisedPrompt?: string;
   model?: string;
   onPress?: () => void; // 点击查看大图
+  onLongPress?: () => void; // 长按下载保存
 }
 
 export function GeneratedImageCard({
@@ -29,6 +30,7 @@ export function GeneratedImageCard({
   revisedPrompt,
   model,
   onPress,
+  onLongPress,
 }: GeneratedImageCardProps) {
   const theme = useTheme();
 
@@ -48,9 +50,10 @@ export function GeneratedImageCard({
       {/* 图片容器 */}
       <TouchableOpacity
         onPress={onPress}
+        onLongPress={onLongPress}
         activeOpacity={0.8}
         style={styles.imageContainer}
-        disabled={!onPress}
+        disabled={!onPress && !onLongPress}
       >
         {imageUri ? (
           <Image
