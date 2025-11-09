@@ -1,0 +1,112 @@
+name: Build Android APK (Local)
+
+on:
+  workflow_dispatch:
+    inputs:
+      buildVariant:
+        description: Build variant (debug|release)
+        required: false
+        default: release
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+jobs:
+  android-apk:
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: "1"
+      BUILD_VARIANT: ${{ github.event.inputs.buildVariant || 'release' }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept licenses and install SDK packages
+        run: |
+          yes | sdkmanager --licenses
+          yes | sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+        shell: bash
+
+      - name: Prebuild native android project (Expo)
+        run: npx expo prebuild --platform android --non-interactive --no-install
+
+      - name: Configure release signing (when BUILD_VARIANT=release)
+        if: env.BUILD_VARIANT == 'release'
+        run: |
+          if [ -z "${ANDROID_KEYSTORE_BASE64}" ] || [ -z "${ANDROID_KEYSTORE_PASSWORD}" ] || [ -z "${ANDROID_KEY_ALIAS}" ] || [ -z "${ANDROID_KEY_PASSWORD}" ]; then
+            echo "Missing signing secrets. Please set ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD in GitHub Secrets." >&2
+            exit 1
+          fi
+          cd android/app
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > upload-keystore.jks
+          cat > signing.gradle <<'GRADLE'
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("upload-keystore.jks")
+                      storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                      keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+GRADLE
+          if ! grep -q "apply from: \"./signing.gradle\"" build.gradle; then
+            echo 'apply from: "./signing.gradle"' >> build.gradle
+          fi
+        shell: bash
+
+      - name: Build APK with Gradle (variant)
+        run: |
+          cd android
+          chmod +x ./gradlew
+          if [ "$BUILD_VARIANT" = "release" ]; then
+            ./gradlew assembleRelease --no-daemon --stacktrace
+          else
+            ./gradlew assembleDebug --no-daemon --stacktrace
+          fi
+        shell: bash
+
+      - name: Upload Release APK artifact
+        if: env.BUILD_VARIANT == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-release
+          path: android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload Debug APK artifact
+        if: env.BUILD_VARIANT != 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
