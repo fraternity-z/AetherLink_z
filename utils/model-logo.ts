@@ -8,13 +8,14 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 // Logo 文件映射表
 const MODEL_LOGOS = {
   // OpenAI 系列
-  'gpt-o1': { light: require('../assets/images/models/gpt_o1.png'), dark: require('../assets/images/models/gpt_dark.png') },
+  'gpt-o1': { light: require('../assets/images/models/gpt_4.png'), dark: require('../assets/images/models/gpt_dark.png') },
   'o1': { light: require('../assets/images/models/gpt_o1.png'), dark: require('../assets/images/models/gpt_dark.png') },
   'o3': { light: require('../assets/images/models/gpt_4.png'), dark: require('../assets/images/models/gpt_dark.png') },
   'gpt-4': { light: require('../assets/images/models/gpt_4.png'), dark: require('../assets/images/models/gpt_dark.png') },
   'gpt-4o': { light: require('../assets/images/models/gpt_4.png'), dark: require('../assets/images/models/gpt_dark.png') },
   '4o': { light: require('../assets/images/models/gpt_4.png'), dark: require('../assets/images/models/gpt_dark.png') },
-  'gpt-3': { light: require('../assets/images/models/gpt_3.5.png'), dark: require('../assets/images/models/gpt_dark.png') },
+  'gpt-5': { light: require('../assets/images/models/gpt_4.png'), dark: require('../assets/images/models/gpt_dark.png') },
+  'gpt-3': { light: require('../assets/images/models/gpt_4.png'), dark: require('../assets/images/models/gpt_dark.png') },
 
   // Anthropic Claude
   'claude': { light: require('../assets/images/models/claude.png'), dark: require('../assets/images/models/claude_dark.png') },

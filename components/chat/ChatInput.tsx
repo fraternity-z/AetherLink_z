@@ -8,7 +8,7 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { View, Platform, TextInput as RNTextInput, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Platform, TextInput as RNTextInput } from 'react-native';
 import { IconButton, useTheme } from 'react-native-paper';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { ChatRepository } from '@/storage/repositories/chat';
@@ -20,16 +20,16 @@ import { AssistantsRepository } from '@/storage/repositories/assistants';
 import type { CoreMessage } from 'ai';
 import { autoNameConversation } from '@/services/ai/TopicNaming';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 import { AttachmentRepository } from '@/storage/repositories/attachments';
 import type { Attachment } from '@/storage/core';
-import { Image } from 'expo-image';
 import { performSearch } from '@/services/search/SearchClient';
 import type { SearchEngine } from '@/services/search/types';
 import { SearchLoadingIndicator } from './SearchLoadingIndicator';
 import { AttachmentMenu } from './AttachmentMenu';
 import { MoreActionsMenu } from './MoreActionsMenu';
 import { ImageGenerationDialog } from './ImageGenerationDialog';
+import { AttachmentChips } from './AttachmentChips';
 import { appEvents, AppEvents } from '@/utils/events';
 
 export function ChatInput({ conversationId, onConversationChange }: { conversationId: string | null; onConversationChange: (id: string) => void; }) {
@@ -86,7 +86,9 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
 
     setIsGenerating(true);
     const userMessage = message;
+    const userAttachments = selectedAttachments;
     setMessage(''); // 立即清空输入框
+    setSelectedAttachments([]); // 立即清空附件列表
 
     let cid = conversationId;
     let assistant: any = null;
@@ -206,7 +208,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       const model = (await sr.get<string>(SettingKey.DefaultModel)) ?? (provider === 'openai' ? 'gpt-4o-mini' : provider === 'anthropic' ? 'claude-3-5-haiku-latest' : 'gemini-1.5-flash');
 
       // 先创建用户消息，并关联所选附件
-      const attachmentIds = selectedAttachments.map(a => a.id);
+      const attachmentIds = userAttachments.map(a => a.id);
       await MessageRepository.addMessage({ conversationId: cid!, role: 'user', text: userMessage, status: 'sent', attachmentIds });
 
       // 如果是新创建的话题，在用户消息写入后再通知父组件切换话题
@@ -269,26 +271,55 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
 
       // 添加当前用户消息（当 contextCount === 0 时，不包含上文和系统提示）
       // 若包含图片附件且模型支持多模态，则构造为多段内容
-      const images = selectedAttachments.filter(a => a.kind === 'image' && a.uri);
+      const images = userAttachments.filter(a => a.kind === 'image' && a.uri);
       if (images.length > 0 && supportsVision(provider, model)) {
+        console.log('[ChatInput] 🖼️ 检测到图片附件，准备发送多模态消息', {
+          imageCount: images.length,
+          provider,
+          model,
+        });
+
         const parts: any[] = [];
         if (userMessage.trim()) parts.push({ type: 'text', text: userMessage });
+
         // 读取图片为 data URL 片段
         for (const img of images) {
           try {
-            const base64 = await FileSystem.readAsStringAsync(img.uri as string, { encoding: 'base64' as any });
+            console.log('[ChatInput] 📖 读取图片:', { uri: img.uri, mime: img.mime });
+
+            // 使用 File API 读取图片为字节数组，直接传 Uint8Array，避免 data: URL 走网络下载路径
+            const bytes = await new File(img.uri as string).bytes();
+
             const mime = img.mime || 'image/png';
-            parts.push({ type: 'image', image: `data:${mime};base64,${base64}` });
-          } catch (e) {
-            console.warn('[ChatInput] 读取图片失败，跳过该图片: ', img.uri, e);
+            
+            console.log('[ChatInput] ✅ 图片读取成功', {
+              mime,
+              byteLength: bytes.length,
+            });
+
+            // 直接传字节 + 媒体类型，AI SDK 会用签名/提供的 mediaType 识别，无需 data:URL
+            parts.push({ type: 'image', image: bytes, mediaType: mime });
+          } catch (e: any) {
+            console.error('[ChatInput] ❌ 读取图片失败，跳过该图片', {
+              uri: img.uri,
+              error: e.message,
+              stack: e.stack
+            });
           }
         }
+
+        console.log('[ChatInput] 📤 多模态消息构建完成', {
+          totalParts: parts.length,
+          hasText: parts.some(p => p.type === 'text'),
+          imageCount: parts.filter(p => p.type === 'image').length
+        });
+
         msgs.push({ role: 'user', content: parts });
       } else {
         // 不支持多模态或无图片，仅发送文本，同时提示附带了文件
-        const fileSuffix = selectedAttachments.length > 0 && !userMessage.trim()
-          ? `(已附加 ${selectedAttachments.length} 个附件)`
-          : (selectedAttachments.length > 0 ? `\n(附加 ${selectedAttachments.length} 个附件)` : '');
+        const fileSuffix = userAttachments.length > 0 && !userMessage.trim()
+          ? `(已附加 ${userAttachments.length} 个附件)`
+          : (userAttachments.length > 0 ? `\n(附加 ${userAttachments.length} 个附件)` : '');
 
         // 拼接搜索结果（如果有）
         const finalMessage = userMessage + fileSuffix + (searchResults || '');
@@ -383,7 +414,6 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         onDone: async () => {
           await MessageRepository.updateMessageStatus(assistant.id, 'sent');
           setIsGenerating(false);
-          setSelectedAttachments([]);
           if (isFirstTurn) {
             try { void autoNameConversation(cid!); } catch (e) { console.warn('[ChatInput] auto naming error', e); }
           }
@@ -638,6 +668,12 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
           />
         )}
 
+        {/* 附件预览 Chips（输入框上方） */}
+        <AttachmentChips
+          attachments={selectedAttachments}
+          onRemove={(id) => setSelectedAttachments(prev => prev.filter(a => a.id !== id))}
+        />
+
         {/* 圆角悬浮方框容器 */}
         <View
           className="rounded-[20px] border overflow-hidden"
@@ -686,54 +722,6 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
               }
             }}
           />
-
-          {/* 已选附件预览 */}
-          {selectedAttachments.length > 0 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              className="px-2 pb-1.5"
-              contentContainerStyle={{ alignItems: 'center', gap: 8 }}
-            >
-              {selectedAttachments.map(att => (
-                att.kind === 'image' && att.uri ? (
-                  <View key={att.id} className="relative">
-                    <Image
-                      source={{ uri: att.uri }}
-                      className="w-24 h-16 rounded-lg"
-                      contentFit="cover"
-                    />
-                    <TouchableOpacity
-                      className="absolute -top-2 -right-2 rounded-xl"
-                      style={{ backgroundColor: theme.colors.error }}
-                      onPress={() => setSelectedAttachments(prev => prev.filter(a => a.id !== att.id))}
-                    >
-                      <IconButton icon="close" size={14} style={{ margin: 0 }} iconColor="#fff" />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <View
-                    key={att.id}
-                    className="flex-row items-center border rounded-2xl px-2 py-1"
-                    style={{ borderColor: theme.colors.outlineVariant }}
-                  >
-                    <IconButton icon="file" size={16} style={{ margin: 0 }} />
-                    <RNTextInput
-                      editable={false}
-                      value={att.name || '附件'}
-                      className="min-w-[60px] max-w-[160px] py-0 px-0"
-                    />
-                    <IconButton
-                      icon="close"
-                      size={14}
-                      style={{ margin: 0 }}
-                      onPress={() => setSelectedAttachments(prev => prev.filter(a => a.id !== att.id))}
-                    />
-                  </View>
-                )
-              ))}
-            </ScrollView>
-          )}
 
           {/* 下层：工具按钮行 */}
           <View className="flex-row items-center justify-between px-2 py-2 min-h-[52px]">

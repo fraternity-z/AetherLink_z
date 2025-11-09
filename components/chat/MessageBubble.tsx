@@ -193,7 +193,7 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
           className="rounded-2xl px-3.5 py-2.5"
           style={{
             backgroundColor: isUser
-              ? theme.colors.primary
+              ? theme.dark ? '#BA68C8' : '#E1BEE7' // 浅紫色
               : theme.dark
                 ? theme.colors.surfaceVariant
                 : '#F0F0F0'
@@ -219,8 +219,48 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
                     ) : null
                   ))}
                 </View>
+              ) : isUser ? (
+                /* 用户消息：使用小 chip 样式 */
+                <View className="flex-row flex-wrap gap-1.5 mb-2">
+                  {attachments.map(att => (
+                    <View
+                      key={att.id}
+                      className="flex-row items-center rounded-full px-2 py-1"
+                      style={{
+                        backgroundColor: theme.dark
+                          ? 'rgba(255, 255, 255, 0.25)'
+                          : 'rgba(74, 20, 140, 0.15)', // 深紫色半透明
+                        borderWidth: 1,
+                        borderColor: theme.dark
+                          ? 'rgba(255, 255, 255, 0.4)'
+                          : 'rgba(74, 20, 140, 0.3)', // 深紫色边框
+                      }}
+                    >
+                      {/* 文件图标 */}
+                      <Avatar.Icon
+                        size={14}
+                        icon={att.kind === 'image' ? 'file-image' : 'file-document'}
+                        style={{
+                          margin: 0,
+                          marginRight: 4,
+                          backgroundColor: 'transparent'
+                        }}
+                        color={theme.dark ? '#FFFFFF' : '#4A148C'} // 深紫色图标
+                      />
+                      {/* 文件名 */}
+                      <Text
+                        variant="bodySmall"
+                        numberOfLines={1}
+                        className="max-w-[120px] text-[11px]"
+                        style={{ color: theme.dark ? '#FFFFFF' : '#4A148C' }} // 深紫色文字
+                      >
+                        {att.name || '附件'}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
               ) : (
-                /* 普通附件：图片缩略图 + 文件条目 */
+                /* AI 消息：普通附件显示（图片缩略图 + 文件条目） */
                 <View className="flex-row flex-wrap gap-2 mb-2">
                   {attachments.map(att => (
                     att.kind === 'image' && att.uri ? (
@@ -235,25 +275,21 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
                         key={att.id}
                         className="flex-row items-center border rounded-lg px-2 py-1 max-w-[200px]"
                         style={{
-                          borderColor: isUser
-                            ? theme.colors.onPrimary
-                            : theme.colors.outlineVariant,
-                          backgroundColor: isUser
-                            ? 'rgba(255, 255, 255, 0.2)'
-                            : 'rgba(0, 0, 0, 0.05)'
+                          borderColor: theme.colors.outlineVariant,
+                          backgroundColor: 'rgba(0, 0, 0, 0.05)'
                         }}
                       >
                         <Avatar.Icon
                           size={16}
                           icon="paperclip"
                           className="mr-1 m-0"
-                          color={isUser ? theme.colors.onPrimary : theme.colors.onSurface}
+                          color={theme.colors.onSurface}
                         />
                         <Text
                           variant="bodySmall"
                           numberOfLines={1}
                           className="flex-shrink"
-                          style={{ color: isUser ? theme.colors.onPrimary : theme.colors.onSurface }}
+                          style={{ color: theme.colors.onSurface }}
                         >
                           {att.name || '附件'}
                         </Text>
@@ -270,7 +306,7 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
             <Text
               variant="bodyMedium"
               className={cn('text-[15px] leading-[22px]', attachments.length > 0 && 'mt-1')}
-              style={{ color: theme.colors.onPrimary }}
+              style={{ color: theme.dark ? '#FFFFFF' : '#4A148C' }} // 浅紫色背景配深紫色文字
             >
               {content || (status === 'pending' ? '正在发送...' : '')}
             </Text>
