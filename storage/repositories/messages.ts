@@ -2,6 +2,23 @@ import { Message, Role, now, uuid, ThinkingChain } from '@/storage/core';
 import { execute, queryAll, queryOne } from '@/storage/sqlite/db';
 import { appEvents, AppEvents } from '@/utils/events';
 
+// ============================================
+// 文本缓写（流式合并写入）
+// ============================================
+type TextBufferState = {
+  latestText: string;
+  timer: ReturnType<typeof setTimeout> | null;
+  debounceMs: number;
+};
+
+const messageTextBuffers: Map<string, TextBufferState> = new Map();
+
+async function persistMessageTextOnce(id: string, text: string): Promise<void> {
+  await execute(`UPDATE messages SET text = ? WHERE id = ?`, [text, id]);
+  // 与 updateMessageText 保持一致：使用节流事件，避免频繁重渲染
+  appEvents.emitThrottled(AppEvents.MESSAGE_CHANGED, 200);
+}
+
 export const MessageRepository = {
   async addMessage(input: {
     conversationId: string;
@@ -120,6 +137,55 @@ export const MessageRepository = {
     await execute(`UPDATE messages SET text = ? WHERE id = ?`, [text, id]);
     // 🚀 使用节流事件触发（AI 流式响应时避免频繁重渲染）
     appEvents.emitThrottled(AppEvents.MESSAGE_CHANGED, 200);
+  },
+
+  /**
+   * 缓写文本：仅缓存，不立即写库，等待窗口期结束统一写入
+   * @param id 消息ID
+   * @param text 最新完整文本（将覆盖以前的缓存）
+   * @param debounceMs 去抖时间窗，默认200ms
+   */
+  bufferMessageText(id: string, text: string, debounceMs = 200): void {
+    const state = messageTextBuffers.get(id) ?? { latestText: '', timer: null, debounceMs };
+    state.latestText = text;
+    state.debounceMs = debounceMs;
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = null;
+    }
+    state.timer = setTimeout(() => {
+      // 定时落库（不 await，避免阻塞回调）
+      persistMessageTextOnce(id, state.latestText).catch(() => { /* 单次失败忽略，后续 flush/end 兜底 */ });
+      state.timer = null;
+    }, state.debounceMs);
+    messageTextBuffers.set(id, state);
+  },
+
+  /**
+   * 立即写入当前缓冲的文本（如有）
+   */
+  async flushBufferedMessageText(id: string): Promise<void> {
+    const state = messageTextBuffers.get(id);
+    if (!state) return;
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = null;
+    }
+    await persistMessageTextOnce(id, state.latestText);
+  },
+
+  /**
+   * 结束缓写：刷新一次并清理缓冲状态
+   */
+  async endBufferedMessageText(id: string): Promise<void> {
+    const state = messageTextBuffers.get(id);
+    if (!state) return;
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = null;
+    }
+    await persistMessageTextOnce(id, state.latestText);
+    messageTextBuffers.delete(id);
   },
 
   async updateMessageStatus(id: string, status: 'pending' | 'sent' | 'failed'): Promise<void> {

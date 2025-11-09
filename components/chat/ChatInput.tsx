@@ -389,7 +389,8 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         abortSignal: controller.signal,
         onToken: async (d) => {
           acc += d;
-          await MessageRepository.updateMessageText(assistant.id, acc);
+          // 改为缓写，降低高频 UPDATE 压力
+          MessageRepository.bufferMessageText(assistant.id, acc, 200);
         },
         // 思考链开始回调
         onThinkingStart: async () => {
@@ -450,6 +451,8 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
           }
         },
         onDone: async () => {
+          // 确保流式文本最终落库
+          await MessageRepository.endBufferedMessageText(assistant.id);
           await MessageRepository.updateMessageStatus(assistant.id, 'sent');
           setIsGenerating(false);
           if (isFirstTurn) {
@@ -461,6 +464,8 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
           if (isUserCanceled(e)) {
             console.log('[ChatInput] 用户主动取消请求');
             if (assistant) {
+              // 结束缓写，确保最后一段文本同步
+              try { await MessageRepository.endBufferedMessageText(assistant.id); } catch {}
               // 如果助手消息为空或内容很少，直接删除；否则保留但标记为失败
               const currentText = assistant.text || '';
               if (currentText.trim().length < 10) {
@@ -480,6 +485,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
           // 真实错误，记录并显示提示
           console.error('[ChatInput] Stream error', e);
           if (assistant) {
+            try { await MessageRepository.endBufferedMessageText(assistant.id); } catch {}
             await MessageRepository.updateMessageStatus(assistant.id, 'failed');
           }
           setIsGenerating(false);
