@@ -45,7 +45,12 @@ export function VoiceInputDialog({
   const {
     isRecognizing,
     error: recognitionError,
+    partialResult,
+    finalResult,
     recognizeFromFile,
+    startRealtimeRecognition,
+    stopRealtimeRecognition,
+    cancel,
     clearError,
   } = useVoiceRecognition({ autoLoadSettings: true });
 
@@ -79,23 +84,36 @@ export function VoiceInputDialog({
     }
   };
 
-  // 对话框打开时自动开始录音
+  // 对话框打开时根据提供商自动开始（录音 或 实时识别）
   useEffect(() => {
     if (visible) {
-      logger.debug('[VoiceInputDialog] Dialog opened, starting recording');
-      startRecording().catch((error) => {
-        logger.error('[VoiceInputDialog] Failed to start recording:', error);
-        onClose();
-      });
+      if (provider === 'whisper') {
+        logger.debug('[VoiceInputDialog] Dialog opened, starting recording');
+        startRecording().catch((error) => {
+          logger.error('[VoiceInputDialog] Failed to start recording:', error);
+          onClose();
+        });
+      } else {
+        logger.debug('[VoiceInputDialog] Dialog opened, starting native realtime recognition');
+        startRealtimeRecognition().catch((error) => {
+          logger.error('[VoiceInputDialog] Failed to start realtime recognition:', error);
+          onClose();
+        });
+      }
     }
 
-    // 对话框关闭时确保录音已停止
+    // 对话框关闭时确保录音/识别已停止
     return () => {
-      if (isRecording) {
-        cancelRecording();
+      if (provider === 'whisper') {
+        if (isRecording) {
+          cancelRecording();
+        }
+      } else {
+        // 取消实时识别
+        cancel().catch(() => undefined);
       }
     };
-  }, [visible]);
+  }, [visible, provider]);
 
   // 达到最大时长时的处理
   function handleMaxDurationReached() {
@@ -103,20 +121,20 @@ export function VoiceInputDialog({
     handleStop();
   }
 
-  // 停止录音并进行语音识别
+  // 停止录音/识别并返回结果
   const handleStop = async () => {
     try {
-      const uri = await stopRecording();
-      if (!uri) {
-        logger.warn('[VoiceInputDialog] No audio URI, cannot proceed');
-        onClose();
-        return;
-      }
-
-      logger.debug('[VoiceInputDialog] Recording stopped, URI:', uri);
-
-      // 使用 Whisper API 识别（从音频文件）
       if (provider === 'whisper') {
+        const uri = await stopRecording();
+        if (!uri) {
+          logger.warn('[VoiceInputDialog] No audio URI, cannot proceed');
+          onClose();
+          return;
+        }
+
+        logger.debug('[VoiceInputDialog] Recording stopped, URI:', uri);
+
+        // 使用 Whisper API 识别（从音频文件）
         try {
           logger.debug('[VoiceInputDialog] Starting Whisper recognition');
           const text = await recognizeFromFile(uri);
@@ -134,9 +152,14 @@ export function VoiceInputDialog({
           // 错误会显示在对话框中，不直接关闭
         }
       } else {
-        // 设备端识别不支持从文件识别，显示提示
-        logger.warn('[VoiceInputDialog] Native recognition does not support file recognition');
-        onTextRecognized('[设备端识别仅支持实时识别，请在语音设置中切换到 Whisper API]');
+        // 结束实时识别并返回最终文本
+        const text = await stopRealtimeRecognition();
+        if (text && text.trim()) {
+          logger.debug('[VoiceInputDialog] Native recognition final text:', text);
+          onTextRecognized(text);
+        } else {
+          logger.warn('[VoiceInputDialog] No text from native recognition');
+        }
         onClose();
       }
     } catch (error) {
@@ -147,7 +170,11 @@ export function VoiceInputDialog({
 
   // 取消录音
   const handleCancel = async () => {
-    await cancelRecording();
+    if (provider === 'whisper') {
+      await cancelRecording();
+    } else {
+      await cancel();
+    }
     onClose();
   };
 
@@ -171,15 +198,15 @@ export function VoiceInputDialog({
             )}
           </View>
 
-          {/* 录音时长显示 */}
-          {isRecording && (
+          {/* 录音时长显示（仅 Whisper 录音模式） */}
+          {provider === 'whisper' && isRecording && (
             <Text variant="headlineMedium" style={styles.timer}>
               {formatDuration(duration)} / {formatDuration(maxDuration)}
             </Text>
           )}
 
           {/* 提示文本 */}
-          {isRecording && !isRecognizing && (
+          {provider === 'whisper' && isRecording && !isRecognizing && (
             <Text variant="bodyMedium" style={styles.hint}>
               正在录音，点击停止按钮完成录音
             </Text>
@@ -188,7 +215,14 @@ export function VoiceInputDialog({
           {/* 识别中提示 */}
           {isRecognizing && (
             <Text variant="bodyMedium" style={styles.hint}>
-              {provider === 'whisper' ? '正在使用 Whisper API 识别...' : '正在识别...'}
+              {provider === 'whisper' ? '正在使用 Whisper API 识别...' : '正在实时识别，请清晰地说话'}
+            </Text>
+          )}
+
+          {/* 实时识别结果显示（仅设备端） */}
+          {provider === 'native' && (partialResult || finalResult) && (
+            <Text variant="bodyMedium" style={[styles.hint, { marginTop: 8 }]}>
+              {(finalResult || partialResult) as string}
             </Text>
           )}
 
@@ -211,17 +245,19 @@ export function VoiceInputDialog({
           <Button
             onPress={handleCancel}
             mode="text"
-            disabled={isRecognizing}
+            disabled={isRecognizing && provider === 'whisper'}
           >
             取消
           </Button>
           <Button
             onPress={handleStop}
             mode="contained"
-            disabled={!isRecording || isRecognizing}
+            disabled={
+              provider === 'whisper' ? (!isRecording || isRecognizing) : !isRecognizing
+            }
             loading={isRecognizing}
           >
-            {isRecognizing ? '识别中' : '停止录音'}
+            {isRecognizing ? '识别中' : provider === 'whisper' ? '停止录音' : '停止识别'}
           </Button>
         </Dialog.Actions>
       </Dialog>
