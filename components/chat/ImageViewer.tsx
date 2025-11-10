@@ -1,3 +1,4 @@
+import { logger } from '@/utils/logger';
 /**
  * 🖼️ 图片查看器组件
  *
@@ -11,7 +12,7 @@
 
 import React, { useCallback, useRef } from 'react';
 import {
-  View,
+    View,
   StyleSheet,
   Modal,
   TouchableOpacity,
@@ -185,7 +186,7 @@ export function ImageViewer({ visible, imageUri, onClose, prompt }: ImageViewerP
         Alert.alert('成功', `图片已保存到: ${file.uri}`);
       }
     } catch (error: any) {
-      console.error('[ImageViewer] 下载失败:', error);
+      logger.error('[ImageViewer] 下载失败:', error);
       Alert.alert('错误', error.message || '下载图片失败');
     } finally {
       setIsDownloading(false);

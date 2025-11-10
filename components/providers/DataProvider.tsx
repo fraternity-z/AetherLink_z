@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { fetch as expoFetch } from 'expo/fetch';
 import { initMigrations } from '@/storage/sqlite/db';
+import { logger } from '@/utils/logger';
 
 type Props = { children: React.ReactNode };
 
@@ -16,7 +17,7 @@ export function AppDataProvider({ children }: Props) {
     // Initialize database schema on app start
     initMigrations().catch((e) => {
        
-      console.error('DB init failed', e);
+      logger.error('DB init failed', e);
     });
   }, []);
 

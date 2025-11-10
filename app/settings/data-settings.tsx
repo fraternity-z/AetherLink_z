@@ -10,6 +10,7 @@ import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { UnifiedDialog } from '@/components/common/UnifiedDialog';
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
+import { logger } from '@/utils/logger';
 
 export default function DataSettings() {
   const theme = useTheme();
@@ -32,7 +33,7 @@ export default function DataSettings() {
       const data = await DataStatsService.getStatistics();
       setStats(data);
     } catch (e: any) {
-      console.error('[DataSettings] Failed to load stats:', e);
+      logger.error('[DataSettings] Failed to load stats:', e);
     } finally {
       setLoading(false);
     }
@@ -104,7 +105,7 @@ export default function DataSettings() {
           await loadStats();
         } catch (e: any) {
           alert('导入失败', e?.message || String(e));
-          console.error('[DataSettings] Import failed:', e);
+          logger.error('[DataSettings] Import failed:', e);
         } finally {
           setLoading(false);
           hideConfirm();

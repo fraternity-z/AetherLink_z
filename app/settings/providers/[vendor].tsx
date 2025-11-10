@@ -9,6 +9,7 @@ import { fetchProviderModels, type DiscoveredModel } from '@/services/ai/ModelDi
 import { validateProviderModel } from '@/services/ai/ModelValidation';
 import { ModelDiscoveryDialog } from '@/components/settings/ModelDiscoveryDialog';
 import { UnifiedDialog } from '@/components/common/UnifiedDialog';
+import { logger } from '@/utils/logger';
 
 type VendorMeta = {
   id: string;
@@ -86,7 +87,7 @@ export default function ProviderConfig() {
           setSaveStatus({ visible: true, message: '✓ 配置已保存' });
         }
       } catch (err) {
-        console.error('[Persist Error]', err);
+        logger.error('[Persist Error]', err);
         if (showFeedback) {
           setSaveStatus({ visible: true, message: '✗ 保存失败，请重试' });
         }
@@ -102,7 +103,7 @@ export default function ProviderConfig() {
     React.useCallback(() => {
       return () => {
         // 立即触发保存，并等待完成
-        persist().catch(err => console.error('[Focus Blur Persist]', err));
+        persist().catch(err => logger.error('[Focus Blur Persist]', err));
       };
     }, [persist])
   );
@@ -113,7 +114,7 @@ export default function ProviderConfig() {
     if (!loadedRef.current) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      persist().catch(err => console.error('[Auto Save]', err));
+      persist().catch(err => logger.error('[Auto Save]', err));
     }, 600);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -172,7 +173,7 @@ export default function ProviderConfig() {
                     await ProvidersRepository.setApiKey(meta.id as ProviderId, apiKey.trim());
                     setSaveStatus({ visible: true, message: '✓ API Key 已保存' });
                   } catch (err) {
-                    console.error('[API Key Save Error]', err);
+                    logger.error('[API Key Save Error]', err);
                     setSaveStatus({ visible: true, message: '✗ API Key 保存失败' });
                   }
                 }
@@ -195,7 +196,7 @@ export default function ProviderConfig() {
                   await ProvidersRepository.setBaseURL(meta.id as ProviderId, baseUrl);
                   setSaveStatus({ visible: true, message: '✓ Base URL 已保存' });
                 } catch (err) {
-                  console.error('[Base URL Save Error]', err);
+                  logger.error('[Base URL Save Error]', err);
                   setSaveStatus({ visible: true, message: '✗ Base URL 保存失败' });
                 }
               }}

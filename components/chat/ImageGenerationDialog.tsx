@@ -1,3 +1,4 @@
+import { logger } from '@/utils/logger';
 /**
  * ⚡ AI 图片生成输入对话框组件
  *
@@ -10,7 +11,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  View,
+    View,
   StyleSheet,
   Modal,
   Animated,
@@ -129,7 +130,7 @@ export function ImageGenerationDialog({
       }, 500);
     } catch (err: any) {
       // 错误已在 Hook 中处理并设置到 error 状态
-      console.error('[ImageGenerationDialog] 生成失败', err);
+      logger.error('[ImageGenerationDialog] 生成失败', err);
     }
   };
 

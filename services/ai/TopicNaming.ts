@@ -5,6 +5,7 @@ import { streamCompletion, type Provider } from '@/services/ai/AiClient';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 import { ProviderModelsRepository } from '@/storage/repositories/provider-models';
 import type { CoreMessage } from 'ai';
+import { logger } from '@/utils/logger';
 
 function sanitizeTitle(input: string): string {
   let t = (input || '').trim();
@@ -62,10 +63,10 @@ export async function autoNameConversation(conversationId: string): Promise<void
         await ChatRepository.renameConversation(conversationId, title);
       },
       onError: (e) => {
-        console.warn('[TopicNaming] summarize failed', e);
+        logger.warn('[TopicNaming] summarize failed', e);
       },
     });
   } catch (e) {
-    console.warn('[TopicNaming] fatal error', e);
+    logger.warn('[TopicNaming] fatal error', e);
   }
 }

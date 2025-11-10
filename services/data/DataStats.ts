@@ -2,6 +2,7 @@ import { ChatRepository } from '@/storage/repositories/chat';
 import { MessageRepository } from '@/storage/repositories/messages';
 import { AttachmentRepository } from '@/storage/repositories/attachments';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '@/utils/logger';
 
 export interface DataStatistics {
   conversations: {
@@ -67,7 +68,7 @@ export const DataStatsService = {
         return sum + (key?.length || 0) + (value?.length || 0);
       }, 0);
     } catch (e) {
-      console.error('[DataStats] Failed to estimate storage size:', e);
+      logger.error('[DataStats] Failed to estimate storage size:', e);
     }
 
     return {

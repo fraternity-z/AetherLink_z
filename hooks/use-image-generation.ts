@@ -5,6 +5,7 @@ import { AttachmentRepository } from '@/storage/repositories/attachments';
 import { ImageGenerationError } from '@/services/ai/errors';
 import { File, Paths } from 'expo-file-system';
 import { uuid } from '@/storage/core';
+import { logger } from '@/utils/logger';
 
 export interface UseImageGenerationOptions {
   conversationId?: string;
@@ -112,14 +113,14 @@ export function useImageGeneration(options: UseImageGenerationOptions) {
           setProgress(100);
         },
         onError: (err) => {
-          console.error('[useImageGeneration] 图片生成失败', err);
+          logger.error('[useImageGeneration] 图片生成失败', err);
           setError(err);
         },
       });
 
       return result;
     } catch (err: any) {
-      console.error('[useImageGeneration] 捕获错误', err);
+      logger.error('[useImageGeneration] 捕获错误', err);
 
       const imageError = err instanceof ImageGenerationError
         ? err
@@ -148,7 +149,7 @@ export function useImageGeneration(options: UseImageGenerationOptions) {
         // 移除 data:image/xxx;base64, 前缀（如果存在）
         const match = base64Data.match(/^data:image\/(\w+);base64,(.+)$/);
         if (!match) {
-          console.error('[useImageGeneration] 无效的 Base64 图片数据格式', { base64Data: base64Data.substring(0, 50) });
+          logger.error('[useImageGeneration] 无效的 Base64 图片数据格式', { base64Data: base64Data.substring(0, 50) });
           continue;
         }
 
@@ -182,10 +183,10 @@ export function useImageGeneration(options: UseImageGenerationOptions) {
         try {
           await tempFile.delete();
         } catch (deleteErr) {
-          console.warn('[useImageGeneration] 临时文件删除失败（忽略）', deleteErr);
+          logger.warn('[useImageGeneration] 临时文件删除失败（忽略）', deleteErr);
         }
       } catch (saveErr: any) {
-        console.error('[useImageGeneration] 单张图片保存失败', saveErr);
+        logger.error('[useImageGeneration] 单张图片保存失败', saveErr);
         // 继续处理下一张图片
       }
     }

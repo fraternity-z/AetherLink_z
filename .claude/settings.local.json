@@ -7,7 +7,8 @@
       "mcp__mcp-router__resolve-library-id",
       "mcp__mcp-router__get-library-docs",
       "WebSearch",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(npx expo install:*)"
     ],
     "deny": [],
     "ask": []

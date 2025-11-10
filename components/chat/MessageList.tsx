@@ -16,6 +16,7 @@ import { AttachmentRepository } from '@/storage/repositories/attachments';
 import { ThinkingChainRepository } from '@/storage/repositories/thinking-chains';
 import type { Attachment, Message, ThinkingChain } from '@/storage/core';
 import { appEvents, AppEvents } from '@/utils/events';
+import { logger } from '@/utils/logger';
 
 export function MessageList({ conversationId }: { conversationId: string | null }) {
   const theme = useTheme();
@@ -146,7 +147,7 @@ export function MessageList({ conversationId }: { conversationId: string | null 
         const map = await AttachmentRepository.getAttachmentsByMessageIds(ids);
         setAttachmentsMap(map);
       } catch (e) {
-        console.warn('[MessageList] load attachments error', e);
+        logger.warn('[MessageList] load attachments error', e);
       }
     })();
   }, [messageIdsKey]);
@@ -177,7 +178,7 @@ export function MessageList({ conversationId }: { conversationId: string | null 
         });
         setThinkingChainsMap(objMap);
       } catch (e) {
-        console.error('[MessageList] load thinking chains error', e);
+        logger.error('[MessageList] load thinking chains error', e);
       }
     })();
   }, [thinkingChainKey, thinkingRefreshTick]);

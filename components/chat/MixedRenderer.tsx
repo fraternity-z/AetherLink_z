@@ -14,6 +14,7 @@ import { useTheme } from 'react-native-paper';
 import { MarkdownRenderer, parseContentWithMath } from './MarkdownRenderer';
 import type { MathFormula } from './MathJaxRenderer';
 import { MathJaxRenderer } from './MathJaxRenderer';
+import { logger } from '@/utils/logger';
 
 export interface MixedRendererProps {
   content: string;
@@ -137,7 +138,7 @@ export function MixedRenderer({ content, style }: MixedRendererProps) {
               formulas={[fragment.formula!]}
               onComplete={handleFormulaHeights}
               onError={(error) => {
-                console.error('MathJax rendering error:', error);
+                logger.error('MathJax rendering error:', error);
               }}
             />
           </View>

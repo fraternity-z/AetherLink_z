@@ -34,6 +34,12 @@ export enum SettingKey {
   MobileInputMode = 'al:settings:mobile_input_mode',
   // 智能体助手设置
   CurrentAssistantId = 'al:settings:current_assistant_id',
+  // 语音功能设置
+  VoiceProvider = 'al:settings:voice_provider',
+  VoiceLanguage = 'al:settings:voice_language',
+  VoiceMaxDuration = 'al:settings:voice_max_duration',
+  VoiceAutoSend = 'al:settings:voice_auto_send',
+  VoiceShowPartial = 'al:settings:voice_show_partial',
 }
 
 

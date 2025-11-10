@@ -31,7 +31,9 @@ import { AttachmentMenu } from './AttachmentMenu';
 import { MoreActionsMenu } from './MoreActionsMenu';
 import { ImageGenerationDialog } from './ImageGenerationDialog';
 import { AttachmentChips } from './AttachmentChips';
+import { VoiceInputButton } from './VoiceInputButton';
 import { appEvents, AppEvents } from '@/utils/events';
+import { logger } from '@/utils/logger';
 
 export function ChatInput({ conversationId, onConversationChange }: { conversationId: string | null; onConversationChange: (id: string) => void; }) {
   const theme = useTheme();
@@ -121,7 +123,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
             setCurrentSearchQuery(userMessage);
             setIsSearching(true);
 
-            console.log('[ChatInput] 开始网络搜索', { engine: searchEngine, query: userMessage });
+            logger.debug('[ChatInput] 开始网络搜索', { engine: searchEngine, query: userMessage });
 
             const results = await performSearch({
               engine: searchEngine,
@@ -151,11 +153,11 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
                 `\n</网络搜索结果>\n\n` +
                 `请根据以上搜索结果，结合你的知识，为用户提供准确、全面的回答。`;
 
-              console.log(`[ChatInput] 搜索成功，找到 ${results.length} 条结果`);
+              logger.debug(`[ChatInput] 搜索成功，找到 ${results.length} 条结果`);
             }
           }
         } catch (error: any) {
-          console.error('[ChatInput] 搜索失败:', error);
+          logger.error('[ChatInput] 搜索失败:', error);
 
           // 根据错误类型生成友好的错误消息
           let errorMessage = '未知错误';
@@ -250,9 +252,9 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
 
       if (currentAssistant?.systemPrompt) {
         systemPrompt = currentAssistant.systemPrompt;
-        console.log('[ChatInput] 使用助手提示词:', currentAssistant.name);
+        logger.debug('[ChatInput] 使用助手提示词:', currentAssistant.name);
       } else {
-        console.log('[ChatInput] 无系统提示词（使用纯对话上下文）');
+        logger.debug('[ChatInput] 无系统提示词（使用纯对话上下文）');
       }
 
     // 构建消息数组（根据上下文数目）
@@ -295,11 +297,11 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       // 读取文本文件内容
       let textFileContents = '';
       if (textFiles.length > 0) {
-        console.log('[ChatInput] 📄 检测到文本文件附件', { count: textFiles.length });
+        logger.debug('[ChatInput] 📄 检测到文本文件附件', { count: textFiles.length });
 
         for (const file of textFiles) {
           try {
-            console.log('[ChatInput] 📖 读取文本文件:', { uri: file.uri, name: file.name, mime: file.mime });
+            logger.debug('[ChatInput] 📖 读取文本文件:', { uri: file.uri, name: file.name, mime: file.mime });
 
             // 使用 File API 读取文本内容
             const content = await new File(file.uri as string).text();
@@ -307,7 +309,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
             const truncated = content.length > maxLength;
             const finalContent = truncated ? content.substring(0, maxLength) : content;
 
-            console.log('[ChatInput] ✅ 文本文件读取成功', {
+            logger.debug('[ChatInput] ✅ 文本文件读取成功', {
               name: file.name,
               length: content.length,
               truncated,
@@ -316,7 +318,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
             // 格式化文本文件内容，清晰标注
             textFileContents += `\n\n=== 📄 文件: ${file.name || '未命名文件'} ===\n${finalContent}${truncated ? '\n\n[... 文件内容过长，已截断 ...]' : ''}\n=== 文件结束 ===\n`;
           } catch (e: any) {
-            console.error('[ChatInput] ❌ 读取文本文件失败，跳过该文件', {
+            logger.error('[ChatInput] ❌ 读取文本文件失败，跳过该文件', {
               uri: file.uri,
               name: file.name,
               error: e.message,
@@ -328,7 +330,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       }
 
       if (images.length > 0 && supportsVision(provider, model)) {
-        console.log('[ChatInput] 🖼️ 检测到图片附件，准备发送多模态消息', {
+        logger.debug('[ChatInput] 🖼️ 检测到图片附件，准备发送多模态消息', {
           imageCount: images.length,
           provider,
           model,
@@ -342,12 +344,12 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         // 读取图片为字节数组（Uint8Array 格式，符合 AI SDK 规范）
         for (const img of images) {
           try {
-            console.log('[ChatInput] 📖 读取图片:', { uri: img.uri, mime: img.mime });
+            logger.debug('[ChatInput] 📖 读取图片:', { uri: img.uri, mime: img.mime });
 
             // 使用 File API 读取图片为字节数组（Uint8Array），AI SDK 会自动识别图片格式
             const bytes = await new File(img.uri as string).bytes();
 
-            console.log('[ChatInput] ✅ 图片读取成功', {
+            logger.debug('[ChatInput] ✅ 图片读取成功', {
               mime: img.mime,
               byteLength: bytes.length,
               sizeKB: (bytes.length / 1024).toFixed(2),
@@ -356,7 +358,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
             // 直接传递字节数组，AI SDK 会自动识别图片格式（无需 mediaType 字段）
             parts.push({ type: 'image', image: bytes });
           } catch (e: any) {
-            console.error('[ChatInput] ❌ 读取图片失败，跳过该图片', {
+            logger.error('[ChatInput] ❌ 读取图片失败，跳过该图片', {
               uri: img.uri,
               mime: img.mime,
               error: e.message,
@@ -364,7 +366,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
           }
         }
 
-        console.log('[ChatInput] 📤 多模态消息构建完成', {
+        logger.debug('[ChatInput] 📤 多模态消息构建完成', {
           totalParts: parts.length,
           hasText: parts.some(p => p.type === 'text'),
           imageCount: parts.filter(p => p.type === 'image').length,
@@ -386,7 +388,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       }
 
       // 🔍 调试日志：检查消息数组是否有重复
-      console.log('[ChatInput] 🔍 消息数组详情', {
+      logger.debug('[ChatInput] 🔍 消息数组详情', {
         总消息数: msgs.length,
         消息列表: msgs.map((m, i) => ({
           索引: i,
@@ -399,7 +401,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
         原始conversationId: conversationId
       });
 
-      console.log('[ChatInput] 发送消息', {
+      logger.debug('[ChatInput] 发送消息', {
         提供商: provider,
         模型: model,
         温度: parseFloat(temperature.toFixed(1)),
@@ -441,10 +443,10 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
               durationMs: 0,
             });
             thinkingId = rec.id;
-            console.log('[ChatInput] 思考链开始并创建记录', { thinkingId });
+            logger.debug('[ChatInput] 思考链开始并创建记录', { thinkingId });
             appEvents.emit(AppEvents.MESSAGE_CHANGED);
           } catch (e) {
-            console.error('[ChatInput] 创建思考链记录失败', e);
+            logger.error('[ChatInput] 创建思考链记录失败', e);
           }
         },
         // 思考链流式内容回调(每100ms防抖更新)
@@ -472,7 +474,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
               await ThinkingChainRepository.updateThinkingChainContent(thinkingId, thinkingContent);
               await ThinkingChainRepository.updateThinkingChainEnd(thinkingId, endTime, durationMs);
 
-              console.log('[ChatInput] 思考链已完成并保存', {
+              logger.debug('[ChatInput] 思考链已完成并保存', {
                 thinkingId,
                 messageId: assistant.id,
                 durationMs: `${(durationMs / 1000).toFixed(1)}秒`,
@@ -481,7 +483,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
 
               appEvents.emit(AppEvents.MESSAGE_CHANGED);
             } catch (e) {
-              console.error('[ChatInput] 结束保存思考链失败', e);
+              logger.error('[ChatInput] 结束保存思考链失败', e);
             }
           }
         },
@@ -491,13 +493,13 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
           await MessageRepository.updateMessageStatus(assistant.id, 'sent');
           setIsGenerating(false);
           if (isFirstTurn) {
-            try { void autoNameConversation(cid!); } catch (e) { console.warn('[ChatInput] auto naming error', e); }
+            try { void autoNameConversation(cid!); } catch (e) { logger.warn('[ChatInput] auto naming error', e); }
           }
         },
         onError: async (e: any) => {
           // 用户主动取消，静默处理
           if (isUserCanceled(e)) {
-            console.log('[ChatInput] 用户主动取消请求');
+            logger.debug('[ChatInput] 用户主动取消请求');
             if (assistant) {
               // 结束缓写，确保最后一段文本同步
               try { await MessageRepository.endBufferedMessageText(assistant.id); } catch {}
@@ -506,11 +508,11 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
               if (currentText.trim().length < 10) {
                 // 内容太少，直接删除空消息
                 await MessageRepository.deleteMessage(assistant.id);
-                console.log('[ChatInput] 已删除空的助手消息');
+                logger.debug('[ChatInput] 已删除空的助手消息');
               } else {
                 // 已经有一些内容，标记为失败状态保留
                 await MessageRepository.updateMessageStatus(assistant.id, 'failed');
-                console.log('[ChatInput] 助手消息已标记为失败状态');
+                logger.debug('[ChatInput] 助手消息已标记为失败状态');
               }
             }
             setIsGenerating(false);
@@ -518,7 +520,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
           }
 
           // 真实错误，记录并显示提示
-          console.error('[ChatInput] Stream error', e);
+          logger.error('[ChatInput] Stream error', e);
           if (assistant) {
             try { await MessageRepository.endBufferedMessageText(assistant.id); } catch {}
             await MessageRepository.updateMessageStatus(assistant.id, 'failed');
@@ -533,16 +535,16 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
     } catch (error: any) {
       // 用户主动取消，静默处理
       if (isUserCanceled(error)) {
-        console.log('[ChatInput] 用户主动取消请求（外层捕获）');
+        logger.debug('[ChatInput] 用户主动取消请求（外层捕获）');
         if (assistant) {
           // 同样的逻辑：内容太少就删除，否则保留
           const currentText = assistant.text || '';
           if (currentText.trim().length < 10) {
             await MessageRepository.deleteMessage(assistant.id);
-            console.log('[ChatInput] 已删除空的助手消息（外层）');
+            logger.debug('[ChatInput] 已删除空的助手消息（外层）');
           } else {
             await MessageRepository.updateMessageStatus(assistant.id, 'failed');
-            console.log('[ChatInput] 助手消息已标记为失败状态（外层）');
+            logger.debug('[ChatInput] 助手消息已标记为失败状态（外层）');
           }
         }
         setIsGenerating(false);
@@ -551,7 +553,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       }
 
       // 真实错误，记录详细信息
-      console.error('[ChatInput] Fatal error', {
+      logger.error('[ChatInput] Fatal error', {
         error,
         message: error?.message,
         cause: error?.cause,
@@ -635,7 +637,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       });
       setSelectedAttachments(prev => [...prev, att]);
     } catch (e) {
-      console.warn('[ChatInput] 选择图片失败', e);
+      logger.warn('[ChatInput] 选择图片失败', e);
     }
   };
 
@@ -652,13 +654,16 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       });
       setSelectedAttachments(prev => [...prev, att]);
     } catch (e) {
-      console.warn('[ChatInput] 选择文件失败', e);
+      logger.warn('[ChatInput] 选择文件失败', e);
     }
   };
 
-  const handleVoice = () => {
-    // TODO: 实现语音输入逻辑
-    console.log('打开语音输入');
+  const handleVoiceTextRecognized = (text: string) => {
+    // 将识别的文本填充到输入框
+    if (text && text.trim()) {
+      setMessage((prev) => prev ? `${prev}\n${text}` : text);
+      logger.debug('[ChatInput] Voice text recognized:', text);
+    }
   };
 
   const handleMoreActions = () => {
@@ -687,7 +692,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
       // 提示用户
       alert('成功', '对话已清空');
     } catch (error) {
-      console.error('[ChatInput] 清除对话失败', error);
+      logger.error('[ChatInput] 清除对话失败', error);
       alert('错误', '清除对话失败，请重试');
     }
   };
@@ -846,13 +851,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
 
             {/* 右侧发送按钮组 */}
             <View className="flex-row items-center">
-              <IconButton
-                icon="microphone"
-                iconColor={theme.colors.onSurfaceVariant}
-                size={20}
-                onPress={handleVoice}
-                style={{ marginHorizontal: 2 }}
-              />
+              <VoiceInputButton onTextRecognized={handleVoiceTextRecognized} />
               <IconButton
                 icon={isGenerating ? "stop" : "send"}
                 iconColor={

@@ -13,6 +13,7 @@ import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import RenderHtml, { HTMLContentModel, HTMLElementModel } from 'react-native-render-html';
 import { marked } from 'marked';
+import { logger } from '@/utils/logger';
 
 // 内容解析结果类型
 interface ParsedContent {
@@ -101,7 +102,7 @@ export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererPr
       // marked.parse 可能返回 Promise，但在同步模式下返回字符串
       return typeof result === 'string' ? result : content;
     } catch (error) {
-      console.error('Markdown parsing error:', error);
+      logger.error('Markdown parsing error:', error);
       return content;
     }
   }, [content, parsedContent.hasMath, parsedContent.markdownContent]);

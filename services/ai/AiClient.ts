@@ -6,6 +6,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 import { ImageGenerationError, ImageModelResolutionError, createAiError } from './errors';
 import { isDedicatedImageGenerationModel } from './ModelDiscovery';
+import { logger } from '@/utils/logger';
 
 export type Provider = 'openai' | 'anthropic' | 'google' | 'gemini' | 'deepseek' | 'volc' | 'zhipu';
 
@@ -156,7 +157,7 @@ export async function streamCompletion(opts: StreamOptions) {
 
       for await (const part of result.fullStream) {
         // 🔍 调试日志：记录所有 part 类型
-        console.log('[AiClient] 🔍 fullStream part.type:', part.type);
+        logger.debug('[AiClient] 🔍 fullStream part.type:', part.type);
 
         if (part.type === 'start') {
           // 流式开始（静默忽略）
@@ -185,7 +186,7 @@ export async function streamCompletion(opts: StreamOptions) {
           // 步骤完成（包含 token 使用统计）
           // 可以在这里记录 usage 信息
           if (part.usage) {
-            console.log('[AiClient] Token 使用统计:', {
+            logger.debug('[AiClient] Token 使用统计:', {
               输入: part.usage.inputTokens,
               输出: part.usage.outputTokens,
               推理: part.usage.reasoningTokens,
@@ -203,7 +204,7 @@ export async function streamCompletion(opts: StreamOptions) {
           opts.onError?.(part.error);
         } else {
           // 🔍 未知类型，记录完整信息（但不中断流程）
-          console.warn('[AiClient] ⚠️ 未处理的 fullStream 类型:', part.type, part);
+          logger.warn('[AiClient] ⚠️ 未处理的 fullStream 类型:', { type: part.type, part });
         }
       }
     } else {
@@ -215,7 +216,7 @@ export async function streamCompletion(opts: StreamOptions) {
     }
   } catch (e: any) {
     // 增强错误日志，输出详细信息
-    console.error('[AiClient Error]', {
+    logger.error('[AiClient Error]', {
       provider: opts.provider,
       model: opts.model,
       error: e,
@@ -272,8 +273,8 @@ export interface ImageGenerationResult {
  *   prompt: '一只可爱的橘猫坐在月球上',
  *   size: '1024x1024',
  *   quality: 'hd',
- *   onCreated: () => console.log('开始生成'),
- *   onComplete: (data) => console.log('生成完成', data),
+ *   onCreated: () => logger.debug('开始生成'),
+ *   onComplete: (data) => logger.debug('生成完成', data),
  * });
  * ```
  */
@@ -409,7 +410,7 @@ export async function generateImageWithAI(
     return imageData;
   } catch (error: any) {
     // 错误处理
-    console.error('[AiClient] 图片生成失败', {
+    logger.error('[AiClient] 图片生成失败', {
       provider,
       model,
       error: error,

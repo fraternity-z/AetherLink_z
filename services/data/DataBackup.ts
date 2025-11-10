@@ -4,6 +4,7 @@ import { AttachmentRepository } from '@/storage/repositories/attachments';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { logger } from '@/utils/logger';
 
 export interface BackupData {
   version: string;
@@ -89,7 +90,7 @@ export const DataBackupService = {
     }
 
     // 警告：这将清空现有数据
-    console.warn('[DataBackup] Restoring data will clear existing data');
+    logger.warn('[DataBackup] Restoring data will clear existing data');
 
     try {
       // 1. 清空现有数据（使用 DataCleanupService）
@@ -140,12 +141,12 @@ export const DataBackupService = {
         try {
           await AsyncStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
         } catch (e) {
-          console.error(`[DataBackup] Failed to restore setting ${key}:`, e);
+          logger.error(`[DataBackup] Failed to restore setting ${key}:`, e);
         }
       }
 
     } catch (error) {
-      console.error('[DataBackup] Restore failed:', error);
+      logger.error('[DataBackup] Restore failed:', error);
       throw new Error(`数据恢复失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   },

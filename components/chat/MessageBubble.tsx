@@ -21,6 +21,7 @@ import { cn } from '@/utils/classnames';
 import { useModelLogo } from '@/utils/model-logo';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { logger } from '@/utils/logger';
 
 interface MessageBubbleProps {
   content: string;
@@ -110,7 +111,7 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
         Alert.alert('成功', `图片已保存到: ${file.uri}`);
       }
     } catch (error: any) {
-      console.error('[MessageBubble] 下载失败:', error);
+      logger.error('[MessageBubble] 下载失败:', error);
       Alert.alert('错误', error.message || '下载图片失败');
     }
   }, []);

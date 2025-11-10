@@ -4,6 +4,7 @@
  * - 仅依赖正则，保持轻量
  */
 
+import { logger } from '@/utils/logger';
 export interface ParsedSearchResult {
   title: string;
   url: string;
@@ -126,7 +127,7 @@ export function parseBingSearchResults(html: string): ParsedSearchResult[] {
       }
     }
   } catch (err) {
-    console.error('Bing 搜索结果解析失败:', err);
+    logger.error('Bing 搜索结果解析失败:', err);
   }
 
   return uniqByUrl(results);
@@ -186,7 +187,7 @@ export function parseGoogleSearchResults(html: string): ParsedSearchResult[] {
       }
     }
   } catch (error) {
-    console.error('Google 搜索结果解析失败:', error);
+    logger.error('Google 搜索结果解析失败:', error);
   }
 
   return uniqByUrl(results);

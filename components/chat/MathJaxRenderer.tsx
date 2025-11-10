@@ -14,6 +14,7 @@ import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { WebView } from 'react-native-webview';
 import { mathJaxCache } from '@/utils/render-cache';
+import { logger } from '@/utils/logger';
 
 export interface MathFormula {
   id: string;
@@ -157,14 +158,14 @@ const MATHJAX_TEMPLATE = (theme: 'light' | 'dark', baseFontPx: number) => `
         MathJax.typesetPromise([root]).then(() => {
           calculateHeights();
         }).catch((error) => {
-          console.error('MathJax rendering error:', error);
+          logger.error('MathJax rendering error:', error);
           window.ReactNativeWebView.postMessage(JSON.stringify({
             type: 'error',
             error: 'MathJax rendering failed: ' + error.message
           }));
         });
       } else {
-        console.error('MathJax not available');
+        logger.error('MathJax not available');
         window.ReactNativeWebView.postMessage(JSON.stringify({
           type: 'error',
           error: 'MathJax not available'
@@ -242,7 +243,7 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
           setIsLoading(false);
         }
       } catch (error) {
-        console.error('Failed to check MathJax cache:', error);
+        logger.error('Failed to check MathJax cache:', error);
       }
     };
 
@@ -273,14 +274,14 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
 
           // 缓存高度数据
           mathJaxCache.set(cacheKey, data.heights).catch(error => {
-            console.error('Failed to cache MathJax heights:', error);
+            logger.error('Failed to cache MathJax heights:', error);
           });
 
           onComplete?.(data.heights);
           break;
 
         case 'error':
-          console.error('MathJax error:', data.error);
+          logger.error('MathJax error:', data.error);
           setError(data.error);
           onError?.(data.error);
           setIsLoading(false);
@@ -289,7 +290,7 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
         default:
       }
     } catch (err) {
-      console.error('Failed to parse WebView message:', err);
+      logger.error('Failed to parse WebView message:', err);
     }
   }, [formulas, onComplete, onError, cacheKey]);
 
@@ -353,7 +354,7 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
         showsVerticalScrollIndicator={false}
         onError={(syntheticEvent) => {
           const { nativeEvent } = syntheticEvent;
-          console.error('WebView error:', nativeEvent);
+          logger.error('WebView error:', nativeEvent);
           setError(`WebView 加载失败: ${nativeEvent.description}`);
           setIsLoading(false);
         }}

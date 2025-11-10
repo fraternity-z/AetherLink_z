@@ -9,6 +9,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '@/utils/logger';
 
 // 缓存配置
 const CACHE_CONFIG = {
@@ -108,7 +109,7 @@ class StorageCache<T = any> {
 
       return entry.data;
     } catch (error) {
-      console.error('Failed to get storage cache:', error);
+      logger.error('Failed to get storage cache:', error);
       return null;
     }
   }
@@ -130,7 +131,7 @@ class StorageCache<T = any> {
       await AsyncStorage.setItem(fullKey, JSON.stringify(entry));
       this.totalSize += size;
     } catch (error) {
-      console.error('Failed to set storage cache:', error);
+      logger.error('Failed to set storage cache:', error);
     }
   }
 
@@ -145,7 +146,7 @@ class StorageCache<T = any> {
         await AsyncStorage.removeItem(fullKey);
       }
     } catch (error) {
-      console.error('Failed to delete storage cache:', error);
+      logger.error('Failed to delete storage cache:', error);
     }
   }
 
@@ -156,7 +157,7 @@ class StorageCache<T = any> {
       await AsyncStorage.multiRemove(cacheKeys);
       this.totalSize = 0;
     } catch (error) {
-      console.error('Failed to clear storage cache:', error);
+      logger.error('Failed to clear storage cache:', error);
     }
   }
 
@@ -202,7 +203,7 @@ class StorageCache<T = any> {
         this.totalSize -= entry.size;
       }
     } catch (error) {
-      console.error('Failed to cleanup storage cache:', error);
+      logger.error('Failed to cleanup storage cache:', error);
     }
   }
 }

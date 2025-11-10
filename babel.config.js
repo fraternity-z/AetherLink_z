@@ -1,7 +1,4 @@
-module.exports = function (api) {
-  api.cache(true);
-
-  // 判断是否为生产环境
+module.exports = function (api) {  // 判断是否为生产环境
   const isProduction = api.env('production');
 
   return {
