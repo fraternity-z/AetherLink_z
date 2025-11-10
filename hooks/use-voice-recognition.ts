@@ -171,15 +171,40 @@ export function useVoiceRecognition(
   };
 
   /**
-   * 获取 Whisper API Key
+   * 获取 Whisper API 凭据与端点
+   * - API Key 来自 providers:openai
+   * - 端点优先使用自定义 baseURL；未设置时使用 OpenAI 默认地址
    */
-  const getWhisperApiKey = async (): Promise<string | null> => {
+  const getWhisperCredentials = async (): Promise<{ apiKey: string | null; endpoint: string }> => {
     try {
-      const apiKey = await ProvidersRepository.getApiKey('openai');
-      return apiKey;
+      const [apiKey, cfg] = await Promise.all([
+        ProvidersRepository.getApiKey('openai'),
+        ProvidersRepository.getConfig('openai'),
+      ]);
+
+      // 构造音频转写端点
+      const defaultEndpoint = 'https://api.openai.com/v1/audio/transcriptions';
+      let endpoint = defaultEndpoint;
+
+      if (cfg.baseURL && cfg.baseURL.trim().length > 0) {
+        const base = cfg.baseURL.trim().replace(/\/$/, '');
+        // 如果用户已经直接填了完整的音频转写地址，直接使用
+        if (/audio\/(transcriptions|translations)(\b|\/|\?)/.test(base)) {
+          endpoint = base;
+        } else if (/\/v1(\b|\/)$/.test(cfg.baseURL.trim())) {
+          endpoint = `${base}/audio/transcriptions`;
+        } else if (/\/v1$/.test(base)) {
+          endpoint = `${base}/audio/transcriptions`;
+        } else {
+          // 认为是根 baseURL，自动补上 /v1/audio/transcriptions
+          endpoint = `${base}/v1/audio/transcriptions`;
+        }
+      }
+
+      return { apiKey, endpoint };
     } catch (err) {
-      logger.error('[useVoiceRecognition] Failed to get Whisper API key:', err);
-      return null;
+      logger.error('[useVoiceRecognition] Failed to get Whisper credentials:', err);
+      return { apiKey: null, endpoint: 'https://api.openai.com/v1/audio/transcriptions' };
     }
   };
 
@@ -196,8 +221,8 @@ export function useVoiceRecognition(
 
         logger.debug('[useVoiceRecognition] Recognizing from file:', audioUri);
 
-        // 获取 API Key
-        const apiKey = await getWhisperApiKey();
+        // 获取 API Key 与端点
+        const { apiKey, endpoint } = await getWhisperCredentials();
         if (!apiKey) {
           throw new VoiceRecognitionError(
             VoiceRecognitionErrorCode.INVALID_API_KEY,
@@ -208,8 +233,10 @@ export function useVoiceRecognition(
         // 创建或更新 Whisper 服务实例
         if (!whisperServiceRef.current) {
           whisperServiceRef.current = new WhisperRecognition(apiKey);
+          whisperServiceRef.current.setApiEndpoint(endpoint);
         } else {
           whisperServiceRef.current.setApiKey(apiKey);
+          whisperServiceRef.current.setApiEndpoint(endpoint);
         }
 
         // 执行识别

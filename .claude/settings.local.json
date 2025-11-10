@@ -8,7 +8,8 @@
       "mcp__mcp-router__get-library-docs",
       "WebSearch",
       "Bash(rg:*)",
-      "Bash(npx expo install:*)"
+      "Bash(npx expo install:*)",
+      "mcp__mcp-router__initial_instructions"
     ],
     "deny": [],
     "ask": []
