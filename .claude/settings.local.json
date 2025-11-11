@@ -9,7 +9,8 @@
       "WebSearch",
       "Bash(rg:*)",
       "Bash(npx expo install:*)",
-      "mcp__mcp-router__initial_instructions"
+      "mcp__mcp-router__initial_instructions",
+      "Bash(npm uninstall:*)"
     ],
     "deny": [],
     "ask": []

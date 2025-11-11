@@ -40,6 +40,8 @@ export enum SettingKey {
   VoiceMaxDuration = 'al:settings:voice_max_duration',
   VoiceAutoSend = 'al:settings:voice_auto_send',
   VoiceShowPartial = 'al:settings:voice_show_partial',
+  // 用户头像设置
+  UserAvatarUri = 'al:settings:user_avatar_uri',
 }
 
 

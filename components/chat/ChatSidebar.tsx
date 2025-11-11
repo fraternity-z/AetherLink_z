@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, useWindowDimensions, View, ScrollView } from 'react-native';
-import { Surface, Text, List, TouchableRipple, useTheme, Avatar, IconButton } from 'react-native-paper';
+import { Surface, Text, List, TouchableRipple, useTheme, Avatar, IconButton, Menu } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChatSettings } from './ChatSettings';
@@ -10,6 +10,8 @@ import type { Assistant } from '@/types/assistant';
 import { appEvents, AppEvents } from '@/utils/events';
 import { AssistantPickerDialog } from './AssistantPickerDialog';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
+import { UserAvatar } from '@/components/common/UserAvatar';
+import { useUserProfile } from '@/hooks/use-user-profile';
 
 type TabKey = 'assistants' | 'settings';
 
@@ -34,6 +36,8 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
   const [currentAssistantId, setCurrentAssistantId] = useState<string>('default');
   const [pickerVisible, setPickerVisible] = useState(false);
   const { confirm } = useConfirmDialog();
+  const { avatarUri, pickImage, removeAvatar } = useUserProfile();
+  const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
 
   // 加载助手列表和当前选中的助手
   useEffect(() => {
@@ -274,18 +278,60 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
               pointerEvents="auto"
               onStartShouldSetResponder={() => true}
             >
-              {/* 左侧资料区：用 Pressable 吞掉触摸，防止下穿到输入框 */}
-              <Pressable
-                onPress={() => {}}
-                style={{ flexDirection: 'row', alignItems: 'center', flex: 1, paddingVertical: 4 }}
-                android_ripple={undefined}
-              >
-                <Avatar.Icon size={40} icon="account" />
-                <View style={{ marginLeft: 10 }}>
+              {/* 左侧资料区：用户头像和资料 */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                {/* 头像菜单 */}
+                <Menu
+                  visible={avatarMenuVisible}
+                  onDismiss={() => setAvatarMenuVisible(false)}
+                  anchor={
+                    <Pressable
+                      onPress={() => setAvatarMenuVisible(true)}
+                      style={{ paddingVertical: 4 }}
+                      android_ripple={{ borderless: true, radius: 24 }}
+                    >
+                      <UserAvatar size={40} uri={avatarUri} showBadge />
+                    </Pressable>
+                  }
+                >
+                  <Menu.Item
+                    leadingIcon="image"
+                    onPress={async () => {
+                      setAvatarMenuVisible(false);
+                      await pickImage();
+                    }}
+                    title="更换头像"
+                  />
+                  {avatarUri && (
+                    <Menu.Item
+                      leadingIcon="refresh"
+                      onPress={async () => {
+                        setAvatarMenuVisible(false);
+                        const confirmed = await confirm({
+                          title: '移除头像',
+                          message: '确定要移除自定义头像吗？将恢复为默认头像。',
+                          confirmText: '移除',
+                          cancelText: '取消',
+                        });
+                        if (confirmed) {
+                          await removeAvatar();
+                        }
+                      }}
+                      title="移除头像"
+                    />
+                  )}
+                </Menu>
+
+                {/* 用户信息 */}
+                <Pressable
+                  onPress={() => {}}
+                  style={{ marginLeft: 10, flex: 1 }}
+                  android_ripple={undefined}
+                >
                   <Text variant="labelLarge">访客</Text>
                   <Text variant="bodySmall" style={{ opacity: 0.7 }}>guest@example.com</Text>
-                </View>
-              </Pressable>
+                </Pressable>
+              </View>
 
               <View pointerEvents="auto">
                 <IconButton

@@ -12,6 +12,7 @@ import { FlatList, View, StyleSheet, ListRenderItem } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { MessageBubble } from './MessageBubble';
 import { useMessages } from '@/hooks/use-messages';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import { AttachmentRepository } from '@/storage/repositories/attachments';
 import { ThinkingChainRepository } from '@/storage/repositories/thinking-chains';
 import type { Attachment, Message, ThinkingChain } from '@/storage/core';
@@ -21,6 +22,7 @@ import { logger } from '@/utils/logger';
 export function MessageList({ conversationId }: { conversationId: string | null }) {
   const theme = useTheme();
   const { items, reload } = useMessages(conversationId ?? null, 50);
+  const { avatarUri } = useUserProfile(); // 获取用户头像 URI（性能优化：在列表层级调用一次）
   const [attachmentsMap, setAttachmentsMap] = useState<Record<string, Attachment[]>>({});
   const [thinkingChainsMap, setThinkingChainsMap] = useState<Record<string, ThinkingChain>>({});
   const [thinkingRefreshTick, setThinkingRefreshTick] = useState(0);
@@ -195,9 +197,10 @@ export function MessageList({ conversationId }: { conversationId: string | null 
         thinkingChain={thinkingChainsMap[item.id] || null}
         modelId={item.extra?.model} // 传递模型 ID
         extra={item.extra} // 传递完整的 extra 数据（用于图片生成等特殊消息）
+        userAvatarUri={item.role === 'user' ? avatarUri : undefined} // 用户消息传递头像 URI
       />
     ),
-    [attachmentsMap, thinkingChainsMap]
+    [attachmentsMap, thinkingChainsMap, avatarUri] // 将 avatarUri 添加到依赖数组
   );
 
   return (

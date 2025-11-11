@@ -22,6 +22,7 @@ import { useModelLogo } from '@/utils/model-logo';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { logger } from '@/utils/logger';
+import { UserAvatar } from '@/components/common/UserAvatar';
 
 interface MessageBubbleProps {
   content: string;
@@ -32,9 +33,10 @@ interface MessageBubbleProps {
   thinkingChain?: ThinkingChain | null; // 思考链数据(仅AI消息)
   modelId?: string; // AI 模型 ID（用于显示对应的 logo）
   extra?: Message['extra']; // 消息额外数据（用于图片生成等特殊消息类型）
+  userAvatarUri?: string | null; // 用户头像 URI（仅用户消息）
 }
 
-function MessageBubbleComponent({ content, isUser, timestamp, status, attachments = [], thinkingChain, modelId, extra }: MessageBubbleProps) {
+function MessageBubbleComponent({ content, isUser, timestamp, status, attachments = [], thinkingChain, modelId, extra, userAvatarUri }: MessageBubbleProps) {
   const theme = useTheme();
   const modelLogo = useModelLogo(modelId); // 获取模型 logo
   const [logoError, setLogoError] = React.useState(false);
@@ -159,12 +161,7 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
             />
           )
         ) : (
-          <Avatar.Icon
-            size={36}
-            icon="account"
-            className="mx-0"
-            style={{ backgroundColor: theme.colors.secondary }}
-          />
+          <UserAvatar size={36} uri={userAvatarUri} />
         )}
 
         {/* 模型名称标签：助手消息在头像右侧展示 */}
@@ -360,7 +357,8 @@ function arePropsEqual(prev: MessageBubbleProps, next: MessageBubbleProps): bool
     prev.isUser !== next.isUser ||
     prev.status !== next.status ||
     prev.timestamp !== next.timestamp ||
-    prev.modelId !== next.modelId
+    prev.modelId !== next.modelId ||
+    prev.userAvatarUri !== next.userAvatarUri
   ) {
     return false;
   }
