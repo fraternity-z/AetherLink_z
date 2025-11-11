@@ -12,6 +12,7 @@ import Voice, {
   SpeechResultsEvent,
   SpeechErrorEvent,
 } from '@react-native-voice/voice';
+import { Platform, NativeModules } from 'react-native';
 import { logger } from '@/utils/logger';
 import {
   IVoiceRecognitionService,
@@ -223,9 +224,23 @@ export class NativeRecognition implements IVoiceRecognitionService {
    */
   async isAvailable(): Promise<boolean> {
     try {
-      const available = await Voice.isAvailable();
+      // 仅在原生 iOS/Android 环境可用
+      if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+        logger.debug('[NativeRecognition] Unsupported platform:', Platform.OS);
+        return false;
+      }
+
+      // 原生模块是否已正确链接/打包
+      const hasNativeModule = (NativeModules as any)?.RCTVoice != null;
+      if (!hasNativeModule) {
+        logger.debug('[NativeRecognition] RCTVoice native module not found');
+        return false;
+      }
+
+      const available = await (Voice as any).isAvailable();
       logger.debug('[NativeRecognition] Service available:', available);
-      return available === 1;
+      // 兼容历史实现：可能返回 boolean 或 1/0
+      return available === true || available === 1;
     } catch (error) {
       logger.error('[NativeRecognition] Availability check failed:', error);
       return false;
