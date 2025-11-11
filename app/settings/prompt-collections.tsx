@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Text, Button, Searchbar, Chip, Card, useTheme, Divider, IconButton } from 'react-native-paper';
 import { SettingScreen } from '@/components/settings/SettingScreen';
 import { SYSTEM_ASSISTANTS } from '@/constants/assistants';
@@ -73,8 +74,8 @@ export default function PromptCollections() {
         style={styles.searchBar}
       />
 
-      {/* 分类筛选 - 使用水平 FlatList 避免嵌套问题 */}
-      <FlatList
+      {/* 分类筛选 - 使用水平 FlashList 避免嵌套问题 */}
+      <FlashList
         horizontal
         data={categories}
         keyExtractor={(item) => item.key}
@@ -193,7 +194,7 @@ export default function PromptCollections() {
       description={`浏览和管理 ${SYSTEM_ASSISTANTS.length} 个预设智能体助手`}
       disableScroll // 禁用外层 ScrollView，使用 FlatList 自带的滚动
     >
-      <FlatList
+      <FlashList
         data={filteredAssistants}
         renderItem={renderAssistantCard}
         keyExtractor={(item) => item.id}

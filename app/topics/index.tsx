@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Stack, router } from 'expo-router';
 import { Button, List, Surface, Text, useTheme, IconButton } from 'react-native-paper';
 import { useConversations } from '@/hooks/use-conversations';
@@ -25,7 +26,7 @@ export default function TopicsScreen() {
             <Text style={{ opacity: 0.6 }}>暂无话题，点击右上角新建。</Text>
           </View>
         ) : (
-          <FlatList
+          <FlashList
             data={items}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (

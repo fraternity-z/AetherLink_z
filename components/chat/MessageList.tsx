@@ -8,7 +8,9 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, View, StyleSheet, ListRenderItem } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
+import type { ListRenderItem, FlashListRef } from '@shopify/flash-list';
 import { Text, useTheme } from 'react-native-paper';
 import { MessageBubble } from './MessageBubble';
 import { useMessages } from '@/hooks/use-messages';
@@ -28,7 +30,8 @@ export function MessageList({ conversationId }: { conversationId: string | null 
   const [thinkingRefreshTick, setThinkingRefreshTick] = useState(0);
 
   // 🚀 自动滚动功能相关状态
-  const flatListRef = useRef<FlatList<Message>>(null);
+  const flatListRef = useRef<FlashListRef<Message>>(null);
+  const itemsLengthRef = useRef(0);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true); // 是否启用自动滚动
   const lastScrollTimeRef = useRef(0); // 上次滚动时间（用于节流）
   const isUserScrollingRef = useRef(false); // 用户是否正在手动滚动
@@ -48,7 +51,10 @@ export function MessageList({ conversationId }: { conversationId: string | null 
     }
 
     lastScrollTimeRef.current = now;
-    flatListRef.current?.scrollToEnd({ animated });
+    const count = itemsLengthRef.current;
+    if (count > 0) {
+      flatListRef.current?.scrollToIndex({ index: count - 1, animated });
+    }
   }, [autoScrollEnabled]);
 
   // 🚀 使用 ref 存储 scrollToBottom，避免闭包陷阱
@@ -116,8 +122,13 @@ export function MessageList({ conversationId }: { conversationId: string | null 
     };
   }, [conversationId, reload]);
 
-  // FlatList 数据：倒序以配合 inverted 列表（最新在底部）
-  const data = useMemo(() => [...items].reverse(), [items]);
+  // 列表数据：按时间顺序（最新在底部）
+  const data = useMemo(() => items, [items]);
+
+  // 记录长度用于滚动定位
+  useEffect(() => {
+    itemsLengthRef.current = items.length;
+  }, [items.length]);
 
   // 🚀 消息数据变化时，自动滚动到底部（流式输出时的关键逻辑）
   useEffect(() => {
@@ -204,16 +215,15 @@ export function MessageList({ conversationId }: { conversationId: string | null 
   );
 
   return (
-    <FlatList
+    <FlashList
       ref={flatListRef}
       data={data}
       keyExtractor={(m) => m.id}
       renderItem={renderItem}
-      inverted
       onScroll={handleScroll}
       scrollEventThrottle={400}
       style={[styles.container, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={items.length === 0 ? styles.contentContainerEmpty : styles.contentContainerInverted}
+      contentContainerStyle={items.length === 0 ? styles.contentContainerEmpty : styles.contentContainer}
       ListEmptyComponent={
         <View style={styles.emptyStateContainer}>
           <Text
@@ -224,12 +234,7 @@ export function MessageList({ conversationId }: { conversationId: string | null 
           </Text>
         </View>
       }
-      // 虚拟化与性能参数
-      windowSize={5}
-      initialNumToRender={20}
-      maxToRenderPerBatch={12}
-      removeClippedSubviews
-      maintainVisibleContentPosition={{ minIndexForVisible: 1 }}
+      // 若需进一步优化，可在升级 FlashList 类型后添加 estimatedItemSize
     />
   );
 }
@@ -244,10 +249,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
   },
-  // inverted 列表中，为底部输入框预留空间应使用 paddingTop
-  contentContainerInverted: {
-    paddingTop: 170, // 为输入框预留空间（输入框高度约 100-150px + 额外边距）
-    paddingBottom: 16,
+  // 非 inverted 列表：为底部输入框预留空间使用 paddingBottom
+  contentContainer: {
+    paddingBottom: 170, // 为输入框预留空间（输入框高度约 100-150px + 额外边距）
+    paddingTop: 16,
   },
   emptyStateContainer: {
     flex: 1,

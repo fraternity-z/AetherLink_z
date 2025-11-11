@@ -10,7 +10,8 @@
       "Bash(rg:*)",
       "Bash(npx expo install:*)",
       "mcp__mcp-router__initial_instructions",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": []
