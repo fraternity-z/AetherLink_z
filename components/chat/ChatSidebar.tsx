@@ -290,7 +290,7 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
                       style={{ paddingVertical: 4 }}
                       android_ripple={{ borderless: true, radius: 24 }}
                     >
-                      <UserAvatar size={40} uri={avatarUri} showBadge />
+                      <UserAvatar size={40} uri={avatarUri} />
                     </Pressable>
                   }
                 >
@@ -305,17 +305,22 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
                   {avatarUri && (
                     <Menu.Item
                       leadingIcon="refresh"
-                      onPress={async () => {
+                      onPress={() => {
                         setAvatarMenuVisible(false);
-                        const confirmed = await confirm({
+                        confirm({
                           title: '移除头像',
                           message: '确定要移除自定义头像吗？将恢复为默认头像。',
-                          confirmText: '移除',
-                          cancelText: '取消',
+                          buttons: [
+                            { text: '取消', style: 'cancel' },
+                            {
+                              text: '移除',
+                              style: 'destructive',
+                              onPress: async () => {
+                                await removeAvatar();
+                              },
+                            },
+                          ],
                         });
-                        if (confirmed) {
-                          await removeAvatar();
-                        }
                       }}
                       title="移除头像"
                     />
