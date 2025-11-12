@@ -32,7 +32,6 @@ function RootLayoutInner() {
         <Stack.Screen name="settings/behavior" />
         {/* 话题列表 */}
         <Stack.Screen name="topics/index" options={{ title: '话题列表' }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
         <StatusBar style="auto" />
       </NavThemeProvider>
