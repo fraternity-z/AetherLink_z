@@ -18,7 +18,8 @@
       "Bash(sqlite3:*)",
       "mcp__mcp-router__sequentialthinking",
       "Bash(git diff:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(depcheck:*)"
     ],
     "deny": [],
     "ask": []

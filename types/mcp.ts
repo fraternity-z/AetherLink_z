@@ -268,8 +268,11 @@ export interface MCPHealthCheck {
   /** 服务器 ID */
   serverId: string;
 
-  /** 是否在线 */
+  /** 是否在线（原语义） */
   isOnline: boolean;
+
+  /** 兼容 UI 的别名（healthy） */
+  healthy?: boolean;
 
   /** 响应时间 (ms) */
   responseTime?: number;

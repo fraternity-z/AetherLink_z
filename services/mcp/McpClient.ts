@@ -16,7 +16,7 @@
  */
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { StreamableHTTPClientTransport, type StreamableHTTPClientTransportOptions } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import {
   ToolListChangedNotificationSchema,
   ResourceListChangedNotificationSchema,
@@ -144,8 +144,30 @@ export class McpClient {
       baseUrl: server.baseUrl,
     });
 
-    // 创建 Streamable HTTP 传输
-    const transport = new StreamableHTTPClientTransport(new URL(server.baseUrl));
+    // 合并默认请求头与用户自定义头（用于鉴权/版本协商等）
+    const defaultHeaders: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'AetherLink/1.0',
+    };
+    const mergedHeaders = {
+      ...defaultHeaders,
+      ...(server.headers ?? {}),
+    } as Record<string, string>;
+
+    const transportOptions: StreamableHTTPClientTransportOptions = {
+      // React Native 环境使用全局 fetch
+      fetch: async (url, init) => {
+        const u = typeof url === 'string' ? url : url.toString();
+        return fetch(u, init as any);
+      },
+      requestInit: {
+        headers: mergedHeaders,
+      },
+    };
+
+    // 创建 Streamable HTTP 传输（带请求头/自定义 fetch）
+    const transport = new StreamableHTTPClientTransport(new URL(server.baseUrl), transportOptions);
 
     // 创建客户端
     const client = new Client(
@@ -188,6 +210,7 @@ export class McpClient {
       throw error;
     }
   }
+
 
   /**
    * 设置 MCP 通知处理器
@@ -568,11 +591,13 @@ export class McpClient {
       const pingResult = await client.ping({ timeout: 5000 });
 
       const responseTime = Date.now() - startTime;
+      const healthy = !!pingResult;
 
-      if (pingResult) {
+      if (healthy) {
         return {
           serverId,
           isOnline: true,
+          healthy: true,
           responseTime,
           checkedAt: Date.now(),
         };
@@ -580,6 +605,7 @@ export class McpClient {
         return {
           serverId,
           isOnline: false,
+          healthy: false,
           error: 'Ping 失败',
           checkedAt: Date.now(),
         };
@@ -588,11 +614,12 @@ export class McpClient {
       return {
         serverId,
         isOnline: false,
-        error: error.message,
+        healthy: false,
+        error: error?.message,
         checkedAt: Date.now(),
       };
     }
-  }
+}
 
   /**
    * 关闭指定服务器的连接
