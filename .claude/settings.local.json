@@ -15,7 +15,9 @@
       "mcp__mcp-router__activate_project",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:www.npmjs.com)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "mcp__mcp-router__sequentialthinking",
+      "Bash(git diff:*)"
     ],
     "deny": [],
     "ask": []

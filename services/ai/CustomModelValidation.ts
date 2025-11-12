@@ -1,5 +1,5 @@
 import type { CustomProvider } from '@/storage/repositories/custom-providers';
-import { withTimeout } from '@/services/ai/utils/withTimeout';
+import { performHttpRequest } from '@/utils/http';
 
 export type ValidateResult = { ok: boolean; message: string };
 
@@ -13,17 +13,16 @@ export async function validateCustomProviderModel(cp: CustomProvider, modelId: s
     const headers: Record<string,string> = { Authorization: `Bearer ${apiKey}`, 'Content-Type':'application/json' };
     try {
       const url = `${base}/models/${encodeURIComponent(modelId)}`;
-      const res = await withTimeout(fetch(url, { headers }));
-      if (res.ok) return { ok: true, message: `${modelId} 可用（models/${modelId}）` };
+      await performHttpRequest(url, { method: 'GET', headers, timeout: 8000 });
+      return { ok: true, message: `${modelId} 可用（models/${modelId}）` };
     } catch {}
     try {
       const url = `${base}/chat/completions`;
-      const res = await withTimeout(fetch(url, { method:'POST', headers, body: JSON.stringify({ model: modelId, messages:[{ role:'user', content:'ping' }], max_tokens:1, stream:false }) }));
-      if (res.ok) return { ok: true, message: `${modelId} 可用（chat/completions）` };
-      const txt = await res.text();
-      return { ok: false, message: `校验失败：${res.status} ${txt}` };
+      const body = JSON.stringify({ model: modelId, messages:[{ role:'user', content:'ping' }], max_tokens:1, stream:false });
+      await performHttpRequest(url, { method:'POST', headers, body, timeout: 8000 });
+      return { ok: true, message: `${modelId} 可用（chat/completions）` };
     } catch (e:any) {
-      return { ok: false, message: `校验异常：${e?.message || e}` };
+      return { ok: false, message: `校验失败/异常：${e?.message || e}` };
     }
   }
 
@@ -31,24 +30,24 @@ export async function validateCustomProviderModel(cp: CustomProvider, modelId: s
     const base = (cp.baseURL || 'https://api.anthropic.com').replace(/\/$/, '');
     const url = `${base}/v1/messages`;
     try {
-      const res = await withTimeout(fetch(url, { method:'POST', headers:{ 'x-api-key': apiKey, 'Content-Type':'application/json', 'anthropic-version':'2023-06-01' }, body: JSON.stringify({ model: modelId, max_tokens:1, messages:[{ role:'user', content:'ping' }] }) }));
-      if (res.ok) return { ok: true, message: `${modelId} 可用（anthropic/messages）` };
-      const txt = await res.text();
-      return { ok: false, message: `校验失败：${res.status} ${txt}` };
+      const headers: Record<string,string> = { 'x-api-key': apiKey, 'Content-Type':'application/json', 'anthropic-version':'2023-06-01' };
+      const body = JSON.stringify({ model: modelId, max_tokens:1, messages:[{ role:'user', content:'ping' }] });
+      await performHttpRequest(url, { method:'POST', headers, body, timeout: 8000 });
+      return { ok: true, message: `${modelId} 可用（anthropic/messages）` };
     } catch (e:any) {
-      return { ok: false, message: `校验异常：${e?.message || e}` };
+      return { ok: false, message: `校验失败/异常：${e?.message || e}` };
     }
   }
 
   if (cp.type === 'google') {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-      const res = await withTimeout(fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ contents:[{ parts:[{ text:'ping' }] }] }) }));
-      if (res.ok) return { ok: true, message: `${modelId} 可用（gemini/generateContent）` };
-      const txt = await res.text();
-      return { ok: false, message: `校验失败：${res.status} ${txt}` };
+      const headers: Record<string,string> = { 'Content-Type':'application/json' };
+      const body = JSON.stringify({ contents:[{ parts:[{ text:'ping' }] }] });
+      await performHttpRequest(url, { method:'POST', headers, body, timeout: 8000 });
+      return { ok: true, message: `${modelId} 可用（gemini/generateContent）` };
     } catch (e:any) {
-      return { ok: false, message: `校验异常：${e?.message || e}` };
+      return { ok: false, message: `校验失败/异常：${e?.message || e}` };
     }
   }
 

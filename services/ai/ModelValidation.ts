@@ -1,5 +1,5 @@
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
-import { withTimeout } from '@/services/ai/utils/withTimeout';
+import { performHttpRequest } from '@/utils/http';
 
 export type ValidateResult = { ok: boolean; message: string };
 
@@ -22,11 +22,11 @@ export async function validateProviderModel(provider: ProviderId, modelId: strin
     // 1) 首选 GET /models/:id
     try {
       const url = `${base}/models/${encodeURIComponent(modelId)}`;
-      const res = await withTimeout(fetch(url, { headers }));
-      if (res.ok) return { ok: true, message: `${modelId} 可用（models/${modelId}）` };
+      await performHttpRequest(url, { method: 'GET', headers, timeout: 8000 });
+      return { ok: true, message: `${modelId} 可用（models/${modelId}）` };
       // 若 404/405/未实现则进入兜底
     } catch (e: any) {
-      // 网络/超时，继续走兜底
+      // 网络/超时/非 2xx，继续走兜底
     }
 
     // 2) 兜底：最小生成（chat/completions）
@@ -38,12 +38,10 @@ export async function validateProviderModel(provider: ProviderId, modelId: strin
         max_tokens: 1,
         stream: false,
       });
-      const res = await withTimeout(fetch(url, { method: 'POST', headers, body }));
-      if (res.ok) return { ok: true, message: `${modelId} 可用（chat/completions）` };
-      const txt = await res.text();
-      return { ok: false, message: `校验失败：${res.status} ${txt}` };
+      await performHttpRequest(url, { method: 'POST', headers, body, timeout: 8000 });
+      return { ok: true, message: `${modelId} 可用（chat/completions）` };
     } catch (e: any) {
-      return { ok: false, message: `校验异常：${e?.message || e}` };
+      return { ok: false, message: `校验失败/异常：${e?.message || e}` };
     }
   }
 
@@ -51,36 +49,28 @@ export async function validateProviderModel(provider: ProviderId, modelId: strin
     const base = (cfg.baseURL || 'https://api.anthropic.com').replace(/\/$/, '');
     const url = `${base}/v1/messages`;
     try {
-      const res = await withTimeout(fetch(url, {
-        method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'Content-Type': 'application/json',
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({ model: modelId, max_tokens: 1, messages: [{ role: 'user', content: 'ping' }] }),
-      }));
-      if (res.ok) return { ok: true, message: `${modelId} 可用（anthropic/messages）` };
-      const txt = await res.text();
-      return { ok: false, message: `校验失败：${res.status} ${txt}` };
+      const headers: Record<string, string> = {
+        'x-api-key': apiKey,
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+      };
+      const body = JSON.stringify({ model: modelId, max_tokens: 1, messages: [{ role: 'user', content: 'ping' }] });
+      await performHttpRequest(url, { method: 'POST', headers, body, timeout: 8000 });
+      return { ok: true, message: `${modelId} 可用（anthropic/messages）` };
     } catch (e: any) {
-      return { ok: false, message: `校验异常：${e?.message || e}` };
+      return { ok: false, message: `校验失败/异常：${e?.message || e}` };
     }
   }
 
   if (provider === 'google' || provider === 'gemini') {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-      const res = await withTimeout(fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }] }),
-      }));
-      if (res.ok) return { ok: true, message: `${modelId} 可用（gemini/generateContent）` };
-      const txt = await res.text();
-      return { ok: false, message: `校验失败：${res.status} ${txt}` };
+      const headers = { 'Content-Type': 'application/json' } as Record<string, string>;
+      const body = JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }] });
+      await performHttpRequest(url, { method: 'POST', headers, body, timeout: 8000 });
+      return { ok: true, message: `${modelId} 可用（gemini/generateContent）` };
     } catch (e: any) {
-      return { ok: false, message: `校验异常：${e?.message || e}` };
+      return { ok: false, message: `校验失败/异常：${e?.message || e}` };
     }
   }
 
