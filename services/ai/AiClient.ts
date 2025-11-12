@@ -102,11 +102,68 @@ function getProviderOptions(provider: Provider, model: string): any {
 }
 
 export async function streamCompletion(opts: StreamOptions) {
-  const apiKey = await getApiKey(opts.provider);
-  if (!apiKey) throw new Error('Missing API key for ' + opts.provider);
+  // 统一解析与规范化 provider/model，避免兼容端点路由误判
+  let provider: Provider = opts.provider;
+  const model = opts.model;
 
-  let { provider } = opts;
+  // 针对 deepseek-r1/"reasoner" 等模型：
+  // 若用户在 UI 中选择了 provider=openai 但 model 属于 deepseek 系列，
+  // 且 openai 的 baseURL 未指向兼容端点，则优先切换到 deepseek provider，
+  // 以强制走 openai-compatible 流程，避免首条消息误连 openai 官方端点报错。
+  // 标记是否已完成（用于忽略 "finish" 之后的晚到错误）
+  let didFinish = false;
+
+  try {
+    const openaiCfg = provider === 'openai' ? await ProvidersRepository.getConfig('openai' as ProviderId) : null;
+    const openaiBase = provider === 'openai' ? String(openaiCfg?.baseURL || '').replace(/\/$/, '') : '';
+    const isOpenAIOfficial = provider === 'openai' && (!openaiBase || /^https?:\/\/api\.openai\.com\/?v1?$/i.test(openaiBase));
+
+    const isOpenAIOfficialModel = (m: string) => {
+      const s = m.toLowerCase();
+      return (
+        /^gpt-/.test(s) ||
+        /^o[0-9]/.test(s) ||
+        s.includes('dall-e') ||
+        s.startsWith('gpt-image-') ||
+        s.startsWith('text-embedding-') ||
+        s.startsWith('whisper-')
+      );
+    };
+
+    async function pickCompatibleProvider(): Promise<Provider | null> {
+      const candidates: Provider[] = ['deepseek', 'volc', 'zhipu'];
+      for (const id of candidates) {
+        const key = await ProvidersRepository.getApiKey(id as ProviderId);
+        const cfg = await ProvidersRepository.getConfig(id as ProviderId);
+        if (key || cfg?.baseURL) return id;
+      }
+      return null;
+    }
+
+    if (isOpenAIOfficial && !isOpenAIOfficialModel(model)) {
+      const compat = await pickCompatibleProvider();
+      if (compat) {
+        provider = compat;
+        const cfg = await ProvidersRepository.getConfig(compat as ProviderId);
+        logger.info('[AiClient] 规范化路由: openai 官方端点 + 非官方模型 -> 切换到兼容提供商', {
+          model,
+          compatProvider: provider,
+          baseURL: cfg?.baseURL || '(default)'
+        });
+      } else {
+        logger.warn('[AiClient] 检测到 openai 官方端点 + 非官方模型，但未发现已配置的兼容提供商', { model });
+      }
+    }
+  } catch (e) {
+    // 仅记录调试，不阻断流程
+    logger.debug('[AiClient] provider/model 规范化检查异常（忽略继续）', e);
+  }
+
+  // 兼容别名
   if (provider === 'gemini') provider = 'google';
+
+  const apiKey = await getApiKey(provider);
+  if (!apiKey) throw new Error('Missing API key for ' + provider);
 
   // resolve baseURL for openai-compatible vendors
   let baseURL: string | undefined;
@@ -141,7 +198,7 @@ export async function streamCompletion(opts: StreamOptions) {
       : () => createOpenAI({ apiKey, baseURL });
 
   // 检查模型是否支持思考链
-  const hasReasoningSupport = supportsReasoning(opts.provider, opts.model);
+  const hasReasoningSupport = supportsReasoning(provider, model);
 
   // MCP 工具集成：如果启用，加载所有激活的 MCP 工具
   let mcpTools: Record<string, any> | undefined;
@@ -160,14 +217,14 @@ export async function streamCompletion(opts: StreamOptions) {
   }
 
   const result = streamText({
-    model: factory()(opts.model),
+    model: factory()(model),
     messages: opts.messages,
     abortSignal: opts.abortSignal,
     temperature: opts.temperature,
     // 兼容 AI SDK v5：部分模型使用 maxOutputTokens 字段
     maxOutputTokens: opts.maxTokens,
     // 如果支持思考链,添加 providerOptions
-    ...(hasReasoningSupport ? getProviderOptions(opts.provider, opts.model) : {}),
+    ...(hasReasoningSupport ? getProviderOptions(provider, model) : {}),
     // MCP 工具
     ...(mcpTools && Object.keys(mcpTools).length > 0 ? { tools: mcpTools } : {}),
   });
@@ -176,6 +233,7 @@ export async function streamCompletion(opts: StreamOptions) {
     // 如果支持思考链且提供了回调,使用 fullStream 来分离 reasoning 和 text
     if (hasReasoningSupport && (opts.onThinkingToken || opts.onThinkingStart || opts.onThinkingEnd)) {
       let isThinking = false;
+      didFinish = false;
 
       for await (const part of result.fullStream) {
         // 🔍 调试日志：记录所有 part 类型
@@ -221,24 +279,31 @@ export async function streamCompletion(opts: StreamOptions) {
           logger.info('[AiClient] 工具调用', {
             toolCallId: part.toolCallId,
             toolName: part.toolName,
-            args: part.args,
+            args: (part as any).input,
           });
-          opts.onToolCall?.(part.toolName, part.args);
+          opts.onToolCall?.(part.toolName, (part as any).input);
         } else if (part.type === 'tool-result') {
           // MCP 工具结果
           logger.info('[AiClient] 工具结果', {
             toolCallId: part.toolCallId,
             toolName: part.toolName,
-            result: part.result,
+            result: (part as any).output,
           });
-          opts.onToolResult?.(part.toolName, part.result);
+          opts.onToolResult?.(part.toolName, (part as any).output);
         } else if (part.type === 'finish') {
           // 流式完成
           if (isThinking) {
             opts.onThinkingEnd?.();
           }
           opts.onDone?.();
+          didFinish = true;
+          break; // 结束消费，避免后续兼容端产生的晚到 error 影响体验
         } else if (part.type === 'error') {
+          // 若已完成，则忽略晚到错误（部分第三方网关会在完成后发送额外错误事件）
+          if (didFinish) {
+            logger.warn('[AiClient] 忽略 finish 之后的晚到错误事件', { error: part.error });
+            continue;
+          }
           opts.onError?.(part.error);
         } else {
           // 🔍 未知类型，记录完整信息（但不中断流程）
@@ -254,9 +319,15 @@ export async function streamCompletion(opts: StreamOptions) {
     }
   } catch (e: any) {
     // 增强错误日志，输出详细信息
+    // 如果已经完成（已收到 finish），将某些已知可忽略的错误降级为警告
+    if (didFinish && (e?.name === 'APICallError' || /abort|cancel|closed|stream/i.test(String(e?.message || '')))) {
+      logger.warn('[AiClient] finish 之后的晚到异常已忽略', { name: e?.name, message: e?.message });
+      return; // 视为成功完成
+    }
+
     logger.error('[AiClient Error]', {
-      provider: opts.provider,
-      model: opts.model,
+      provider,
+      model,
       error: e,
       message: e?.message,
       cause: e?.cause,

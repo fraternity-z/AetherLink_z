@@ -19,7 +19,8 @@
       "mcp__mcp-router__sequentialthinking",
       "Bash(git diff:*)",
       "Bash(npm ls:*)",
-      "Bash(depcheck:*)"
+      "Bash(depcheck:*)",
+      "Bash(npx depcheck:*)"
     ],
     "deny": [],
     "ask": []
