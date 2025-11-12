@@ -11,7 +11,10 @@
       "Bash(npx expo install:*)",
       "mcp__mcp-router__initial_instructions",
       "Bash(npm uninstall:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "mcp__mcp-router__activate_project",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.npmjs.com)"
     ],
     "deny": [],
     "ask": []
