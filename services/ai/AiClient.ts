@@ -25,6 +25,11 @@ export interface StreamOptions {
   onThinkingToken?: (delta: string) => void;
   onThinkingStart?: () => void;
   onThinkingEnd?: () => void;
+
+  // MCP 工具集成 (Model Context Protocol)
+  enableMcpTools?: boolean; // 是否启用 MCP 工具
+  onToolCall?: (toolName: string, args: any) => void; // 工具调用开始回调
+  onToolResult?: (toolName: string, result: any) => void; // 工具执行完成回调
 }
 
 async function getApiKey(provider: Provider): Promise<string> {
@@ -138,6 +143,21 @@ export async function streamCompletion(opts: StreamOptions) {
   // 检查模型是否支持思考链
   const hasReasoningSupport = supportsReasoning(opts.provider, opts.model);
 
+  // MCP 工具集成：如果启用，加载所有激活的 MCP 工具
+  let mcpTools: Record<string, any> | undefined;
+  if (opts.enableMcpTools) {
+    try {
+      const { ToolConverter } = await import('@/services/mcp/ToolConverter');
+      mcpTools = await ToolConverter.getAllActiveTools();
+      logger.info('[AiClient] MCP 工具已加载', {
+        toolCount: Object.keys(mcpTools).length,
+      });
+    } catch (error: any) {
+      logger.error('[AiClient] 加载 MCP 工具失败', { error: error.message });
+      // 即使工具加载失败，仍然继续聊天流程
+      mcpTools = undefined;
+    }
+  }
 
   const result = streamText({
     model: factory()(opts.model),
@@ -148,6 +168,8 @@ export async function streamCompletion(opts: StreamOptions) {
     maxOutputTokens: opts.maxTokens,
     // 如果支持思考链,添加 providerOptions
     ...(hasReasoningSupport ? getProviderOptions(opts.provider, opts.model) : {}),
+    // MCP 工具
+    ...(mcpTools && Object.keys(mcpTools).length > 0 ? { tools: mcpTools } : {}),
   });
 
   try {
@@ -194,6 +216,22 @@ export async function streamCompletion(opts: StreamOptions) {
             });
           }
           continue;
+        } else if (part.type === 'tool-call') {
+          // MCP 工具调用
+          logger.info('[AiClient] 工具调用', {
+            toolCallId: part.toolCallId,
+            toolName: part.toolName,
+            args: part.args,
+          });
+          opts.onToolCall?.(part.toolName, part.args);
+        } else if (part.type === 'tool-result') {
+          // MCP 工具结果
+          logger.info('[AiClient] 工具结果', {
+            toolCallId: part.toolCallId,
+            toolName: part.toolName,
+            result: part.result,
+          });
+          opts.onToolResult?.(part.toolName, part.result);
         } else if (part.type === 'finish') {
           // 流式完成
           if (isThinking) {

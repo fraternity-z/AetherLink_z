@@ -14,7 +14,8 @@
       "Bash(mkdir:*)",
       "mcp__mcp-router__activate_project",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:www.npmjs.com)"
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(sqlite3:*)"
     ],
     "deny": [],
     "ask": []
