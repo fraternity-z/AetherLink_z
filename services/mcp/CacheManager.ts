@@ -70,7 +70,7 @@ export class CacheManager {
   private misses = 0;
 
   /** 清理定时器 */
-  private cleanupTimer?: NodeJS.Timeout;
+  private cleanupTimer?: ReturnType<typeof setInterval>;
 
   /** 自动清理间隔 (默认 5 分钟) */
   private cleanupInterval = 5 * 60 * 1000;
@@ -102,7 +102,7 @@ export class CacheManager {
 
     if (!entry) {
       this.misses++;
-      log.silly(`缓存未命中: ${key}`);
+      log.debug(`缓存未命中: ${key}`);
       return undefined;
     }
 
@@ -110,12 +110,12 @@ export class CacheManager {
     if (Date.now() > entry.expiry) {
       this.cache.delete(key);
       this.misses++;
-      log.silly(`缓存已过期: ${key}`);
+      log.debug(`缓存已过期: ${key}`);
       return undefined;
     }
 
     this.hits++;
-    log.silly(`缓存命中: ${key}`);
+    log.debug(`缓存命中: ${key}`);
     return entry.value as T;
   }
 
