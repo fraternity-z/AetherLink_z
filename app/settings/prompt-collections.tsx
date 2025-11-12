@@ -102,6 +102,7 @@ export default function PromptCollections() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.categoriesContent}
         style={styles.categoriesContainer}
+        drawDistance={200}
       />
 
       {/* 结果统计 */}
@@ -202,6 +203,7 @@ export default function PromptCollections() {
         ListEmptyComponent={renderEmptyComponent}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        drawDistance={400}
       />
     </SettingScreen>
   );

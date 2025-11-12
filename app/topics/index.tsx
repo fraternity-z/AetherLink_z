@@ -59,6 +59,7 @@ export default function TopicsScreen() {
               />
             )}
             ItemSeparatorComponent={() => <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.colors.outlineVariant }} />}
+            drawDistance={300}
           />
         )}
       </Surface>

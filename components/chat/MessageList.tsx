@@ -214,12 +214,23 @@ export function MessageList({ conversationId }: { conversationId: string | null 
     [attachmentsMap, thinkingChainsMap, avatarUri] // 将 avatarUri 添加到依赖数组
   );
 
+  // 🚀 性能优化：根据消息类型返回不同的类型标识，提升回收效率
+  const getItemType = useCallback((item: Message) => {
+    // 用户消息
+    if (item.role === 'user') return 'user';
+    // 图片生成消息
+    if (item.extra?.type === 'image_generation') return 'image_generation';
+    // 助手消息（默认）
+    return 'assistant';
+  }, []);
+
   return (
     <FlashList
       ref={flatListRef}
       data={data}
       keyExtractor={(m) => m.id}
       renderItem={renderItem}
+      getItemType={getItemType}
       onScroll={handleScroll}
       scrollEventThrottle={400}
       style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -234,7 +245,8 @@ export function MessageList({ conversationId }: { conversationId: string | null 
           </Text>
         </View>
       }
-      // 若需进一步优化，可在升级 FlashList 类型后添加 estimatedItemSize
+      // 🚀 性能优化：提前渲染屏幕外 500px 的内容，提升滚动流畅度
+      drawDistance={500}
     />
   );
 }

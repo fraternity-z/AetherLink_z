@@ -17,7 +17,8 @@
       "WebFetch(domain:www.npmjs.com)",
       "Bash(sqlite3:*)",
       "mcp__mcp-router__sequentialthinking",
-      "Bash(git diff:*)"
+      "Bash(git diff:*)",
+      "Bash(npm ls:*)"
     ],
     "deny": [],
     "ask": []
