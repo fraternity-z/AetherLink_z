@@ -49,6 +49,8 @@ export interface SendMessageOptions {
   attachments: Attachment[];
   searchResults?: string | null;
   onProgress?: (stage: 'creating' | 'sending' | 'streaming' | 'done') => void;
+  /** 是否在本次发送中启用 MCP 工具 */
+  enableMcpTools?: boolean;
 }
 
 /**
@@ -363,6 +365,7 @@ export function useMessageSender(
         temperature,
         maxTokens,
         abortSignal: controller.signal,
+        enableMcpTools: options.enableMcpTools === true,
         onToken: async (d) => {
           acc += d;
           MessageRepository.bufferMessageText(assistant!.id, acc, 200);

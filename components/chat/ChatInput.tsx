@@ -32,6 +32,7 @@ import { AttachmentMenu } from './AttachmentMenu';
 import { MoreActionsMenu } from './MoreActionsMenu';
 import { ImageGenerationDialog } from './ImageGenerationDialog';
 import { SearchLoadingIndicator } from './SearchLoadingIndicator';
+import { McpToolsDialog } from './McpToolsDialog';
 import { ChatRepository } from '@/storage/repositories/chat';
 import { MessageRepository } from '@/storage/repositories/messages';
 import { AttachmentRepository } from '@/storage/repositories/attachments';
@@ -67,6 +68,8 @@ export const ChatInput = React.memo(function ChatInput({
   const [attachmentMenuVisible, setAttachmentMenuVisible] = useState(false);
   const [moreActionsMenuVisible, setMoreActionsMenuVisible] = useState(false);
   const [imageDialogVisible, setImageDialogVisible] = useState(false);
+  const [mcpDialogVisible, setMcpDialogVisible] = useState(false);
+  const [mcpEnabled, setMcpEnabled] = useState(false);
   const [hasContextReset, setHasContextReset] = useState(false);
   const [currentProvider, setCurrentProvider] = useState<Provider>('openai');
   const [currentModel, setCurrentModel] = useState<string>('gpt-4o-mini');
@@ -150,12 +153,13 @@ export const ChatInput = React.memo(function ChatInput({
         text: userMessage,
         attachments: userAttachments,
         searchResults,
+        enableMcpTools: mcpEnabled,
       });
     } catch (error) {
       // 错误已在 useEffect 中处理
       logger.error('[ChatInput] 发送消息失败', error);
     }
-  }, [message, selectedAttachments, isGenerating, searchEnabled, performWebSearch, sendMessage]);
+  }, [message, selectedAttachments, isGenerating, searchEnabled, performWebSearch, sendMessage, mcpEnabled]);
 
   // ========== 附件处理 ==========
   const pickImage = React.useCallback(async () => {
@@ -215,6 +219,11 @@ export const ChatInput = React.memo(function ChatInput({
     })();
   }, [conversationId]);
 
+  // ========== MCP 开关对话框 ==========
+  const handleOpenMcpDialog = React.useCallback(() => {
+    setMcpDialogVisible(true);
+  }, []);
+
   const handleClearConversation = React.useCallback(async () => {
     if (!conversationId) return;
 
@@ -266,6 +275,14 @@ export const ChatInput = React.memo(function ChatInput({
         conversationId={conversationId}
         provider={currentProvider}
         model={currentModel}
+      />
+
+      {/* MCP 工具开关对话框 */}
+      <McpToolsDialog
+        visible={mcpDialogVisible}
+        onDismiss={() => setMcpDialogVisible(false)}
+        enabled={mcpEnabled}
+        onChangeEnabled={setMcpEnabled}
       />
 
       <View className="px-4 pt-2 pb-2">
@@ -320,6 +337,8 @@ export const ChatInput = React.memo(function ChatInput({
             onToggleSearch={() => setSearchEnabled(!searchEnabled)}
             onAttachment={() => setAttachmentMenuVisible(true)}
             onMoreActions={handleMoreActions}
+            mcpEnabled={mcpEnabled}
+            onOpenMcpDialog={handleOpenMcpDialog}
             onVoiceTextRecognized={handleVoiceTextRecognized}
             isGenerating={isGenerating}
             canSend={!!message.trim() || selectedAttachments.length > 0}

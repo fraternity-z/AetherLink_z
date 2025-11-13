@@ -27,6 +27,10 @@ export interface ChatInputToolbarProps {
   // 更多操作
   onMoreActions: () => void;
 
+  // MCP 工具（对话内开关）
+  mcpEnabled?: boolean;
+  onOpenMcpDialog?: () => void;
+
   // 语音输入
   onVoiceTextRecognized: (text: string) => void;
 
@@ -46,6 +50,8 @@ export const ChatInputToolbar = React.memo(function ChatInputToolbar({
   onToggleSearch,
   onAttachment,
   onMoreActions,
+  mcpEnabled,
+  onOpenMcpDialog,
   onVoiceTextRecognized,
   isGenerating,
   canSend,
@@ -75,6 +81,17 @@ export const ChatInputToolbar = React.memo(function ChatInputToolbar({
           size={20}
           onPress={onAttachment}
           style={{ marginHorizontal: 2 }}
+        />
+
+        {/* MCP 工具开关入口 */}
+        <IconButton
+          icon={mcpEnabled ? 'puzzle' : 'puzzle-outline'}
+          iconColor={mcpEnabled ? theme.colors.primary : theme.colors.onSurfaceVariant}
+          size={20}
+          onPress={onOpenMcpDialog}
+          disabled={isSearching}
+          style={{ marginHorizontal: 2 }}
+          accessibilityLabel="MCP 工具开关"
         />
 
         {/* 更多操作按钮 */}
@@ -120,6 +137,7 @@ export const ChatInputToolbar = React.memo(function ChatInputToolbar({
   return (
     prevProps.searchEnabled === nextProps.searchEnabled &&
     prevProps.isSearching === nextProps.isSearching &&
+    prevProps.mcpEnabled === nextProps.mcpEnabled &&
     prevProps.isGenerating === nextProps.isGenerating &&
     prevProps.canSend === nextProps.canSend
   );
