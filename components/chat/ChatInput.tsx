@@ -33,6 +33,7 @@ import { MoreActionsMenu } from './MoreActionsMenu';
 import { ImageGenerationDialog } from './ImageGenerationDialog';
 import { SearchLoadingIndicator } from './SearchLoadingIndicator';
 import { McpToolsDialog } from './McpToolsDialog';
+import { QuickPhrasePickerDialog } from './QuickPhrasePickerDialog';
 import { ChatRepository } from '@/storage/repositories/chat';
 import { MessageRepository } from '@/storage/repositories/messages';
 import { AttachmentRepository } from '@/storage/repositories/attachments';
@@ -52,12 +53,19 @@ export interface ChatInputProps {
 }
 
 /**
+ * ChatInput 暴露的方法
+ */
+export interface ChatInputRef {
+  openPhrasePicker: () => void;
+}
+
+/**
  * 聊天输入框组件（重构版）
  */
-export const ChatInput = React.memo(function ChatInput({
+export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(function ChatInput({
   conversationId,
   onConversationChange,
-}: ChatInputProps) {
+}, ref) {
   const theme = useTheme();
   const { alert } = useConfirmDialog();
 
@@ -69,6 +77,7 @@ export const ChatInput = React.memo(function ChatInput({
   const [moreActionsMenuVisible, setMoreActionsMenuVisible] = useState(false);
   const [imageDialogVisible, setImageDialogVisible] = useState(false);
   const [mcpDialogVisible, setMcpDialogVisible] = useState(false);
+  const [phrasePickerVisible, setPhrasePickerVisible] = useState(false);
   const [mcpEnabled, setMcpEnabled] = useState(false);
   const [hasContextReset, setHasContextReset] = useState(false);
   const [currentProvider, setCurrentProvider] = useState<Provider>('openai');
@@ -244,6 +253,21 @@ export const ChatInput = React.memo(function ChatInput({
     alert('已清除上下文', '从下次提问起不再引用之前上文');
   }, [conversationId, alert]);
 
+  // ========== 快捷短语处理 ==========
+  const handlePhraseSelect = React.useCallback((phrase: any) => {
+    // 将短语内容追加到输入框
+    setMessage((prev) => (prev ? `${prev}\n${phrase.content}` : phrase.content));
+    logger.debug('[ChatInput] Quick phrase selected:', phrase.title);
+  }, []);
+
+  // 暴露方法给父组件
+  React.useImperativeHandle(ref, () => ({
+    openPhrasePicker: () => {
+      setPhrasePickerVisible(true);
+      logger.debug('[ChatInput] Quick phrase picker opened via ref');
+    },
+  }), []);
+
   // ========== 渲染 ==========
   return (
     <View>
@@ -283,6 +307,13 @@ export const ChatInput = React.memo(function ChatInput({
         onDismiss={() => setMcpDialogVisible(false)}
         enabled={mcpEnabled}
         onChangeEnabled={setMcpEnabled}
+      />
+
+      {/* 快捷短语选择弹窗 */}
+      <QuickPhrasePickerDialog
+        visible={phrasePickerVisible}
+        onDismiss={() => setPhrasePickerVisible(false)}
+        onSelect={handlePhraseSelect}
       />
 
       <View className="px-4 pt-2 pb-2">
@@ -349,9 +380,6 @@ export const ChatInput = React.memo(function ChatInput({
       </View>
     </View>
   );
-}, (prev, next) => {
-  // 性能优化：仅当 conversationId 变化时重新渲染
-  return prev.conversationId === next.conversationId;
 });
 
 // ========== 工具函数 ==========

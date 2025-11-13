@@ -3,6 +3,8 @@ import { Stack } from 'expo-router';
 import { LogBox } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { PaperProvider } from 'react-native-paper';
 import 'react-native-reanimated';
 import '../global.css';
 import HiddenWebViewHost from '@/components/providers/HiddenWebViewHost'
@@ -42,16 +44,18 @@ function RootLayoutInner() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <SettingsProvider>
-        <AppThemeProvider>
-        <AppDataProvider>
-          <ConfirmDialogProvider>
-            <HiddenWebViewHost />
-            <RootLayoutInner />
-          </ConfirmDialogProvider>
-        </AppDataProvider>
-        </AppThemeProvider>
-      </SettingsProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SettingsProvider>
+          <AppThemeProvider>
+            <AppDataProvider>
+              <ConfirmDialogProvider>
+                <HiddenWebViewHost />
+                <RootLayoutInner />
+              </ConfirmDialogProvider>
+            </AppDataProvider>
+          </AppThemeProvider>
+        </SettingsProvider>
+      </GestureHandlerRootView>
     </SafeAreaProvider>
   );
 }

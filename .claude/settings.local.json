@@ -20,7 +20,8 @@
       "Bash(git diff:*)",
       "Bash(npm ls:*)",
       "Bash(depcheck:*)",
-      "Bash(npx depcheck:*)"
+      "Bash(npx depcheck:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

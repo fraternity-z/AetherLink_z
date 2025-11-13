@@ -2,13 +2,14 @@
  * 💬 聊天主界面（作为根页面，无底部Tabs）
  */
 
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from 'react-native-paper';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { ChatHeader } from '@/components/chat/ChatHeader';
 import { MessageList } from '@/components/chat/MessageList';
-import { ChatInput } from '@/components/chat/ChatInput';
+import { ChatInput, ChatInputRef } from '@/components/chat/ChatInput';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import { router, useLocalSearchParams } from 'expo-router';
 import { TopicsSidebar } from '@/components/chat/TopicsSidebar';
@@ -18,6 +19,7 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const keyboardVerticalOffset = Platform.OS === 'ios' ? insets.bottom : 0;
   const theme = useTheme();
+  const chatInputRef = useRef<ChatInputRef>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [topicsOpen, setTopicsOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
@@ -27,6 +29,13 @@ export default function ChatScreen() {
   const handleMenuPress = () => {
     setDrawerOpen((v) => !v);
   };
+
+  // 双击手势处理器
+  const doubleTapGesture = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      chatInputRef.current?.openPhrasePicker();
+    });
 
   useEffect(() => {
     if (params?.cid && typeof params.cid === 'string') {
@@ -48,14 +57,20 @@ export default function ChatScreen() {
           onModelPickerPress={() => setModelPickerOpen(true)}
         />
 
-        {/* 消息列表 - 占满整个屏幕 */}
-        <View style={styles.messagesContainer}>
-          <MessageList conversationId={conversationId} />
-        </View>
+        {/* 消息列表 - 占满整个屏幕，支持双击打开快捷短语 */}
+        <GestureDetector gesture={doubleTapGesture}>
+          <View style={styles.messagesContainer}>
+            <MessageList conversationId={conversationId} />
+          </View>
+        </GestureDetector>
 
         {/* 悬浮输入框 - 直接绝对定位在底部 */}
         <View style={styles.inputWrapper}>
-          <ChatInput conversationId={conversationId} onConversationChange={setConversationId} />
+          <ChatInput
+            ref={chatInputRef}
+            conversationId={conversationId}
+            onConversationChange={setConversationId}
+          />
         </View>
 
         {/* 侧边栏 */}

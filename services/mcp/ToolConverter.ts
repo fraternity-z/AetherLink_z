@@ -12,7 +12,8 @@
  * 创建日期: 2025-11-12
  */
 
-import { tool as createTool, Tool, ToolCallOptions } from 'ai';
+import { tool as createTool, Tool, ToolCallOptions, jsonSchema } from 'ai';
+import type { JSONSchema7 } from 'json-schema';
 import { z } from 'zod';
 import type { MCPTool, MCPToolResult, MCPToolCallRequest } from '@/types/mcp';
 import { mcpClient } from './McpClient';
@@ -101,8 +102,8 @@ export class ToolConverter {
         // 生成唯一的工具 ID: {serverId}_{toolName}
         const toolId = `${mcpTool.serverId}_${mcpTool.name}`;
 
-        // 将 JSON Schema 转换为 Zod Schema
-        const parametersSchema = jsonSchemaToZod(mcpTool.inputSchema);
+        // 直接使用 AI SDK 提供的 jsonSchema，避免自定义 Zod 转换导致的不兼容
+        const parametersSchema = jsonSchema(mcpTool.inputSchema as JSONSchema7);
 
         // 创建 Vercel AI SDK 工具
         tools[toolId] = createTool({

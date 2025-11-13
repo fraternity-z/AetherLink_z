@@ -299,6 +299,21 @@ export async function streamCompletion(opts: StreamOptions) {
           } catch (cbErr) {
             logger.warn('[AiClient] onToolResult 回调抛异常，已忽略以保证流继续', { error: (cbErr as any)?.message });
           }
+        } else if ((part as any).type === 'tool-error') {
+          // 工具执行错误事件：不中断主流，透传给 onError 或 onToolResult
+          const anyPart: any = part as any;
+          logger.warn('[AiClient] 工具错误', {
+            toolCallId: anyPart.toolCallId,
+            toolName: anyPart.toolName,
+            error: anyPart.error,
+          });
+          try {
+            // 优先通知错误回调
+            opts.onError?.(anyPart.error);
+          } catch (cbErr) {
+            logger.warn('[AiClient] onError 回调抛异常(来自 tool-error)，已忽略', { error: (cbErr as any)?.message });
+          }
+          continue;
         } else if (part.type === 'finish') {
           // 流式完成
           if (isThinking) {

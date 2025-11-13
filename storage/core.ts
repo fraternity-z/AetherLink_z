@@ -86,6 +86,21 @@ export interface ThinkingChain {
   extra?: any;             // 扩展字段
 }
 
+/**
+ * 快捷短语(Quick Phrase)数据结构
+ * 用于存储用户的常用短语，方便在聊天中快速插入
+ */
+export interface QuickPhrase {
+  id: string;              // 主键
+  title: string;           // 短语标题(供列表显示)
+  content: string;         // 短语内容(插入到输入框)
+  icon?: string | null;    // 图标(支持 Emoji 或图标名称)
+  color?: string | null;   // 颜色(用于视觉区分)
+  sortOrder: number;       // 排序顺序
+  createdAt: number;       // 创建时间戳 (毫秒)
+  updatedAt: number;       // 更新时间戳 (毫秒)
+}
+
 export function uuid(): string {
   // RFC4122 v4-like uuid (non-crypto)
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
