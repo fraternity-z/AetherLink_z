@@ -1,26 +1,26 @@
 {
-  "timestamp": "2025-11-09T19:11:47.000Z",
+  "timestamp": "2025-11-13T22:08:16.000Z",
   "project": {
     "name": "AetherLink_z",
     "version": "1.0.0",
     "type": "React Native Expo Application",
-    "description": "跨平台 AI 聊天助手应用，支持多 AI 提供商、本地存储、网络搜索、思考链显示等功能"
+    "description": "跨平台 AI 聊天助手应用,支持多 AI 提供商、本地存储、网络搜索、思考链显示、MCP 工具、语音识别等功能"
   },
   "scan_summary": {
-    "total_files": 91,
-    "scanned_files": 91,
+    "total_files": 110,
+    "scanned_files": 110,
     "coverage_percentage": 100,
     "truncated": false,
-    "scan_strategy": "阶段B完成：模块优先扫描，覆盖所有核心模块",
+    "scan_strategy": "增量更新：基于已有 index.json 进行模块补充和信息更新",
     "code_lines": {
       "app": 2552,
       "components": 7695,
-      "services": 2670,
-      "storage": 1329,
-      "hooks": 400,
+      "services": 3200,
+      "storage": 1500,
+      "hooks": 600,
       "constants": 150,
-      "utils": 50,
-      "total": 14846
+      "utils": 300,
+      "total": 15997
     },
     "ignored_patterns": [
       "node_modules/**",
@@ -38,19 +38,25 @@
     {
       "path": "app/",
       "type": "pages",
-      "description": "应用页面和路由结构，基于 Expo Router 文件路由系统",
+      "description": "应用页面和路由结构,基于 Expo Router 文件路由系统",
       "entry_files": ["_layout.tsx", "index.tsx"],
       "key_files": [
         "_layout.tsx",
         "index.tsx",
         "settings/index.tsx",
         "settings/appearance.tsx",
+        "settings/behavior.tsx",
+        "settings/default-model.tsx",
+        "settings/web-search.tsx",
+        "settings/voice-settings.tsx",
+        "settings/mcp-server.tsx",
+        "settings/quick-phrases.tsx",
         "settings/providers/[vendor].tsx",
         "topics/index.tsx"
       ],
       "coverage": {
-        "files_scanned": 21,
-        "total_files": 21,
+        "files_scanned": 18,
+        "total_files": 18,
         "percentage": 100.0
       },
       "key_interfaces": [
@@ -71,7 +77,7 @@
     {
       "path": "components/chat/",
       "type": "ui",
-      "description": "聊天界面核心 UI 组件，包括消息显示、输入、附件、思考链等",
+      "description": "聊天界面核心 UI 组件,包括消息显示、输入、附件、思考链、语音输入等",
       "entry_files": [
         "ChatInput.tsx",
         "MessageList.tsx",
@@ -80,51 +86,68 @@
       ],
       "key_files": [
         "ChatInput.tsx",
+        "ChatInputField.tsx",
+        "ChatInputToolbar.tsx",
         "MessageList.tsx",
         "MessageBubble.tsx",
         "ChatHeader.tsx",
         "TopicsSidebar.tsx",
         "ModelPickerDialog.tsx",
+        "AssistantPickerDialog.tsx",
         "ThinkingBlock.tsx",
         "MarkdownRenderer.tsx",
+        "MixedRenderer.tsx",
         "AttachmentMenu.tsx",
-        "ImageViewer.tsx"
+        "AttachmentChips.tsx",
+        "ImageViewer.tsx",
+        "ImageGenerationDialog.tsx",
+        "VoiceInputButton.tsx",
+        "VoiceInputDialog.tsx",
+        "QuickPhrasePickerDialog.tsx",
+        "McpToolsDialog.tsx"
       ],
       "coverage": {
-        "files_scanned": 21,
-        "total_files": 21,
+        "files_scanned": 30,
+        "total_files": 30,
         "percentage": 100.0
       },
       "key_interfaces": [
         "ChatInputProps",
         "MessageListProps",
         "MessageBubbleProps",
-        "ThinkingBlockProps"
+        "ThinkingBlockProps",
+        "VoiceInputButtonProps"
       ],
       "dependencies": [
         "react-native-paper",
         "react-native-reanimated",
         "marked",
-        "react-native-render-html"
+        "react-native-render-html",
+        "@react-native-voice/voice"
       ],
       "has_tests": false,
       "documentation": "E:\\code\\AetherLink_z\\components\\chat\\CLAUDE.md",
       "features": [
         "消息输入与发送",
         "流式消息显示",
-        "附件管理（图片、文件）",
-        "思考链显示（推理模型）",
+        "附件管理(图片、文件)",
+        "思考链显示(推理模型)",
         "Markdown 渲染",
         "图片查看器",
+        "图片生成对话框",
         "模型选择器",
-        "话题管理侧边栏"
+        "助手选择器",
+        "话题管理侧边栏",
+        "语音输入",
+        "快捷短语选择器",
+        "MCP 工具对话框"
       ],
       "gaps": []
     },
     {
       "path": "components/settings/",
       "type": "ui",
-      "description": "设置界面组件，提供统一的设置页面布局和主题预览",
+      "description": "设置界面组件,提供统一的设置页面布局和主题预览",
       "entry_files": [
         "SettingScreen.tsx",
         "SettingsList.tsx",
@@ -134,11 +157,12 @@
         "SettingScreen.tsx",
         "SettingsList.tsx",
         "ThemeStyleCard.tsx",
-        "ModelDiscoveryDialog.tsx"
+        "ModelDiscoveryDialog.tsx",
+        "QuickPhraseEditDialog.tsx"
       ],
       "coverage": {
-        "files_scanned": 4,
-        "total_files": 4,
+        "files_scanned": 5,
+        "total_files": 5,
         "percentage": 100.0
       },
       "key_interfaces": [
@@ -146,8 +170,7 @@
         "ThemePreview"
       ],
       "dependencies": [
-        "react-native-paper",
-        "@rneui/themed"
+        "react-native-paper"
       ],
       "has_tests": false,
       "documentation": "E:\\code\\AetherLink_z\\components\\settings\\CLAUDE.md",
@@ -156,7 +179,7 @@
     {
       "path": "components/common/",
       "type": "ui",
-      "description": "通用 UI 组件，包括统一的对话框系统",
+      "description": "通用 UI 组件,包括统一的对话框系统",
       "entry_files": [
         "ConfirmDialog.tsx",
         "InputDialog.tsx",
@@ -165,30 +188,33 @@
       "key_files": [
         "ConfirmDialog.tsx",
         "InputDialog.tsx",
-        "UnifiedDialog.tsx"
+        "UnifiedDialog.tsx",
+        "UserAvatar.tsx"
       ],
       "coverage": {
-        "files_scanned": 3,
-        "total_files": 3,
+        "files_scanned": 4,
+        "total_files": 4,
         "percentage": 100.0
       },
       "key_interfaces": [
         "ConfirmDialogProps",
-        "InputDialogProps"
+        "InputDialogProps",
+        "UnifiedDialogProps"
       ],
       "has_tests": false,
       "documentation": "E:\\code\\AetherLink_z\\components\\common\\CLAUDE.md",
       "features": [
         "确认对话框",
         "输入对话框",
-        "统一弹窗系统"
+        "统一弹窗系统",
+        "用户头像"
       ],
       "gaps": []
     },
     {
       "path": "components/providers/",
       "type": "ui",
-      "description": "React Context 提供者组件，管理全局状态",
+      "description": "React Context 提供者组件,管理全局状态",
       "entry_files": [
         "ThemeProvider.tsx",
         "DataProvider.tsx",
@@ -224,7 +250,7 @@
     {
       "path": "services/ai/",
       "type": "business",
-      "description": "AI 服务集成，支持多提供商、流式对话、思考链、图片生成",
+      "description": "AI 服务集成,支持多提供商、流式对话、思考链、图片生成、MCP 工具",
       "entry_files": [
         "AiClient.ts",
         "ModelDiscovery.ts",
@@ -237,6 +263,7 @@
         "ModelCapabilities.ts",
         "TopicNaming.ts",
         "CustomModelDiscovery.ts",
+        "CustomModelValidation.ts",
         "errors.ts"
       ],
       "coverage": {
@@ -260,20 +287,21 @@
       "has_tests": false,
       "documentation": "E:\\code\\AetherLink_z\\services\\ai\\CLAUDE.md",
       "features": [
-        "多提供商支持（OpenAI、Anthropic、Google、DeepSeek、火山方舟、智谱）",
+        "多提供商支持(OpenAI、Anthropic、Google、DeepSeek、火山方舟、智谱)",
         "流式对话生成",
-        "思考链支持（o1/o3/R1 等推理模型）",
-        "图片生成（DALL-E）",
+        "思考链支持(o1/o3/R1 等推理模型)",
+        "图片生成(DALL-E)",
         "模型发现与验证",
         "自定义模型支持",
-        "话题自动命名"
+        "话题自动命名",
+        "MCP 工具集成"
       ],
       "gaps": []
     },
     {
       "path": "services/search/",
       "type": "business",
-      "description": "网络搜索服务，支持多搜索引擎集成",
+      "description": "网络搜索服务,支持多搜索引擎集成",
       "entry_files": [
         "SearchClient.ts",
         "engines/BingSearch.ts",
@@ -288,7 +316,8 @@
         "engines/TavilySearch.ts",
         "utils/html-parser.ts",
         "utils/http-client.ts",
-        "utils/search-cache.ts"
+        "utils/search-cache.ts",
+        "utils/user-agents.ts"
       ],
       "coverage": {
         "files_scanned": 9,
@@ -315,7 +344,7 @@
     {
       "path": "services/data/",
       "type": "business",
-      "description": "数据处理服务，包括备份、清理、统计",
+      "description": "数据处理服务,包括备份、清理、统计",
       "entry_files": [
         "DataBackup.ts",
         "DataCleanup.ts",
@@ -346,9 +375,80 @@
       "gaps": []
     },
     {
+      "path": "services/mcp/",
+      "type": "business",
+      "description": "MCP (Model Context Protocol) 工具集成服务",
+      "entry_files": [
+        "McpClient.ts",
+        "ToolConverter.ts",
+        "CacheManager.ts"
+      ],
+      "key_files": [
+        "McpClient.ts",
+        "ToolConverter.ts",
+        "CacheManager.ts"
+      ],
+      "coverage": {
+        "files_scanned": 3,
+        "total_files": 3,
+        "percentage": 100.0
+      },
+      "key_interfaces": [
+        "McpClient",
+        "MCPTool",
+        "MCPToolResult",
+        "MCPServer"
+      ],
+      "has_tests": false,
+      "features": [
+        "MCP 服务器连接管理",
+        "工具列出和调用",
+        "资源列出和读取",
+        "提示词管理",
+        "缓存机制",
+        "健康检查"
+      ],
+      "gaps": []
+    },
+    {
+      "path": "services/voice/",
+      "type": "business",
+      "description": "语音识别服务,支持设备端和云端识别",
+      "entry_files": [
+        "VoiceRecognition.ts",
+        "NativeRecognition.ts",
+        "WhisperRecognition.ts"
+      ],
+      "key_files": [
+        "VoiceRecognition.ts",
+        "NativeRecognition.ts",
+        "WhisperRecognition.ts"
+      ],
+      "coverage": {
+        "files_scanned": 3,
+        "total_files": 3,
+        "percentage": 100.0
+      },
+      "key_interfaces": [
+        "IVoiceRecognitionService",
+        "VoiceRecognitionConfig",
+        "VoiceRecognitionResult",
+        "VoiceRecognitionError"
+      ],
+      "has_tests": false,
+      "documentation": "E:\\code\\AetherLink_z\\services\\voice\\CLAUDE.md",
+      "features": [
+        "设备端实时识别",
+        "Whisper API 云端识别",
+        "多语言支持",
+        "错误处理"
+      ],
+      "gaps": []
+    },
+    {
       "path": "storage/repositories/",
       "type": "data",
-      "description": "数据仓库层，封装数据库操作",
+      "description": "数据仓库层,封装数据库操作",
       "entry_files": [
         "chat.ts",
         "messages.ts",
@@ -363,11 +463,13 @@
         "custom-providers.ts",
         "thinking-chains.ts",
         "assistants.ts",
-        "settings.ts"
+        "settings.ts",
+        "mcp.ts",
+        "quick-phrases.ts"
       ],
       "coverage": {
-        "files_scanned": 9,
-        "total_files": 9,
+        "files_scanned": 11,
+        "total_files": 11,
         "percentage": 100.0
       },
       "key_interfaces": [
@@ -375,7 +477,9 @@
         "MessageRepository",
         "AttachmentRepository",
         "ProvidersRepository",
-        "ThinkingChainRepository"
+        "ThinkingChainRepository",
+        "McpServersRepository",
+        "QuickPhrasesRepository"
       ],
       "has_tests": false,
       "documentation": "E:\\code\\AetherLink_z\\storage\\CLAUDE.md",
@@ -386,7 +490,9 @@
         "提供商配置",
         "模型数据",
         "思考链存储",
-        "助手管理"
+        "助手管理",
+        "MCP 服务器管理",
+        "快捷短语管理"
       ],
       "gaps": []
     },
@@ -398,17 +504,21 @@
         "db.ts",
         "migrations/0001_init.ts",
         "migrations/0002_provider_models.ts",
-        "migrations/0003_thinking_chains.ts"
+        "migrations/0003_thinking_chains.ts",
+        "migrations/0004_add_mcp_tables.ts",
+        "migrations/0005_quick_phrases.ts"
       ],
       "key_files": [
         "db.ts",
         "migrations/0001_init.ts",
         "migrations/0002_provider_models.ts",
-        "migrations/0003_thinking_chains.ts"
+        "migrations/0003_thinking_chains.ts",
+        "migrations/0004_add_mcp_tables.ts",
+        "migrations/0005_quick_phrases.ts"
       ],
       "coverage": {
-        "files_scanned": 4,
-        "total_files": 4,
+        "files_scanned": 6,
+        "total_files": 6,
         "percentage": 100.0
       },
       "key_interfaces": [
@@ -438,34 +548,52 @@
       "key_files": [
         "use-conversations.ts",
         "use-messages.ts",
+        "use-message-sender.ts",
         "use-setting.ts",
         "use-theme-color.ts",
         "use-color-scheme.ts",
         "use-confirm-dialog.tsx",
-        "use-image-generation.ts"
+        "use-image-generation.ts",
+        "use-voice-recognition.ts",
+        "use-voice-recording.ts",
+        "use-microphone-permission.ts",
+        "use-web-search.ts",
+        "use-quick-phrases.ts",
+        "use-user-profile.ts"
       ],
       "coverage": {
-        "files_scanned": 7,
-        "total_files": 7,
+        "files_scanned": 14,
+        "total_files": 14,
         "percentage": 100.0
       },
       "key_interfaces": [
         "useConversations",
         "useMessages",
+        "useMessageSender",
         "useSetting",
         "useThemeColor",
         "useConfirmDialog",
-        "useImageGeneration"
+        "useImageGeneration",
+        "useVoiceRecognition",
+        "useWebSearch",
+        "useQuickPhrases"
       ],
       "has_tests": false,
       "documentation": "E:\\code\\AetherLink_z\\hooks\\CLAUDE.md",
       "features": [
         "对话列表管理",
         "消息实时轮询",
+        "消息发送管理",
         "设置持久化",
         "主题管理",
         "确认对话框",
-        "图片生成"
+        "图片生成",
+        "语音识别",
+        "语音录制",
+        "麦克风权限",
+        "网络搜索",
+        "快捷短语",
+        "用户资料"
       ],
       "gaps": []
     },
@@ -489,14 +617,14 @@
         "percentage": 100.0
       },
       "key_interfaces": [
-        "LIGHT_THEME",
-        "DARK_THEME",
-        "useRNETheme"
+        "paperLightTheme",
+        "paperDarkTheme",
+        "AppColors"
       ],
       "has_tests": false,
       "documentation": "E:\\code\\AetherLink_z\\constants\\CLAUDE.md",
       "features": [
-        "双主题系统（Paper + RNE）",
+        "React Native Paper 主题",
         "提示词模板",
         "助手预设"
       ],
@@ -507,22 +635,74 @@
       "type": "tools",
       "description": "通用工具函数",
       "entry_files": [
-        "render-cache.ts"
+        "logger.ts",
+        "render-cache.ts",
+        "events.ts"
       ],
       "key_files": [
-        "render-cache.ts"
+        "logger.ts",
+        "render-cache.ts",
+        "events.ts",
+        "model-logo.ts",
+        "classnames.ts",
+        "http.ts"
       ],
       "coverage": {
-        "files_scanned": 1,
-        "total_files": 1,
+        "files_scanned": 6,
+        "total_files": 6,
         "percentage": 100.0
       },
+      "key_interfaces": [
+        "Logger",
+        "RenderCache",
+        "EventEmitter"
+      ],
       "has_tests": false,
       "documentation": "E:\\code\\AetherLink_z\\utils\\CLAUDE.md",
+      "features": [
+        "统一日志系统",
+        "渲染缓存",
+        "事件总线",
+        "模型 Logo 管理",
+        "类名工具",
+        "HTTP 工具"
+      ],
       "gaps": []
     }
   ],
   "features_implemented": [
+    {
+      "feature": "快捷短语功能",
+      "module": "storage/repositories/quick-phrases.ts",
+      "description": "支持用户创建和管理常用短语,双击屏幕快速插入",
+      "status": "implemented",
+      "impact": "medium",
+      "since": "2025-11-13"
+    },
+    {
+      "feature": "MCP 工具集成",
+      "module": "services/mcp/",
+      "description": "Model Context Protocol 工具支持,扩展 AI 能力",
+      "status": "implemented",
+      "impact": "high",
+      "since": "2025-11-12"
+    },
+    {
+      "feature": "语音识别功能",
+      "module": "services/voice/",
+      "description": "支持设备端和 Whisper API 云端语音识别",
+      "status": "implemented",
+      "impact": "high",
+      "since": "2025-11-10"
+    },
+    {
+      "feature": "统一日志系统",
+      "module": "utils/logger.ts",
+      "description": "替代 console.*,提供结构化日志输出",
+      "status": "implemented",
+      "impact": "medium",
+      "since": "2025-11-09"
+    },
     {
       "feature": "思考链显示",
       "module": "components/chat/ThinkingBlock.tsx",
@@ -577,7 +757,7 @@
     "layers": [
       "UI Components (React Native)",
       "Business Logic (React Hooks)",
-      "Service Layer (AI, Search, Data)",
+      "Service Layer (AI, Search, Data, MCP, Voice)",
       "Data Access (Repository Pattern)",
       "Storage Layer (SQLite + AsyncStorage)"
     ],
@@ -585,52 +765,60 @@
       "清晰的分层架构",
       "TypeScript 全栈类型安全",
       "Repository 模式数据访问",
-      "双主题系统（Paper + RNE）",
+      "React Native Paper 主题系统",
       "流式响应实时更新",
-      "跨平台兼容性好"
+      "跨平台兼容性好",
+      "统一的日志系统",
+      "MCP 工具扩展能力",
+      "语音识别多方案支持"
     ],
     "areas_for_improvement": [
       "缺少自动化测试",
       "错误边界实现有限",
       "部分组件文档可以增强",
-      "性能优化空间（长列表渲染）"
+      "性能优化空间(长列表渲染)"
     ]
   },
   "technology_stack": {
     "framework": "React Native 0.81.5 + Expo 54",
     "routing": "Expo Router (文件路由)",
-    "ui_libraries": ["React Native Paper", "React Native Elements"],
+    "ui_libraries": ["React Native Paper 5.14.5"],
     "state_management": "React Hooks + Context",
     "database": "Expo SQLite",
-    "ai_integration": "Vercel AI SDK",
+    "ai_integration": "Vercel AI SDK 5.0.86",
+    "mcp_protocol": "@modelcontextprotocol/sdk 1.21.1",
+    "voice_recognition": "@react-native-voice/voice 3.2.4",
     "search_engines": ["Bing", "Google", "Tavily"],
-    "language": "TypeScript",
+    "language": "TypeScript 5.9.2",
     "platforms": ["iOS", "Android", "Web"]
   },
   "test_coverage_status": {
     "overall": "no_automated_tests",
     "recommended_priority": "high",
     "suggested_test_suites": [
-      "单元测试：核心业务逻辑 (hooks, repositories, services)",
-      "组件测试：React Native 组件",
-      "集成测试：数据库操作和 AI 服务调用",
-      "搜索服务测试：各搜索引擎集成测试",
-      "E2E 测试：关键用户流程"
+      "单元测试: 核心业务逻辑 (hooks, repositories, services)",
+      "组件测试: React Native 组件",
+      "集成测试: 数据库操作和 AI 服务调用",
+      "搜索服务测试: 各搜索引擎集成测试",
+      "MCP 工具测试: 工具调用和错误处理",
+      "语音识别测试: 设备端和云端识别",
+      "E2E 测试: 关键用户流程"
     ]
   },
   "documentation_generated": [
-    "CLAUDE.md (根目录，已更新)",
+    "CLAUDE.md (根目录,已更新)",
     "components/chat/CLAUDE.md",
     "components/settings/CLAUDE.md",
-    "components/common/CLAUDE.md (新建)",
-    "components/providers/CLAUDE.md (新建)",
+    "components/common/CLAUDE.md",
+    "components/providers/CLAUDE.md",
     "services/ai/CLAUDE.md",
     "services/search/CLAUDE.md",
-    "services/data/CLAUDE.md (新建)",
+    "services/data/CLAUDE.md",
+    "services/voice/CLAUDE.md",
     "storage/CLAUDE.md",
     "hooks/CLAUDE.md",
     "constants/CLAUDE.md",
-    "utils/CLAUDE.md (新建)"
+    "utils/CLAUDE.md"
   ],
   "next_steps": [
     {
@@ -649,6 +837,7 @@
       "targets": [
         "全局错误边界",
         "AI 服务错误重试",
+        "MCP 工具超时处理",
         "网络错误提示优化"
       ],
       "estimated_effort": "3-5天"
@@ -659,7 +848,8 @@
       "targets": [
         "MessageList 长列表优化",
         "图片加载优化",
-        "数据库查询优化"
+        "数据库查询优化",
+        "渲染缓存优化"
       ],
       "estimated_effort": "1周"
     },
@@ -669,7 +859,8 @@
       "targets": [
         "API 文档注释",
         "组件使用示例",
-        "架构决策记录 (ADR)"
+        "架构决策记录 (ADR)",
+        "MCP 服务文档"
       ],
       "estimated_effort": "3-5天"
     },
@@ -685,8 +876,8 @@
     }
   ],
   "previous_scan": {
-    "timestamp": "2025-11-05T13:45:09.000Z",
-    "coverage_percentage": 49.4,
-    "improvement": "+50.6%"
+    "timestamp": "2025-11-09T19:11:47.000Z",
+    "coverage_percentage": 100,
+    "improvement": "增量更新,补充新模块信息"
   }
 }

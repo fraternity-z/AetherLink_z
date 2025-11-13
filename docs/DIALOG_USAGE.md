@@ -358,10 +358,10 @@ icon: {
   color: '#FFA726',
 }
 
-// 使用其��图标库（需要在 @rneui/themed 中配置）
+// React Native Paper 支持 Material Community Icons
 icon: {
-  name: 'warning',
-  type: 'font-awesome',
+  name: 'alert',
+  type: 'material-community',
   color: '#FF5722',
 }
 ```

@@ -21,7 +21,9 @@
       "Bash(npm ls:*)",
       "Bash(depcheck:*)",
       "Bash(npx depcheck:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "mcp__mcp-router__list_dir",
+      "Bash(cloc:*)"
     ],
     "deny": [],
     "ask": []

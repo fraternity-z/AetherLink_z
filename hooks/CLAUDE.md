@@ -111,8 +111,7 @@ function useColorScheme(): 'light' | 'dark' | 'system'
 
 ### UI 框架依赖
 - **React Hooks**: 基于 React 18+ 的 Hooks 系统
-- **React Native Paper**: 主题系统集成
-- **React Native Elements**: 补充主题支持
+- **React Native Paper**: Material Design 3 主题系统集成
 
 ### 平台兼容
 - **iOS/Android**: 原生平台支持

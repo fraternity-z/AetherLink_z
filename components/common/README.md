@@ -156,7 +156,7 @@ function MyComponent() {
 
 ### 组件规范
 
-- ✅ 使用 React Native Paper 和 React Native Elements 的主题系统
+- ✅ 使用 React Native Paper Material Design 3 主题系统
 - ✅ 支持深色模式
 - ✅ 跨平台兼容（iOS、Android、Web）
 - ✅ 完整的 TypeScript 类型
@@ -167,9 +167,9 @@ function MyComponent() {
 
 ## 技术栈
 
-- **UI 库**: React Native Paper, React Native Elements
+- **UI 库**: React Native Paper (Material Design 3)
 - **动画**: React Native Animated
-- **图标**: @rneui/themed (Material Community Icons)
+- **图标**: React Native Paper (Material Community Icons)
 - **类型**: TypeScript
 
 ---

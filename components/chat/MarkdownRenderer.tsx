@@ -119,6 +119,15 @@ export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererPr
     }),
   }), []);
 
+  // 忽略非标准的 MCP 协议标签，避免警告与错误渲染
+  // 这些标签只作为模型与工具的通信信号，不应在 UI 中显示
+  const ignoredDomTags = useMemo(() => [
+    'tool_use',
+    'name',
+    'arguments',
+    'tool_result',
+  ], []);
+
   const tagsStyles = useMemo(() => ({
     body: {
       color: theme.colors.onSurface,
@@ -227,6 +236,7 @@ export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererPr
         tagsStyles={tagsStyles}
         // 🚀 使用缓存的配置，避免频繁重建导致性能问题
         customHTMLElementModels={customHTMLElementModels}
+        ignoredDomTags={ignoredDomTags}
         baseStyle={baseStyle}
       />
     </View>

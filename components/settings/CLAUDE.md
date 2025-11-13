@@ -89,14 +89,13 @@ interface ThemePreview {
 ## 关键依赖与配置
 
 ### UI 组件库依赖
-- **React Native Paper**: 主要 UI 组件库
-- **React Native Elements**: 补充 UI 组件和主题系统
+- **React Native Paper**: Material Design 3 主要 UI 组件库
 - **Expo Router**: 路由导航
 
 ### 主题系统集成
-- 使用 `@rneui/themed` 的主题系统
-- 与 React Native Paper 主题保持一致
+- 使用 React Native Paper 的 Material Design 3 主题系统
 - 支持动态主题切换和预览
+- 自适应明暗模式
 
 ### 状态管理
 - 通过 Context API 管理主题状态

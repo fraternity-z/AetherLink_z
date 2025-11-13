@@ -7,6 +7,9 @@ import { ProvidersRepository, type ProviderId } from '@/storage/repositories/pro
 import { ImageGenerationError, ImageModelResolutionError } from './errors';
 import { isDedicatedImageGenerationModel } from './ModelDiscovery';
 import { logger } from '@/utils/logger';
+import { mcpClient } from '@/services/mcp/McpClient';
+import { McpServersRepository } from '@/storage/repositories/mcp';
+import type { MCPTool, MCPToolResult } from '@/types/mcp';
 
 export type Provider = 'openai' | 'anthropic' | 'google' | 'gemini' | 'deepseek' | 'volc' | 'zhipu';
 
@@ -217,156 +220,272 @@ export async function streamCompletion(opts: StreamOptions) {
     }
   }
 
-  const result = streamText({
-    model: factory()(model),
-    messages: opts.messages,
-    abortSignal: opts.abortSignal,
-    temperature: opts.temperature,
-    // 兼容 AI SDK v5：部分模型使用 maxOutputTokens 字段
-    maxOutputTokens: opts.maxTokens,
-    // 如果支持思考链,添加 providerOptions
-    ...(hasReasoningSupport ? getProviderOptions(provider, model) : {}),
-    // MCP 工具
-    ...(mcpTools && Object.keys(mcpTools).length > 0 ? { tools: mcpTools } : {}),
-  });
+  // 采用“方案A”：不将 MCP 工具注入 AI SDK 的 tools 机制，避免主流在工具阶段被阻塞。
+  // 工具调用采用解耦的二段式：
+  // 1) 第一段：纯流式文本输出，期间解析 <tool_use> 指令；
+  // 2) 流结束后：并发执行工具；
+  // 3) 构造带工具结果的新消息，递归开启第二段模型流。
 
-  try {
-    // 如果支持思考链且提供了回调,使用 fullStream 来分离 reasoning 和 text
-    if (hasReasoningSupport && (opts.onThinkingToken || opts.onThinkingStart || opts.onThinkingEnd)) {
-      let isThinking = false;
-      didFinish = false;
+  // 工具使用解析的聚合状态
+  const toolUses: Array<{ name: string; args: any }> = [];
+  let toolDetected = false; // 一旦发现完整的工具块，后续不再向 UI 输出文本，防止幻觉
+  const toolParsingEnabled = opts.enableMcpTools === true;
 
-      for await (const part of result.fullStream) {
-        // 🔍 调试日志：记录所有 part 类型
-        logger.debug('[AiClient] 🔍 fullStream part.type:', part.type);
+  const extractToolUses = (aggregate: string) => {
+    // 解析 <tool_use> ... <name>...</name> ... <arguments>...</arguments> ... </tool_use>
+    const re = /<tool_use>[\s\S]*?<name>[\s\S]*?<\/name>[\s\S]*?<arguments>[\s\S]*?<\/arguments>[\s\S]*?<\/tool_use>/g;
+    const results: Array<{ name: string; args: any }> = [];
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(aggregate)) !== null) {
+      const block = m[0];
+      const nameMatch = block.match(/<name>([\s\S]*?)<\/name>/);
+      const argsMatch = block.match(/<arguments>([\s\S]*?)<\/arguments>/);
+      if (!nameMatch || !argsMatch) continue;
+      const rawName = (nameMatch[1] || '').trim();
+      const rawArgs = (argsMatch[1] || '').trim();
+      let parsedArgs: any = rawArgs;
+      try {
+        parsedArgs = JSON.parse(rawArgs);
+      } catch {}
+      results.push({ name: rawName, args: parsedArgs });
+    }
+    return results;
+  };
 
-        if (part.type === 'start') {
-          // 流式开始（静默忽略）
-          continue;
-        } else if (part.type === 'start-step') {
-          // 步骤开始（静默忽略）
-          continue;
-        } else if (part.type === 'reasoning-start') {
-          // 思考链开始
-          isThinking = true;
-          opts.onThinkingStart?.();
-        } else if (part.type === 'reasoning-delta') {
-          // 流式输出思考链内容
-          opts.onThinkingToken?.(part.text);
-        } else if (part.type === 'reasoning-end') {
-          // 思考链结束
-          isThinking = false;
-          opts.onThinkingEnd?.();
-        } else if (part.type === 'text-delta') {
-          // 流式输出正文内容
-          opts.onToken?.(part.text);
-        } else if (part.type === 'text-end') {
-          // 文本结束（静默忽略）
-          continue;
-        } else if (part.type === 'finish-step') {
-          // 步骤完成（包含 token 使用统计）
-          // 可以在这里记录 usage 信息
-          if (part.usage) {
-            logger.debug('[AiClient] Token 使用统计:', {
-              输入: part.usage.inputTokens,
-              输出: part.usage.outputTokens,
-              推理: part.usage.reasoningTokens,
-              总计: part.usage.totalTokens,
-            });
+  // 如果启用 MCP 工具，向模型注入一段系统提示，告知可用工具以及使用协议
+  let initialMessages = opts.messages as CoreMessage[];
+  if (opts.enableMcpTools) {
+    try {
+      const activeServers = await McpServersRepository.getActiveServers();
+      const toolNames: string[] = [];
+      const toolHints: string[] = [];
+      for (const srv of activeServers) {
+        try {
+          const tools = await mcpClient.listTools(srv.id);
+          for (const t of tools) {
+            toolNames.push(t.name);
+            const required = Array.isArray(t.inputSchema?.required) ? t.inputSchema.required : [];
+            const props = t.inputSchema?.properties ? Object.keys(t.inputSchema.properties) : [];
+            const keysPreview = (required as string[]).length > 0 ? `required: ${required.join(', ')}` : props.length > 0 ? `keys: ${props.slice(0,6).join(', ')}${props.length>6?'…':''}` : '';
+            toolHints.push(`- ${t.name}${keysPreview ? ` (${keysPreview})` : ''}`);
           }
-          continue;
-        } else if (part.type === 'tool-call') {
-          // MCP 工具调用
-          logger.info('[AiClient] 工具调用', {
-            toolCallId: part.toolCallId,
-            toolName: part.toolName,
-            args: (part as any).input,
-          });
-          try {
-            opts.onToolCall?.(part.toolName, (part as any).input);
-          } catch (cbErr) {
-            logger.warn('[AiClient] onToolCall 回调抛异常，已忽略以保证流继续', { error: (cbErr as any)?.message });
-          }
-        } else if (part.type === 'tool-result') {
-          // MCP 工具结果
-          logger.info('[AiClient] 工具结果', {
-            toolCallId: part.toolCallId,
-            toolName: part.toolName,
-            result: (part as any).output,
-          });
-          try {
-            opts.onToolResult?.(part.toolName, (part as any).output);
-          } catch (cbErr) {
-            logger.warn('[AiClient] onToolResult 回调抛异常，已忽略以保证流继续', { error: (cbErr as any)?.message });
-          }
-        } else if ((part as any).type === 'tool-error') {
-          // 工具执行错误事件：不中断主流，透传给 onError 或 onToolResult
-          const anyPart: any = part as any;
-          logger.warn('[AiClient] 工具错误', {
-            toolCallId: anyPart.toolCallId,
-            toolName: anyPart.toolName,
-            error: anyPart.error,
-          });
-          try {
-            // 优先通知错误回调
-            opts.onError?.(anyPart.error);
-          } catch (cbErr) {
-            logger.warn('[AiClient] onError 回调抛异常(来自 tool-error)，已忽略', { error: (cbErr as any)?.message });
-          }
-          continue;
-        } else if (part.type === 'finish') {
-          // 流式完成
-          if (isThinking) {
-            opts.onThinkingEnd?.();
-          }
-          opts.onDone?.();
-          didFinish = true;
-          break; // 结束消费，避免后续兼容端产生的晚到 error 影响体验
-        } else if (part.type === 'error') {
-          // 若已完成，则忽略晚到错误（部分第三方网关会在完成后发送额外错误事件）
-          if (didFinish) {
-            logger.warn('[AiClient] 忽略 finish 之后的晚到错误事件', { error: part.error });
-            continue;
-          }
-          // 对回调进行保护，避免回调抛错中断流
-          try {
-            opts.onError?.(part.error);
-          } catch (cbErr) {
-            logger.warn('[AiClient] onError 回调抛异常，已忽略以保证流继续', { error: (cbErr as any)?.message });
-          }
-          // 工具相关错误不应直接中断主流; 交由模型后续继续输出
-          continue;
-        } else {
-          // 🔍 未知类型，记录完整信息（但不中断流程）
-          logger.warn('[AiClient] ⚠️ 未处理的 fullStream 类型:', { type: part.type, part });
+        } catch (e) {
+          logger.warn('[AiClient] 预加载工具列表失败，跳过该服务器', { serverId: srv.id, error: (e as any)?.message });
         }
       }
-    } else {
-      // 不支持思考链或未提供回调,使用原有的 textStream
-      for await (const part of result.textStream) {
-        opts.onToken?.(part);
+
+      if (toolNames.length > 0) {
+        const sysText = [
+          'You can use external tools via Model Context Protocol (MCP).',
+          'When a tool would help, emit exactly this tag and nothing else:',
+          '<tool_use>\n<name>{tool_name}</name>\n<arguments>{valid JSON arguments}</arguments>\n</tool_use>',
+          'Rules:',
+          '- Use double quotes for all JSON keys/strings; no trailing commas;',
+          '- Do NOT wrap with code fences; output only the tag above;',
+          '- Stop generating immediately after </tool_use>.',
+          'Available tools:',
+          ...toolHints,
+        ].join('\n');
+        initialMessages = [{ role: 'system', content: sysText }, ...initialMessages];
       }
-      opts.onDone?.();
+    } catch (e) {
+      logger.warn('[AiClient] 构建 MCP 工具系统提示失败', { error: (e as any)?.message });
     }
-  } catch (e: any) {
-    // 增强错误日志，输出详细信息
-    // 如果已经完成（已收到 finish），将某些已知可忽略的错误降级为警告
-    if (didFinish && (e?.name === 'APICallError' || /abort|cancel|closed|stream/i.test(String(e?.message || '')))) {
-      logger.warn('[AiClient] finish 之后的晚到异常已忽略', { name: e?.name, message: e?.message });
-      return; // 视为成功完成
+  }
+
+  // 递归函数：执行一段流 + 解析工具 + 二段式递归（最多 3 层）
+  const runOnePass = async (
+    messages: any[],
+    depth: number
+  ): Promise<void> => {
+    const result = streamText({
+      model: factory()(model),
+      messages,
+      abortSignal: opts.abortSignal,
+      temperature: opts.temperature,
+      maxOutputTokens: opts.maxTokens,
+      ...(hasReasoningSupport ? getProviderOptions(provider, model) : {}),
+    });
+
+    // 每段流的本地聚合文本（仅用于检测工具块），为降低内存风险，限制到 50k。
+    let aggregateText = '';
+    const appendAggregate = (d: string) => {
+      aggregateText += d;
+      if (aggregateText.length > 50000) {
+        aggregateText = aggregateText.slice(-30000);
+      }
+    };
+
+    try {
+      if (hasReasoningSupport && (opts.onThinkingToken || opts.onThinkingStart || opts.onThinkingEnd)) {
+        let isThinking = false;
+        didFinish = false;
+
+        for await (const part of result.fullStream) {
+          logger.debug('[AiClient] 🔍 fullStream part.type:', part.type);
+          if (part.type === 'reasoning-start') {
+            isThinking = true;
+            opts.onThinkingStart?.();
+          } else if (part.type === 'reasoning-delta') {
+            opts.onThinkingToken?.(part.text);
+          } else if (part.type === 'reasoning-end') {
+            isThinking = false;
+            opts.onThinkingEnd?.();
+          } else if (part.type === 'text-delta') {
+            if (!toolDetected) {
+              appendAggregate(part.text);
+              const found = extractToolUses(aggregateText);
+              if (toolParsingEnabled && found.length > 0) {
+                toolUses.push(...found);
+                toolDetected = true;
+                // 一旦检测到工具，停止向外输出正文，避免标签泄露/重复
+              } else {
+                opts.onToken?.(part.text);
+              }
+            }
+          } else if (part.type === 'finish-step') {
+            // usage 统计（可选）
+            continue;
+          } else if (part.type === 'finish') {
+            if (isThinking) {
+              opts.onThinkingEnd?.();
+            }
+            didFinish = true;
+            break;
+          } else if (part.type === 'error') {
+            if (didFinish) {
+              logger.warn('[AiClient] 忽略 finish 之后的晚到错误事件', { error: part.error });
+              continue;
+            }
+            try { opts.onError?.(part.error); } catch (cbErr) {
+              logger.warn('[AiClient] onError 回调抛异常，已忽略以保证流继续', { error: (cbErr as any)?.message });
+            }
+            continue;
+          }
+        }
+      } else {
+        // 无思考链，处理纯文本流
+        for await (const delta of result.textStream) {
+          if (!toolDetected) {
+            appendAggregate(delta);
+            const found = extractToolUses(aggregateText);
+            if (toolParsingEnabled && found.length > 0) {
+              toolUses.push(...found);
+              toolDetected = true;
+            } else {
+              opts.onToken?.(delta);
+            }
+          }
+        }
+      }
+    } catch (e: any) {
+      if (didFinish && (e?.name === 'APICallError' || /abort|cancel|closed|stream/i.test(String(e?.message || '')))) {
+        logger.warn('[AiClient] finish 之后的晚到异常已忽略', { name: e?.name, message: e?.message });
+        return;
+      }
+      logger.error('[AiClient Error]', { provider, model, error: e, message: e?.message, cause: e?.cause, stack: e?.stack });
+      opts.onError?.(e);
+      throw e;
     }
 
-    logger.error('[AiClient Error]', {
-      provider,
-      model,
-      error: e,
-      message: e?.message,
-      cause: e?.cause,
-      stack: e?.stack,
-    });
-    opts.onError?.(e);
-    throw e;
+    // 一段流结束，若发现工具且未超过递归深度，则执行工具并递归
+    if (toolParsingEnabled && toolUses.length > 0 && depth < 3) {
+      try {
+        const toolResultsText = await runMcpToolsAndSummarize(toolUses, opts);
+        const nextMessages = [
+          ...messages,
+          { role: 'user', content: toolResultsText },
+        ];
+        // 重置检测状态，允许第二段再次解析后续工具（若模型继续产生）
+        toolUses.length = 0;
+        toolDetected = false;
+        await runOnePass(nextMessages, depth + 1);
+        return;
+      } catch (toolErr) {
+        logger.error('[AiClient] 执行 MCP 工具失败', toolErr as any);
+        // 工具失败时，不再递归，结束本轮
+      }
+    }
+  };
+
+  await runOnePass(initialMessages, 0);
+  opts.onDone?.();
+  
+  return;
+}
+
+/**
+ * 执行解析到的 MCP 工具并生成可供第二轮对话使用的用户消息文本
+ */
+async function runMcpToolsAndSummarize(
+  toolUses: Array<{ name: string; args: any }>,
+  opts: StreamOptions
+): Promise<string> {
+  // 构建 name -> { serverId, tool } 索引
+  const activeServers = await McpServersRepository.getActiveServers();
+  const nameIndex = new Map<string, { serverId: string; tool: MCPTool }>();
+  for (const srv of activeServers) {
+    try {
+      const tools = await mcpClient.listTools(srv.id);
+      for (const t of tools) {
+        if (!nameIndex.has(t.name)) {
+          nameIndex.set(t.name, { serverId: srv.id, tool: t });
+        }
+      }
+    } catch (e) {
+      logger.warn('[AiClient] 加载服务器工具失败，跳过该服务器', { serverId: srv.id, error: (e as any)?.message });
+    }
   }
+
+  let summary = '';
+  for (const use of toolUses) {
+    try {
+      const entry = nameIndex.get(use.name);
+      if (!entry) {
+        const notFound = `MCP 工具未找到: ${use.name}`;
+        summary += `Here is the result of mcp tool use \`${use.name}\`:\n${notFound}\n`;
+        try { opts.onToolResult?.(use.name, { error: notFound }); } catch {}
+        continue;
+      }
+
+      try { opts.onToolCall?.(use.name, use.args); } catch {}
+      const result: MCPToolResult = await mcpClient.callTool(entry.serverId, use.name, use.args || {});
+      try { opts.onToolResult?.(use.name, result); } catch {}
+
+      const text = formatMcpResultToMessageText(use.name, result);
+      summary += text + '\n';
+    } catch (err: any) {
+      const msg = typeof err?.message === 'string' ? err.message : String(err);
+      summary += `Here is the result of mcp tool use \`${use.name}\`:\nError: ${msg}\n`;
+      try { opts.onToolResult?.(use.name, { error: msg }); } catch {}
+    }
+  }
+  return summary.trim();
+}
+
+function formatMcpResultToMessageText(toolName: string, result: MCPToolResult): string {
+  if (!result) {
+    return `Here is the result of mcp tool use \`${toolName}\`:\n(no content)`;
+  }
+  if (result.isError) {
+    const errText = (result.content || [])
+      .filter((c) => c.type === 'text' && typeof c.text === 'string')
+      .map((c) => c.text)
+      .join('\n');
+    return `Here is the result of mcp tool use \`${toolName}\`:\nError: ${errText || 'unknown error'}`;
+  }
+  const lines: string[] = [`Here is the result of mcp tool use \`${toolName}\`:`];
+  for (const item of result.content || []) {
+    if (item.type === 'text' && typeof item.text === 'string') {
+      lines.push(item.text);
+    } else if (item.type === 'image' && item.data && item.mimeType) {
+      lines.push(`image: data:${item.mimeType};base64,${item.data}`);
+    } else if (item.type === 'resource' && item.uri) {
+      lines.push(`resource: ${item.uri}`);
+    }
+  }
+  if (lines.length === 1) lines.push('(no content)');
+  return lines.join('\n');
 }
 
 // ============================================
