@@ -17,6 +17,7 @@ import { z } from 'zod';
 import type { MCPTool, MCPToolResult, MCPToolCallRequest } from '@/types/mcp';
 import { mcpClient } from './McpClient';
 import { logger } from '@/utils/logger';
+import { McpServersRepository } from '@/storage/repositories/mcp';
 
 const log = logger.createNamespace('ToolConverter');
 
@@ -116,11 +117,30 @@ export class ToolConverter {
             });
 
             try {
-              // 调用 MCP 工具
-              const result = await mcpClient.callTool(
-                mcpTool.serverId!,
-                mcpTool.name,
-                args
+              // 依据服务器配置设置超时（秒->ms），默认 20s
+              let timeoutMs = 20000;
+              try {
+                if (mcpTool.serverId) {
+                  const srv = await McpServersRepository.getServerById(mcpTool.serverId);
+                  if (srv?.timeout && srv.timeout > 0) timeoutMs = srv.timeout * 1000;
+                }
+              } catch {}
+
+              const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
+                new Promise<T>((resolve, reject) => {
+                  const id = setTimeout(() => reject(new Error(`MCP tool timeout after ${ms}ms`)), ms);
+                  p.then(v => { clearTimeout(id); resolve(v); })
+                   .catch(e => { clearTimeout(id); reject(e); });
+                });
+
+              // 调用 MCP 工具（带超时保护）
+              const result = await withTimeout(
+                mcpClient.callTool(
+                  mcpTool.serverId!,
+                  mcpTool.name,
+                  args
+                ),
+                timeoutMs
               );
 
               // 转换结果格式
@@ -133,11 +153,8 @@ export class ToolConverter {
               });
 
               // 返回错误信息
-              return {
-                error: error.message,
-                toolName: mcpTool.name,
-                serverId: mcpTool.serverId,
-              };
+              const message = typeof error?.message === 'string' ? error.message : String(error);
+              return `MCP 工具执行失败: ${message}`;
             }
           },
         });

@@ -282,7 +282,11 @@ export async function streamCompletion(opts: StreamOptions) {
             toolName: part.toolName,
             args: (part as any).input,
           });
-          opts.onToolCall?.(part.toolName, (part as any).input);
+          try {
+            opts.onToolCall?.(part.toolName, (part as any).input);
+          } catch (cbErr) {
+            logger.warn('[AiClient] onToolCall 回调抛异常，已忽略以保证流继续', { error: (cbErr as any)?.message });
+          }
         } else if (part.type === 'tool-result') {
           // MCP 工具结果
           logger.info('[AiClient] 工具结果', {
@@ -290,7 +294,11 @@ export async function streamCompletion(opts: StreamOptions) {
             toolName: part.toolName,
             result: (part as any).output,
           });
-          opts.onToolResult?.(part.toolName, (part as any).output);
+          try {
+            opts.onToolResult?.(part.toolName, (part as any).output);
+          } catch (cbErr) {
+            logger.warn('[AiClient] onToolResult 回调抛异常，已忽略以保证流继续', { error: (cbErr as any)?.message });
+          }
         } else if (part.type === 'finish') {
           // 流式完成
           if (isThinking) {
@@ -305,7 +313,14 @@ export async function streamCompletion(opts: StreamOptions) {
             logger.warn('[AiClient] 忽略 finish 之后的晚到错误事件', { error: part.error });
             continue;
           }
-          opts.onError?.(part.error);
+          // 对回调进行保护，避免回调抛错中断流
+          try {
+            opts.onError?.(part.error);
+          } catch (cbErr) {
+            logger.warn('[AiClient] onError 回调抛异常，已忽略以保证流继续', { error: (cbErr as any)?.message });
+          }
+          // 工具相关错误不应直接中断主流; 交由模型后续继续输出
+          continue;
         } else {
           // 🔍 未知类型，记录完整信息（但不中断流程）
           logger.warn('[AiClient] ⚠️ 未处理的 fullStream 类型:', { type: part.type, part });
