@@ -14,11 +14,14 @@ export function AppDataProvider({ children }: Props) {
       globalThis.fetch = expoFetch;
     }
 
-    // Initialize database schema on app start
-    initMigrations().catch((e) => {
-       
+  // Initialize database schema on app start
+  (async () => {
+    try {
+      await initMigrations();
+    } catch (e) {
       logger.error('DB init failed', e);
-    });
+    }
+  })();
   }, []);
 
   return <>{children}</>;

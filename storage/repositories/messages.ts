@@ -1,5 +1,6 @@
 import { Message, Role, now, uuid, ThinkingChain } from '@/storage/core';
 import { execute, queryAll, queryOne } from '@/storage/sqlite/db';
+import { logger } from '@/utils/logger';
 import { appEvents, AppEvents } from '@/utils/events';
 
 // ============================================
@@ -154,8 +155,14 @@ export const MessageRepository = {
       state.timer = null;
     }
     state.timer = setTimeout(() => {
-      // 定时落库（不 await，避免阻塞回调）
-      persistMessageTextOnce(id, state.latestText).catch(() => { /* 单次失败忽略，后续 flush/end 兜底 */ });
+      // 定时落库：统一使用 try/catch（不 await 调用方，不阻塞回调）
+      (async () => {
+        try {
+          await persistMessageTextOnce(id, state.latestText);
+        } catch (e) {
+          logger.debug('[MessageRepository] single persist failed (debounced); will be covered by flush/end', e);
+        }
+      })();
       state.timer = null;
     }, state.debounceMs);
     messageTextBuffers.set(id, state);

@@ -7,7 +7,6 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const { withNativeWind } = require('nativewind/metro');
 const path = require('path');
-const fs = require('fs');
 
 const projectRoot = __dirname;
 const config = getDefaultConfig(projectRoot);
@@ -36,7 +35,11 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     ) {
       return { type: 'sourceFile', filePath: realSemverPath };
     }
-  } catch {}
+  } catch (e) {
+    // 调试目的：解析异常不应阻断后续默认解析
+    // 仅输出错误以便排查（Metro 配置环境允许 console.error）
+    console.error('[metro.config] resolveRequest hook error:', e);
+  }
 
   if (typeof baseResolve === 'function') {
     return baseResolve(context, moduleName, platform);

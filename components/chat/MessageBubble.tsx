@@ -46,9 +46,7 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
   const [currentImageUri, setCurrentImageUri] = React.useState<string>('');
   const [currentImagePrompt, setCurrentImagePrompt] = React.useState<string | undefined>(undefined);
 
-  // 调试日志: 检查思考链数据
-  if (!isUser && thinkingChain) {
-  }
+  // 调试：如需检查思考链数据可在此处添加日志
 
   // 打开图片查看器
   const handleImagePress = React.useCallback((imageUri: string, prompt?: string) => {

@@ -103,7 +103,13 @@ export default function ProviderConfig() {
     React.useCallback(() => {
       return () => {
         // 立即触发保存，并等待完成
-        persist().catch(err => logger.error('[Focus Blur Persist]', err));
+        (async () => {
+          try {
+            await persist();
+          } catch (err) {
+            logger.error('[Focus Blur Persist]', err);
+          }
+        })();
       };
     }, [persist])
   );
@@ -114,7 +120,13 @@ export default function ProviderConfig() {
     if (!loadedRef.current) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      persist().catch(err => logger.error('[Auto Save]', err));
+      (async () => {
+        try {
+          await persist();
+        } catch (err) {
+          logger.error('[Auto Save]', err);
+        }
+      })();
     }, 600);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);

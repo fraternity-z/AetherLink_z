@@ -4,7 +4,7 @@
 
 import React, { useState, useMemo, useCallback, memo } from 'react';
 import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
-import { Text, useTheme, Button, Searchbar, ActivityIndicator } from 'react-native-paper';
+import { Text, useTheme, Searchbar, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import type { DiscoveredModel } from '@/services/ai/ModelDiscovery';
 import { UnifiedDialog } from '@/components/common/UnifiedDialog';
@@ -52,6 +52,8 @@ const ModelItem = memo(({ model, isSelected, isLast, onToggle, primaryColor }: M
     </Pressable>
   );
 });
+
+ModelItem.displayName = 'ModelItem';
 
 export function ModelDiscoveryDialog({ visible, loading, models, onDismiss, onConfirm }: Props) {
   const theme = useTheme();

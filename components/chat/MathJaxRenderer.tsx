@@ -273,9 +273,13 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
           setFormulaHeights(data.heights);
 
           // 缓存高度数据
-          mathJaxCache.set(cacheKey, data.heights).catch(error => {
-            logger.error('Failed to cache MathJax heights:', error);
-          });
+          (async () => {
+            try {
+              await mathJaxCache.set(cacheKey, data.heights);
+            } catch (error) {
+              logger.error('Failed to cache MathJax heights:', error);
+            }
+          })();
 
           onComplete?.(data.heights);
           break;

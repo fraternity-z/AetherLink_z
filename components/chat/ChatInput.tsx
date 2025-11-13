@@ -73,7 +73,9 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
   React.useEffect(() => {
     return () => {
       if (abortRef.current) {
-        try { abortRef.current.abort(); } catch {}
+        try { abortRef.current.abort(); } catch (e) {
+          logger.debug('[ChatInput] abort on unmount failed', e);
+        }
         abortRef.current = null;
       }
     };
@@ -83,7 +85,9 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
   React.useEffect(() => {
     return () => {
       if (abortRef.current) {
-        try { abortRef.current.abort(); } catch {}
+        try { abortRef.current.abort(); } catch (e) {
+          logger.debug('[ChatInput] abort on conversation change failed', e);
+        }
         abortRef.current = null;
         setIsGenerating(false);
       }
@@ -460,7 +464,7 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
                 await ThinkingChainRepository.updateThinkingChainContent(thinkingId, thinkingContent);
                 appEvents.emit(AppEvents.MESSAGE_CHANGED);
               } catch (e) {
-                // 忽略单次失败，最终会在结束时写入完整内容
+                logger.debug('[ChatInput] updateThinkingChainContent failed (debounced, ignored)', e);
               }
             }
           }
@@ -502,7 +506,9 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
             logger.debug('[ChatInput] 用户主动取消请求');
             if (assistant) {
               // 结束缓写，确保最后一段文本同步
-              try { await MessageRepository.endBufferedMessageText(assistant.id); } catch {}
+              try { await MessageRepository.endBufferedMessageText(assistant.id); } catch (err) {
+                logger.debug('[ChatInput] endBufferedMessageText on cancel failed', err);
+              }
               // 如果助手消息为空或内容很少，直接删除；否则保留但标记为失败
               const currentText = assistant.text || '';
               if (currentText.trim().length < 10) {
@@ -522,7 +528,9 @@ export function ChatInput({ conversationId, onConversationChange }: { conversati
           // 真实错误，记录并显示提示
           logger.error('[ChatInput] Stream error', e);
           if (assistant) {
-            try { await MessageRepository.endBufferedMessageText(assistant.id); } catch {}
+            try { await MessageRepository.endBufferedMessageText(assistant.id); } catch (err) {
+              logger.debug('[ChatInput] endBufferedMessageText after stream error failed', err);
+            }
             await MessageRepository.updateMessageStatus(assistant.id, 'failed');
           }
           setIsGenerating(false);

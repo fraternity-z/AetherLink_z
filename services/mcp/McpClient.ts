@@ -35,7 +35,6 @@ import type {
   MCPResourceContent,
   MCPPrompt,
   MCPPromptResult,
-  MCPConnectionStatus,
   MCPHealthCheck,
 } from '@/types/mcp';
 

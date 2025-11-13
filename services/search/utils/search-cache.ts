@@ -19,10 +19,10 @@ interface CacheEntry {
 /**
  * 缓存键接口
  */
-interface CacheKey {
-  engine: SearchEngine;
-  query: string;
-}
+// interface CacheKey {
+//   engine: SearchEngine;
+//   query: string;
+// }
 
 /**
  * 搜索缓存类
@@ -134,8 +134,7 @@ export class SearchCache {
       this.cache.delete(key);
     }
 
-    if (expiredKeys.length > 0) {
-    }
+    // 可按需在此处加入统计/日志：expiredKeys.length
   }
 
   /**

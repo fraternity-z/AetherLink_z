@@ -1,5 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import { Attachment, now, uuid } from '@/storage/core';
+import { logger } from '@/utils/logger';
 import { execute, queryAll } from '@/storage/sqlite/db';
 
 function ensureDir(dir: Directory) {
@@ -140,7 +141,9 @@ export const AttachmentRepository = {
       try {
         const file = new File(uri);
         if (file.exists) file.delete();
-      } catch {}
+      } catch (e) {
+        logger.debug('[AttachmentRepository] delete file failed', e);
+      }
     }
     await execute(`DELETE FROM attachments WHERE id = ?`, [attachmentId]);
   },

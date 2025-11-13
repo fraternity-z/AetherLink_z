@@ -16,14 +16,14 @@ export const safeJSON = {
     if (!input) return null;
     try {
       return JSON.parse(input) as T;
-    } catch (e) {
+    } catch {
       return null;
     }
   },
   stringify(input: any): string {
     try {
       return JSON.stringify(input);
-    } catch (e) {
+    } catch {
       return 'null';
     }
   },

@@ -9,7 +9,6 @@ import { logger } from '@/utils/logger';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import { ProvidersRepository } from '@/storage/repositories/providers';
 import {
-  VoiceRecognitionResult,
   VoiceRecognitionError,
   VoiceRecognitionErrorCode,
   VoiceLanguage,

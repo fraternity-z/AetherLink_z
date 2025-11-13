@@ -89,16 +89,24 @@ export function VoiceInputDialog({
     if (visible) {
       if (provider === 'whisper') {
         logger.debug('[VoiceInputDialog] Dialog opened, starting recording');
-        startRecording().catch((error) => {
-          logger.error('[VoiceInputDialog] Failed to start recording:', error);
-          onClose();
-        });
+        (async () => {
+          try {
+            await startRecording();
+          } catch (error) {
+            logger.error('[VoiceInputDialog] Failed to start recording:', error);
+            onClose();
+          }
+        })();
       } else {
         logger.debug('[VoiceInputDialog] Dialog opened, starting native realtime recognition');
-        startRealtimeRecognition().catch((error) => {
-          logger.error('[VoiceInputDialog] Failed to start realtime recognition:', error);
-          onClose();
-        });
+        (async () => {
+          try {
+            await startRealtimeRecognition();
+          } catch (error) {
+            logger.error('[VoiceInputDialog] Failed to start realtime recognition:', error);
+            onClose();
+          }
+        })();
       }
     }
 
@@ -110,7 +118,13 @@ export function VoiceInputDialog({
         }
       } else {
         // 取消实时识别
-        cancel().catch(() => undefined);
+        (async () => {
+          try {
+            await cancel();
+          } catch (e) {
+            logger.debug('[VoiceInputDialog] cancel failed (cleanup)', e);
+          }
+        })();
       }
     };
   }, [visible, provider]);

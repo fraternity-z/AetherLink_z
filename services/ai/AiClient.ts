@@ -4,7 +4,7 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
-import { ImageGenerationError, ImageModelResolutionError, createAiError } from './errors';
+import { ImageGenerationError, ImageModelResolutionError } from './errors';
 import { isDedicatedImageGenerationModel } from './ModelDiscovery';
 import { logger } from '@/utils/logger';
 
@@ -210,7 +210,8 @@ export async function streamCompletion(opts: StreamOptions) {
         toolCount: Object.keys(mcpTools).length,
       });
     } catch (error: any) {
-      logger.error('[AiClient] 加载 MCP 工具失败', { error: error.message });
+      // 统一日志形态：error 放第二参，附加字段放第三参
+      logger.error('[AiClient] 加载 MCP 工具失败', error, { message: error?.message });
       // 即使工具加载失败，仍然继续聊天流程
       mcpTools = undefined;
     }

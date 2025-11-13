@@ -1,5 +1,6 @@
 import type { CustomProvider } from '@/storage/repositories/custom-providers';
 import { performHttpRequest } from '@/utils/http';
+import { logger } from '@/utils/logger';
 
 export type ValidateResult = { ok: boolean; message: string };
 
@@ -15,7 +16,10 @@ export async function validateCustomProviderModel(cp: CustomProvider, modelId: s
       const url = `${base}/models/${encodeURIComponent(modelId)}`;
       await performHttpRequest(url, { method: 'GET', headers, timeout: 8000 });
       return { ok: true, message: `${modelId} 可用（models/${modelId}）` };
-    } catch {}
+    } catch (e: any) {
+      // 首选端点探测失败，继续尝试 chat/completions
+      logger.debug('[CustomModelValidation] models endpoint check failed, fallback to chat/completions', e);
+    }
     try {
       const url = `${base}/chat/completions`;
       const body = JSON.stringify({ model: modelId, messages:[{ role:'user', content:'ping' }], max_tokens:1, stream:false });

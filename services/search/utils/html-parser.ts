@@ -25,10 +25,14 @@ export function decodeBingRedirectUrl(href: string): string {
             const decoded = atobFn(b64);
             if (decoded && decoded.startsWith('http')) return decoded;
           }
-        } catch (_) {}
+        } catch (e) {
+          logger.debug('[html-parser] Failed to decode Bing redirect base64', e);
+        }
       }
     }
-  } catch (_) {}
+  } catch (e) {
+    logger.debug('[html-parser] Failed to parse Bing redirect URL', e);
+  }
   return href;
 }
 
