@@ -217,7 +217,7 @@ export default function MCPServerSettings() {
 
       const healthData: ServerHealth = {
         serverId: server.id,
-        healthy: result.healthy,
+        healthy: result.healthy ?? false,
         responseTime,
         toolsCount,
         resourcesCount,

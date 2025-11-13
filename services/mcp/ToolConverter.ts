@@ -12,7 +12,7 @@
  * 创建日期: 2025-11-12
  */
 
-import { tool as createTool, CoreTool, ToolExecutionOptions } from 'ai';
+import { tool as createTool, Tool, ToolCallOptions } from 'ai';
 import { z } from 'zod';
 import type { MCPTool, MCPToolResult, MCPToolCallRequest } from '@/types/mcp';
 import { mcpClient } from './McpClient';
@@ -92,8 +92,8 @@ export class ToolConverter {
    * @param mcpTools MCP 工具列表
    * @returns CoreTool 列表
    */
-  static toVercelAiTools(mcpTools: MCPTool[]): Record<string, CoreTool> {
-    const tools: Record<string, CoreTool> = {};
+  static toVercelAiTools(mcpTools: MCPTool[]): Record<string, Tool<any, any>> {
+    const tools: Record<string, Tool<any, any>> = {};
 
     for (const mcpTool of mcpTools) {
       try {
@@ -106,8 +106,8 @@ export class ToolConverter {
         // 创建 Vercel AI SDK 工具
         tools[toolId] = createTool({
           description: mcpTool.description || `${mcpTool.name} from ${mcpTool.serverName}`,
-          parameters: parametersSchema,
-          execute: async (args: any, options?: ToolExecutionOptions) => {
+          inputSchema: parametersSchema,
+          execute: async (args: any, options: ToolCallOptions) => {
             log.info(`执行 MCP 工具`, {
               toolId,
               serverId: mcpTool.serverId,
@@ -243,7 +243,7 @@ export class ToolConverter {
    *
    * @returns CoreTool 映射
    */
-  static async getAllActiveTools(): Promise<Record<string, CoreTool>> {
+  static async getAllActiveTools(): Promise<Record<string, Tool<any, any>>> {
     const { McpServersRepository } = await import('@/storage/repositories/mcp');
     const activeServers = await McpServersRepository.getActiveServers();
 
@@ -251,7 +251,7 @@ export class ToolConverter {
       serverCount: activeServers.length,
     });
 
-    const allTools: Record<string, CoreTool> = {};
+    const allTools: Record<string, Tool<any, any>> = {};
 
     for (const server of activeServers) {
       try {

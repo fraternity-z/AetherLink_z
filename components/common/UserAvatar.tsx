@@ -40,14 +40,14 @@ export interface UserAvatarProps {
  * ```
  *
  * @param {UserAvatarProps} props - 组件属性
- * @returns {JSX.Element} 头像组件
+ * @returns 头像组件
  */
 export function UserAvatar({
   size = 40,
   uri,
   showBadge = false,
   onPress,
-}: UserAvatarProps): JSX.Element {
+}: UserAvatarProps) {
   const theme = useTheme();
 
   // 头像内容
