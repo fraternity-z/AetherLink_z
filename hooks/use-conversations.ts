@@ -13,7 +13,7 @@ export function useConversations(opts?: { archived?: boolean; limit?: number }) 
       const data = await ChatRepository.listConversations({ archived: opts?.archived, limit: opts?.limit ?? 50, offset: 0 });
       setItems(data);
     } catch (e) {
-      setError(e as any);
+      setError(e instanceof Error ? e : new Error(String(e)));
     } finally {
       setLoading(false);
     }

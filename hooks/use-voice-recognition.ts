@@ -248,7 +248,7 @@ export function useVoiceRecognition(
         logger.debug('[useVoiceRecognition] Recognition completed:', result.text);
 
         return result.text;
-      } catch (err: any) {
+      } catch (err: unknown) {
         const recognitionError =
           err instanceof VoiceRecognitionError
             ? err
@@ -318,7 +318,7 @@ export function useVoiceRecognition(
           },
         }
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       const recognitionError =
         err instanceof VoiceRecognitionError
           ? err
@@ -345,7 +345,7 @@ export function useVoiceRecognition(
       setIsRecognizing(false);
 
       return finalResult;
-    } catch (err: any) {
+    } catch (err: unknown) {
       const recognitionError =
         err instanceof VoiceRecognitionError
           ? err

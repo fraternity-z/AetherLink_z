@@ -19,7 +19,7 @@ export function useMessages(conversationId: string | null, pageSize = 50) {
       else setItems(prev => [...prev, ...data]);
       if (data.length > 0) setEndCursor(data[data.length - 1].createdAt);
     } catch (e) {
-      setError(e as any);
+      setError(e instanceof Error ? e : new Error(String(e)));
     } finally {
       setLoading(false);
     }

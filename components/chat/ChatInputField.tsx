@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { Platform, TextInput as RNTextInput } from 'react-native';
+import { TextInput as RNTextInput } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 /**
@@ -42,13 +42,6 @@ export const ChatInputField = React.memo(function ChatInputField({
   // 生成动态占位符
   const dynamicPlaceholder = React.useMemo(() => {
     if (placeholder) return placeholder;
-
-    if (Platform.OS === 'web') {
-      return enterToSend
-        ? "和助手说点什么… (Shift+Enter 换行)"
-        : "和助手说点什么…";
-    }
-
     return enterToSend
       ? "和助手说点什么… (Enter 发送)"
       : "和助手说点什么… (Enter 换行)";
@@ -58,18 +51,12 @@ export const ChatInputField = React.memo(function ChatInputField({
    * 键盘按键处理
    */
   const handleKeyPress = React.useCallback((e: any) => {
+    if (!enterToSend) {
+      return;
+    }
     const nativeEvent = e.nativeEvent as any;
-
-    if (enterToSend && nativeEvent.key === 'Enter') {
-      // Web: 允许 Shift+Enter 换行
-      if (Platform.OS === 'web' && nativeEvent.shiftKey) {
-        return;
-      }
-
-      // 阻止默认行为（换行）
+    if (nativeEvent.key === 'Enter') {
       e.preventDefault?.();
-
-      // 触发发送
       if (value.trim()) {
         onSend();
       }

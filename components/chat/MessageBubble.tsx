@@ -302,8 +302,14 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
           {isUser ? (
             <Text
               variant="bodyMedium"
-              className={cn('text-[15px] leading-[22px]', attachments.length > 0 && 'mt-1')}
-              style={{ color: theme.dark ? '#FFFFFF' : '#4A148C' }} // 浅紫色背景配深紫色文字
+              className={cn(
+                'text-[15px] leading-[22px]',
+                attachments.length > 0 && 'mt-1'
+              )}
+              style={{
+                color: theme.dark ? '#FFFFFF' : '#4A148C', // 浅紫色背景配深紫色文字
+                flexShrink: 1,
+              }}
             >
               {content || (status === 'pending' ? '正在发送...' : '')}
             </Text>

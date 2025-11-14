@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import { logger } from '@/utils/logger';
@@ -70,11 +70,6 @@ export function useUserProfile(): UseUserProfileResult {
    * @returns {Promise<boolean>} 是否获得权限
    */
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    // Web 平台不需要权限
-    if (Platform.OS === 'web') {
-      return true;
-    }
-
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 

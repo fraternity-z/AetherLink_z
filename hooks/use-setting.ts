@@ -13,8 +13,8 @@ export function useSetting<T>(key: SettingKey, defaultValue: T) {
       try {
         const v = await repo.get<T>(key);
         if (mounted && v !== null && v !== undefined) setValue(v as T);
-      } catch (e: any) {
-        if (mounted) setError(e);
+      } catch (e: unknown) {
+        if (mounted) setError(e instanceof Error ? e : new Error(String(e)));
       } finally {
         if (mounted) setLoading(false);
       }
@@ -29,7 +29,7 @@ export function useSetting<T>(key: SettingKey, defaultValue: T) {
     try {
       await repo.set<T>(key, next);
     } catch (e) {
-      setError(e as any);
+      setError(e instanceof Error ? e : new Error(String(e)));
     }
   }, [key]);
 

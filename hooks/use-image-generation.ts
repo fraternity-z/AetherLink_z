@@ -119,12 +119,13 @@ export function useImageGeneration(options: UseImageGenerationOptions) {
       });
 
       return result;
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('[useImageGeneration] 捕获错误', err);
 
+      const errMessage = err instanceof Error ? err.message : String(err);
       const imageError = err instanceof ImageGenerationError
         ? err
-        : new ImageGenerationError(err.message || '图片生成失败', provider, model, err);
+        : new ImageGenerationError(errMessage || '图片生成失败', provider, model, err instanceof Error ? err : undefined);
 
       setError(imageError);
       throw imageError;
@@ -185,7 +186,7 @@ export function useImageGeneration(options: UseImageGenerationOptions) {
         } catch (deleteErr) {
           logger.warn('[useImageGeneration] 临时文件删除失败（忽略）', deleteErr);
         }
-      } catch (saveErr: any) {
+      } catch (saveErr: unknown) {
         logger.error('[useImageGeneration] 单张图片保存失败', saveErr);
         // 继续处理下一张图片
       }

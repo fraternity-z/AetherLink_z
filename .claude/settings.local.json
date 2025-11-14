@@ -24,7 +24,8 @@
       "Bash(cat:*)",
       "mcp__mcp-router__list_dir",
       "Bash(cloc:*)",
-      "mcp__mcp-router__search_for_pattern"
+      "mcp__mcp-router__search_for_pattern",
+      "mcp__mcp-router__create_text_file"
     ],
     "deny": [],
     "ask": []

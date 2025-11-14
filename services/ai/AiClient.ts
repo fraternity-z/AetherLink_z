@@ -7,11 +7,35 @@ import { ProvidersRepository, type ProviderId } from '@/storage/repositories/pro
 import { ImageGenerationError, ImageModelResolutionError } from './errors';
 import { isDedicatedImageGenerationModel } from './ModelDiscovery';
 import { logger } from '@/utils/logger';
-import { mcpClient } from '@/services/mcp/McpClient';
-import { McpServersRepository } from '@/storage/repositories/mcp';
-import type { MCPTool, MCPToolResult } from '@/types/mcp';
 
 export type Provider = 'openai' | 'anthropic' | 'google' | 'gemini' | 'deepseek' | 'volc' | 'zhipu';
+
+/**
+ * MCP 工具调用参数类型
+ */
+export type ToolCallArgs = Record<string, unknown>;
+
+/**
+ * MCP 工具调用结果类型
+ */
+export type ToolCallResult = unknown;
+
+/**
+ * Provider 配置选项类型
+ */
+export interface ProviderOptions {
+  providerOptions?: {
+    openai?: {
+      reasoningSummary?: 'auto' | 'detailed' | 'brief';
+    };
+    anthropic?: {
+      thinking?: {
+        type: 'enabled';
+        budgetTokens: number;
+      };
+    };
+  };
+}
 
 export interface StreamOptions {
   provider: Provider;
@@ -31,8 +55,24 @@ export interface StreamOptions {
 
   // MCP 工具集成 (Model Context Protocol)
   enableMcpTools?: boolean; // 是否启用 MCP 工具
-  onToolCall?: (toolName: string, args: any) => void; // 工具调用开始回调
-  onToolResult?: (toolName: string, result: any) => void; // 工具执行完成回调
+  onToolCall?: (toolName: string, args: ToolCallArgs) => void; // 工具调用开始回调
+  onToolResult?: (toolName: string, result: ToolCallResult) => void; // 工具执行完成回调
+}
+
+/**
+ * 安全地从错误对象中提取错误消息
+ */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+    return error.message;
+  }
+  return '未知错误';
 }
 
 async function getApiKey(provider: Provider): Promise<string> {
@@ -74,7 +114,7 @@ function supportsReasoning(provider: Provider, model: string): boolean {
 /**
  * 获取推理模型的 providerOptions 配置
  */
-function getProviderOptions(provider: Provider, model: string): any {
+function getProviderOptions(provider: Provider, model: string): ProviderOptions {
   // OpenAI o1/o3 系列 - 需要 reasoningSummary 配置
   if (provider === 'openai' && /^o[134]/i.test(model)) {
     return {
@@ -203,7 +243,7 @@ export async function streamCompletion(opts: StreamOptions) {
   // 检查模型是否支持思考链
   const hasReasoningSupport = supportsReasoning(provider, model);
 
-  // MCP 工具集成：如果启用，加载所有激活的 MCP 工具
+  // MCP 工具集成：如果启用，加载所有激活的 MCP 工具（使用 AI SDK 原生 tools）
   let mcpTools: Record<string, any> | undefined;
   if (opts.enableMcpTools) {
     try {
@@ -212,281 +252,141 @@ export async function streamCompletion(opts: StreamOptions) {
       logger.info('[AiClient] MCP 工具已加载', {
         toolCount: Object.keys(mcpTools).length,
       });
-    } catch (error: any) {
-      // 统一日志形态：error 放第二参，附加字段放第三参
-      logger.error('[AiClient] 加载 MCP 工具失败', error, { message: error?.message });
+    } catch (error: unknown) {
+      logger.error('[AiClient] 加载 MCP 工具失败', error, { message: getErrorMessage(error) });
       // 即使工具加载失败，仍然继续聊天流程
       mcpTools = undefined;
     }
   }
 
-  // 采用“方案A”：不将 MCP 工具注入 AI SDK 的 tools 机制，避免主流在工具阶段被阻塞。
-  // 工具调用采用解耦的二段式：
-  // 1) 第一段：纯流式文本输出，期间解析 <tool_use> 指令；
-  // 2) 流结束后：并发执行工具；
-  // 3) 构造带工具结果的新消息，递归开启第二段模型流。
+  // 使用 AI SDK 原生 streamText，集成 MCP 工具
+  const result = streamText({
+    model: factory()(model),
+    messages: opts.messages,
+    abortSignal: opts.abortSignal,
+    temperature: opts.temperature,
+    maxOutputTokens: opts.maxTokens,
+    tools: mcpTools, // ✨ 使用 AI SDK 原生 tools 参数
+    // @ts-expect-error - maxSteps is valid but not in SDK type definitions
+    maxSteps: 5, // 允许最多 5 轮工具调用（防止无限循环）
+    ...(hasReasoningSupport ? getProviderOptions(provider, model) : {}),
+  });
 
-  // 工具使用解析的聚合状态
-  const toolUses: Array<{ name: string; args: any }> = [];
-  let toolDetected = false; // 一旦发现完整的工具块，后续不再向 UI 输出文本，防止幻觉
-  const toolParsingEnabled = opts.enableMcpTools === true;
+  // 处理流式响应，集成思考链和工具调用回调
+  try {
+    if (hasReasoningSupport && (opts.onThinkingToken || opts.onThinkingStart || opts.onThinkingEnd)) {
+      // 支持推理模型的思考链输出
+      let isThinking = false;
+      didFinish = false;
 
-  const extractToolUses = (aggregate: string) => {
-    // 解析 <tool_use> ... <name>...</name> ... <arguments>...</arguments> ... </tool_use>
-    const re = /<tool_use>[\s\S]*?<name>[\s\S]*?<\/name>[\s\S]*?<arguments>[\s\S]*?<\/arguments>[\s\S]*?<\/tool_use>/g;
-    const results: Array<{ name: string; args: any }> = [];
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(aggregate)) !== null) {
-      const block = m[0];
-      const nameMatch = block.match(/<name>([\s\S]*?)<\/name>/);
-      const argsMatch = block.match(/<arguments>([\s\S]*?)<\/arguments>/);
-      if (!nameMatch || !argsMatch) continue;
-      const rawName = (nameMatch[1] || '').trim();
-      const rawArgs = (argsMatch[1] || '').trim();
-      let parsedArgs: any = rawArgs;
-      try {
-        parsedArgs = JSON.parse(rawArgs);
-      } catch {}
-      results.push({ name: rawName, args: parsedArgs });
-    }
-    return results;
-  };
+      for await (const part of result.fullStream) {
+        logger.debug('[AiClient] 🔍 fullStream part.type:', part.type);
 
-  // 如果启用 MCP 工具，向模型注入一段系统提示，告知可用工具以及使用协议
-  let initialMessages = opts.messages as ModelMessage[];
-  if (opts.enableMcpTools) {
-    try {
-      const activeServers = await McpServersRepository.getActiveServers();
-      const toolNames: string[] = [];
-      const toolHints: string[] = [];
-      for (const srv of activeServers) {
-        try {
-          const tools = await mcpClient.listTools(srv.id);
-          for (const t of tools) {
-            toolNames.push(t.name);
-            const required = Array.isArray(t.inputSchema?.required) ? t.inputSchema.required : [];
-            const props = t.inputSchema?.properties ? Object.keys(t.inputSchema.properties) : [];
-            const keysPreview = (required as string[]).length > 0 ? `required: ${required.join(', ')}` : props.length > 0 ? `keys: ${props.slice(0,6).join(', ')}${props.length>6?'…':''}` : '';
-            toolHints.push(`- ${t.name}${keysPreview ? ` (${keysPreview})` : ''}`);
+        if (part.type === 'reasoning-start') {
+          isThinking = true;
+          opts.onThinkingStart?.();
+        } else if (part.type === 'reasoning-delta') {
+          opts.onThinkingToken?.(part.text);
+        } else if (part.type === 'reasoning-end') {
+          isThinking = false;
+          opts.onThinkingEnd?.();
+        } else if (part.type === 'text-delta') {
+          // 正常文本输出
+          opts.onToken?.(part.text);
+        } else if (part.type === 'tool-call') {
+          // ✨ AI SDK 原生工具调用事件
+          const toolName = part.toolName;
+          const toolArgs = ('args' in part ? part.args : part.input) as ToolCallArgs; // AI SDK 使用 input 字段
+          logger.info('[AiClient] 🔧 工具调用开始', { toolName, args: toolArgs });
+          try {
+            opts.onToolCall?.(toolName, toolArgs);
+          } catch (cbErr) {
+            logger.warn('[AiClient] onToolCall 回调异常', { error: getErrorMessage(cbErr) });
           }
-        } catch (e) {
-          logger.warn('[AiClient] 预加载工具列表失败，跳过该服务器', { serverId: srv.id, error: (e as any)?.message });
-        }
-      }
-
-      if (toolNames.length > 0) {
-        const sysText = [
-          'You can use external tools via Model Context Protocol (MCP).',
-          'When a tool would help, emit exactly this tag and nothing else:',
-          '<tool_use>\n<name>{tool_name}</name>\n<arguments>{valid JSON arguments}</arguments>\n</tool_use>',
-          'Rules:',
-          '- Use double quotes for all JSON keys/strings; no trailing commas;',
-          '- Do NOT wrap with code fences; output only the tag above;',
-          '- Stop generating immediately after </tool_use>.',
-          'Available tools:',
-          ...toolHints,
-        ].join('\n');
-        initialMessages = [{ role: 'system', content: sysText }, ...initialMessages];
-      }
-    } catch (e) {
-      logger.warn('[AiClient] 构建 MCP 工具系统提示失败', { error: (e as any)?.message });
-    }
-  }
-
-  // 递归函数：执行一段流 + 解析工具 + 二段式递归（最多 3 层）
-  const runOnePass = async (
-    messages: any[],
-    depth: number
-  ): Promise<void> => {
-    const result = streamText({
-      model: factory()(model),
-      messages,
-      abortSignal: opts.abortSignal,
-      temperature: opts.temperature,
-      maxOutputTokens: opts.maxTokens,
-      ...(hasReasoningSupport ? getProviderOptions(provider, model) : {}),
-    });
-
-    // 每段流的本地聚合文本（仅用于检测工具块），为降低内存风险，限制到 50k。
-    let aggregateText = '';
-    const appendAggregate = (d: string) => {
-      aggregateText += d;
-      if (aggregateText.length > 50000) {
-        aggregateText = aggregateText.slice(-30000);
-      }
-    };
-
-    try {
-      if (hasReasoningSupport && (opts.onThinkingToken || opts.onThinkingStart || opts.onThinkingEnd)) {
-        let isThinking = false;
-        didFinish = false;
-
-        for await (const part of result.fullStream) {
-          logger.debug('[AiClient] 🔍 fullStream part.type:', part.type);
-          if (part.type === 'reasoning-start') {
-            isThinking = true;
-            opts.onThinkingStart?.();
-          } else if (part.type === 'reasoning-delta') {
-            opts.onThinkingToken?.(part.text);
-          } else if (part.type === 'reasoning-end') {
-            isThinking = false;
+        } else if (part.type === 'tool-result') {
+          // ✨ AI SDK 原生工具结果事件
+          const toolName = part.toolName;
+          const toolResult = 'result' in part ? part.result : part.output; // AI SDK 使用 output 字段
+          logger.info('[AiClient] ✅ 工具执行完成', { toolName, result: toolResult });
+          try {
+            opts.onToolResult?.(toolName, toolResult);
+          } catch (cbErr) {
+            logger.warn('[AiClient] onToolResult 回调异常', { error: getErrorMessage(cbErr) });
+          }
+        } else if (part.type === 'finish-step') {
+          // 每一步完成（可能包含工具调用）
+          logger.debug('[AiClient] 完成一步', { usage: part.usage });
+          continue;
+        } else if (part.type === 'finish') {
+          // 整个流程完成
+          if (isThinking) {
             opts.onThinkingEnd?.();
-          } else if (part.type === 'text-delta') {
-            if (!toolDetected) {
-              appendAggregate(part.text);
-              const found = extractToolUses(aggregateText);
-              if (toolParsingEnabled && found.length > 0) {
-                toolUses.push(...found);
-                toolDetected = true;
-                // 一旦检测到工具，停止向外输出正文，避免标签泄露/重复
-              } else {
-                opts.onToken?.(part.text);
-              }
-            }
-          } else if (part.type === 'finish-step') {
-            // usage 统计（可选）
-            continue;
-          } else if (part.type === 'finish') {
-            if (isThinking) {
-              opts.onThinkingEnd?.();
-            }
-            didFinish = true;
-            break;
-          } else if (part.type === 'error') {
-            if (didFinish) {
-              logger.warn('[AiClient] 忽略 finish 之后的晚到错误事件', { error: part.error });
-              continue;
-            }
-            try { opts.onError?.(part.error); } catch (cbErr) {
-              logger.warn('[AiClient] onError 回调抛异常，已忽略以保证流继续', { error: (cbErr as any)?.message });
-            }
+          }
+          didFinish = true;
+          break;
+        } else if (part.type === 'error') {
+          if (didFinish) {
+            logger.warn('[AiClient] 忽略 finish 之后的晚到错误事件', { error: part.error });
             continue;
           }
+          try {
+            opts.onError?.(part.error);
+          } catch (cbErr) {
+            logger.warn('[AiClient] onError 回调抛异常', { error: getErrorMessage(cbErr) });
+          }
+          continue;
         }
-      } else {
-        // 无思考链，处理纯文本流
-        for await (const delta of result.textStream) {
-          if (!toolDetected) {
-            appendAggregate(delta);
-            const found = extractToolUses(aggregateText);
-            if (toolParsingEnabled && found.length > 0) {
-              toolUses.push(...found);
-              toolDetected = true;
-            } else {
-              opts.onToken?.(delta);
-            }
+      }
+    } else {
+      // 无思考链，处理纯文本流（仍需监听工具调用）
+      for await (const part of result.fullStream) {
+        if (part.type === 'text-delta') {
+          opts.onToken?.(part.text);
+        } else if (part.type === 'tool-call') {
+          const toolName = part.toolName;
+          const toolArgs = ('args' in part ? part.args : part.input) as ToolCallArgs; // AI SDK 使用 input 字段
+          logger.info('[AiClient] 🔧 工具调用开始', { toolName, args: toolArgs });
+          try {
+            opts.onToolCall?.(toolName, toolArgs);
+          } catch (cbErr) {
+            logger.warn('[AiClient] onToolCall 回调异常', { error: getErrorMessage(cbErr) });
+          }
+        } else if (part.type === 'tool-result') {
+          const toolName = part.toolName;
+          const toolResult = 'result' in part ? part.result : part.output; // AI SDK 使用 output 字段
+          logger.info('[AiClient] ✅ 工具执行完成', { toolName, result: toolResult });
+          try {
+            opts.onToolResult?.(toolName, toolResult);
+          } catch (cbErr) {
+            logger.warn('[AiClient] onToolResult 回调异常', { error: getErrorMessage(cbErr) });
+          }
+        } else if (part.type === 'error') {
+          try {
+            opts.onError?.(part.error);
+          } catch (cbErr) {
+            logger.warn('[AiClient] onError 回调异常', { error: getErrorMessage(cbErr) });
           }
         }
       }
-    } catch (e: any) {
-      if (didFinish && (e?.name === 'APICallError' || /abort|cancel|closed|stream/i.test(String(e?.message || '')))) {
-        logger.warn('[AiClient] finish 之后的晚到异常已忽略', { name: e?.name, message: e?.message });
-        return;
-      }
-      logger.error('[AiClient Error]', { provider, model, error: e, message: e?.message, cause: e?.cause, stack: e?.stack });
+    }
+  } catch (e: unknown) {
+    const errorName = e && typeof e === 'object' && 'name' in e ? String(e.name) : '';
+    const errorMessage = getErrorMessage(e);
+    const errorCause = e && typeof e === 'object' && 'cause' in e ? e.cause : undefined;
+    const errorStack = e instanceof Error ? e.stack : undefined;
+
+    if (didFinish && (errorName === 'APICallError' || /abort|cancel|closed|stream/i.test(errorMessage))) {
+      logger.warn('[AiClient] finish 之后的晚到异常已忽略', { name: errorName, message: errorMessage });
+    } else {
+      logger.error('[AiClient Error]', { provider, model, error: e, message: errorMessage, cause: errorCause, stack: errorStack });
       opts.onError?.(e);
       throw e;
     }
+  }
 
-    // 一段流结束，若发现工具且未超过递归深度，则执行工具并递归
-    if (toolParsingEnabled && toolUses.length > 0 && depth < 3) {
-      try {
-        const toolResultsText = await runMcpToolsAndSummarize(toolUses, opts);
-        const nextMessages = [
-          ...messages,
-          { role: 'user', content: toolResultsText },
-        ];
-        // 重置检测状态，允许第二段再次解析后续工具（若模型继续产生）
-        toolUses.length = 0;
-        toolDetected = false;
-        await runOnePass(nextMessages, depth + 1);
-        return;
-      } catch (toolErr) {
-        logger.error('[AiClient] 执行 MCP 工具失败', toolErr as any);
-        // 工具失败时，不再递归，结束本轮
-      }
-    }
-  };
-
-  await runOnePass(initialMessages, 0);
   opts.onDone?.();
-  
-  return;
 }
 
-/**
- * 执行解析到的 MCP 工具并生成可供第二轮对话使用的用户消息文本
- */
-async function runMcpToolsAndSummarize(
-  toolUses: Array<{ name: string; args: any }>,
-  opts: StreamOptions
-): Promise<string> {
-  // 构建 name -> { serverId, tool } 索引
-  const activeServers = await McpServersRepository.getActiveServers();
-  const nameIndex = new Map<string, { serverId: string; tool: MCPTool }>();
-  for (const srv of activeServers) {
-    try {
-      const tools = await mcpClient.listTools(srv.id);
-      for (const t of tools) {
-        if (!nameIndex.has(t.name)) {
-          nameIndex.set(t.name, { serverId: srv.id, tool: t });
-        }
-      }
-    } catch (e) {
-      logger.warn('[AiClient] 加载服务器工具失败，跳过该服务器', { serverId: srv.id, error: (e as any)?.message });
-    }
-  }
-
-  let summary = '';
-  for (const use of toolUses) {
-    try {
-      const entry = nameIndex.get(use.name);
-      if (!entry) {
-        const notFound = `MCP 工具未找到: ${use.name}`;
-        summary += `Here is the result of mcp tool use \`${use.name}\`:\n${notFound}\n`;
-        try { opts.onToolResult?.(use.name, { error: notFound }); } catch {}
-        continue;
-      }
-
-      try { opts.onToolCall?.(use.name, use.args); } catch {}
-      const result: MCPToolResult = await mcpClient.callTool(entry.serverId, use.name, use.args || {});
-      try { opts.onToolResult?.(use.name, result); } catch {}
-
-      const text = formatMcpResultToMessageText(use.name, result);
-      summary += text + '\n';
-    } catch (err: any) {
-      const msg = typeof err?.message === 'string' ? err.message : String(err);
-      summary += `Here is the result of mcp tool use \`${use.name}\`:\nError: ${msg}\n`;
-      try { opts.onToolResult?.(use.name, { error: msg }); } catch {}
-    }
-  }
-  return summary.trim();
-}
-
-function formatMcpResultToMessageText(toolName: string, result: MCPToolResult): string {
-  if (!result) {
-    return `Here is the result of mcp tool use \`${toolName}\`:\n(no content)`;
-  }
-  if (result.isError) {
-    const errText = (result.content || [])
-      .filter((c) => c.type === 'text' && typeof c.text === 'string')
-      .map((c) => c.text)
-      .join('\n');
-    return `Here is the result of mcp tool use \`${toolName}\`:\nError: ${errText || 'unknown error'}`;
-  }
-  const lines: string[] = [`Here is the result of mcp tool use \`${toolName}\`:`];
-  for (const item of result.content || []) {
-    if (item.type === 'text' && typeof item.text === 'string') {
-      lines.push(item.text);
-    } else if (item.type === 'image' && item.data && item.mimeType) {
-      lines.push(`image: data:${item.mimeType};base64,${item.data}`);
-    } else if (item.type === 'resource' && item.uri) {
-      lines.push(`resource: ${item.uri}`);
-    }
-  }
-  if (lines.length === 1) lines.push('(no content)');
-  return lines.join('\n');
-}
 
 // ============================================
 // 图片生成功能
@@ -667,23 +567,23 @@ export async function generateImageWithAI(
     onProgress?.(100);
 
     return imageData;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // 错误处理
     logger.error('[AiClient] 图片生成失败', {
       provider,
       model,
       error: error,
-      message: error?.message,
-      stack: error?.stack,
+      message: getErrorMessage(error),
+      stack: error instanceof Error ? error.stack : undefined,
     });
 
     const imageError = error instanceof ImageGenerationError
       ? error
       : new ImageGenerationError(
-          error.message || '图片生成失败',
+          getErrorMessage(error) || '图片生成失败',
           provider,
           model,
-          error
+          error instanceof Error ? error : undefined
         );
 
     onError?.(imageError);
