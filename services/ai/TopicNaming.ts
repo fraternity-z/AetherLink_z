@@ -4,7 +4,7 @@ import { ChatRepository } from '@/storage/repositories/chat';
 import { streamCompletion, type Provider } from '@/services/ai/AiClient';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 import { ProviderModelsRepository } from '@/storage/repositories/provider-models';
-import type { CoreMessage } from 'ai';
+import type { ModelMessage } from 'ai';
 import { logger } from '@/utils/logger';
 
 function sanitizeTitle(input: string): string {
@@ -46,8 +46,8 @@ export async function autoNameConversation(conversationId: string): Promise<void
   // 取前两条（首轮对话），若不足则用已有
   const firstTurn = msgsDb.slice(0, 2);
 
-  const sys: CoreMessage = { role: 'system', content: prompt };
-  const history: CoreMessage[] = firstTurn.map((m) => ({ role: m.role, content: m.text ?? '' }));
+  const sys: ModelMessage = { role: 'system', content: prompt };
+  const history: ModelMessage[] = firstTurn.map((m) => ({ role: m.role, content: m.text ?? '' }));
 
   let acc = '';
   try {

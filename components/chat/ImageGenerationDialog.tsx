@@ -87,7 +87,7 @@ export function ImageGenerationDialog({
         }),
       ]).start();
     }
-  }, [visible]);
+  }, [opacityAnim, scaleAnim, visible]);
 
   // 重置状态
   const handleDismiss = () => {

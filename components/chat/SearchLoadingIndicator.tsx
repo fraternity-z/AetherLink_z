@@ -31,20 +31,6 @@ export function SearchLoadingIndicator({ engine, query, onCancel }: SearchLoadin
     }
   };
 
-  // 获取搜索引擎图标
-  const getEngineIcon = (eng: SearchEngine): string => {
-    switch (eng) {
-      case 'bing':
-        return 'microsoft-bing';
-      case 'google':
-        return 'google';
-      case 'tavily':
-        return 'cloud-search';
-      default:
-        return 'web';
-    }
-  };
-
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surfaceVariant }]}>
       <View style={styles.content}>

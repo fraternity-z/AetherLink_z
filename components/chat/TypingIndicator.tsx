@@ -54,7 +54,7 @@ export function TypingIndicator({ color, dotSize = 8 }: TypingIndicatorProps) {
     dot1Y.value = loopAnimation;
     dot2Y.value = withDelay(150, loopAnimation);
     dot3Y.value = withDelay(300, loopAnimation);
-  }, []);
+  }, [dot1Y, dot2Y, dot3Y]);
 
   // 动画样式
   const dot1Style = useAnimatedStyle(() => ({

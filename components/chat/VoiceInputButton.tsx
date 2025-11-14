@@ -22,7 +22,7 @@ interface VoiceInputButtonProps {
 export function VoiceInputButton({ onTextRecognized }: VoiceInputButtonProps) {
   const theme = useTheme();
   const { confirm } = useConfirmDialog();
-  const { permissionStatus, isGranted, isDenied, requestPermission, openSettings } = useMicrophonePermission();
+  const { isGranted, isDenied, requestPermission, openSettings } = useMicrophonePermission();
   const [dialogVisible, setDialogVisible] = useState(false);
   const [maxDuration, setMaxDuration] = useState(120);
 

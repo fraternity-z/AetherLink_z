@@ -13,15 +13,15 @@ import {
 export default function HiddenWebViewHost() {
   const webviewRef = useRef<WebView>(null)
   const [current, setCurrent] = useState<{ id: string; url: string; timeout: number } | null>(null)
-  const queueRef = useRef<Array<{ id: string; url: string; timeout: number }>>([])
+  const queueRef = useRef<{ id: string; url: string; timeout: number }[]>([])
   const timeoutRef = useRef<number | null>(null)
 
-  const clearTimer = () => {
+  const clearTimer = useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current as any)
       timeoutRef.current = null
     }
-  }
+  }, [])
 
   const onMessage = useCallback((event: any) => {
     try {
@@ -29,7 +29,7 @@ export default function HiddenWebViewHost() {
       if (data && data.id && typeof data.html === 'string') {
         resolveHiddenWebViewTask(data.id, data.html)
       }
-    } catch (_) {
+    } catch {
       // ignore
     } finally {
       clearTimer()
@@ -40,7 +40,7 @@ export default function HiddenWebViewHost() {
         setCurrent(null)
       }
     }
-  }, [])
+  }, [clearTimer, startTask])
 
   const onLoadEnd = useCallback(() => {
     if (!current) return
@@ -67,7 +67,7 @@ export default function HiddenWebViewHost() {
     }, Math.max(1000, task.timeout)) as any
 
     setCurrent(task)
-  }, [])
+  }, [clearTimer])
 
   const load = useCallback((task: { id: string; url: string; timeout: number }) => {
     if (current) {

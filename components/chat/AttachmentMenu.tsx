@@ -68,7 +68,7 @@ export function AttachmentMenu({
         }),
       ]).start();
     }
-  }, [visible]);
+  }, [opacityAnim, slideAnim, visible]);
 
   const menuItems = [
     {

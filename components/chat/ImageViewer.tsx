@@ -10,7 +10,7 @@ import { logger } from '@/utils/logger';
  * - 点击背景关闭
  */
 
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback } from 'react';
 import {
     View,
   StyleSheet,
@@ -27,9 +27,7 @@ import { GestureHandlerRootView, GestureDetector, Gesture } from 'react-native-g
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withTiming,
   withSpring,
-  runOnJS,
 } from 'react-native-reanimated';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -64,7 +62,7 @@ export function ImageViewer({ visible, imageUri, onClose, prompt }: ImageViewerP
     translateY.value = withSpring(0);
     savedTranslateX.value = 0;
     savedTranslateY.value = 0;
-  }, []);
+  }, [savedScale, savedTranslateX, savedTranslateY, scale, translateX, translateY]);
 
   // 关闭查看器
   const handleClose = useCallback(() => {

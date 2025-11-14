@@ -1,4 +1,4 @@
-import { streamText, experimental_generateImage as generateImage, type CoreMessage } from 'ai';
+import { streamText, experimental_generateImage as generateImage, type ModelMessage } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createAnthropic } from '@ai-sdk/anthropic';
@@ -16,7 +16,7 @@ export type Provider = 'openai' | 'anthropic' | 'google' | 'gemini' | 'deepseek'
 export interface StreamOptions {
   provider: Provider;
   model: string;
-  messages: CoreMessage[];
+  messages: ModelMessage[];
   abortSignal?: AbortSignal;
   temperature?: number;
   maxTokens?: number;
@@ -253,7 +253,7 @@ export async function streamCompletion(opts: StreamOptions) {
   };
 
   // 如果启用 MCP 工具，向模型注入一段系统提示，告知可用工具以及使用协议
-  let initialMessages = opts.messages as CoreMessage[];
+  let initialMessages = opts.messages as ModelMessage[];
   if (opts.enableMcpTools) {
     try {
       const activeServers = await McpServersRepository.getActiveServers();

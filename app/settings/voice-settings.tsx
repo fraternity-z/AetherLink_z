@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, Platform, Linking } from 'react-native';
-import { List, Switch, Dialog, Portal, Button, RadioButton, Text, Divider } from 'react-native-paper';
+import { ScrollView, Linking } from 'react-native';
+import { List, Switch, Dialog, Portal, Button, RadioButton, Divider } from 'react-native-paper';
 import { SettingScreen } from '@/components/settings/SettingScreen';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import { logger } from '@/utils/logger';

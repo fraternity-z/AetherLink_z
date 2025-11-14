@@ -82,7 +82,7 @@ export function MoreActionsMenu({
         }),
       ]).start();
     }
-  }, [visible]);
+  }, [opacityAnim, slideAnim, visible]);
 
   const handleClearConversation = () => {
     if (!conversationId) {

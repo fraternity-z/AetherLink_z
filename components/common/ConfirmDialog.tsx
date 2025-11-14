@@ -6,9 +6,8 @@
  */
 
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { useTheme, Text } from 'react-native-paper';
-import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { UnifiedDialog, type UnifiedDialogAction } from './UnifiedDialog';
 
 export interface ConfirmDialogButton {
@@ -84,11 +83,6 @@ export function ConfirmDialog({
 }
 
 const styles = StyleSheet.create({
-  iconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
   messageText: {
     textAlign: 'center',
   },

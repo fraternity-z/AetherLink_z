@@ -34,7 +34,6 @@ export function VoiceInputDialog({
   const {
     isRecording,
     duration,
-    audioUri,
     startRecording,
     stopRecording,
     cancelRecording,
@@ -51,12 +50,10 @@ export function VoiceInputDialog({
     startRealtimeRecognition,
     stopRealtimeRecognition,
     cancel,
-    clearError,
   } = useVoiceRecognition({ autoLoadSettings: true });
 
   // 识别提供商状态
   const [provider, setProvider] = useState<'native' | 'whisper'>('native');
-  const [autoSend, setAutoSend] = useState(false);
 
   // 加载设置
   useEffect(() => {
@@ -70,14 +67,10 @@ export function VoiceInputDialog({
     try {
       const sr = SettingsRepository();
       const savedProvider = (await sr.get<'native' | 'whisper'>(SettingKey.VoiceProvider)) || 'native';
-      const savedAutoSend = (await sr.get<boolean>(SettingKey.VoiceAutoSend)) || false;
-
       setProvider(savedProvider);
-      setAutoSend(savedAutoSend);
 
       logger.debug('[VoiceInputDialog] Settings loaded:', {
         provider: savedProvider,
-        autoSend: savedAutoSend,
       });
     } catch (error) {
       logger.error('[VoiceInputDialog] Failed to load settings:', error);
@@ -127,7 +120,7 @@ export function VoiceInputDialog({
         })();
       }
     };
-  }, [visible, provider]);
+  }, [cancel, cancelRecording, isRecording, onClose, provider, startRealtimeRecognition, startRecording, stopRealtimeRecognition, visible]);
 
   // 达到最大时长时的处理
   function handleMaxDurationReached() {

@@ -10,7 +10,6 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { useTheme } from 'react-native-paper';
 import { MarkdownRenderer, parseContentWithMath } from './MarkdownRenderer';
 import type { MathFormula } from './MathJaxRenderer';
 import { MathJaxRenderer } from './MathJaxRenderer';
@@ -91,8 +90,7 @@ function parseContentToFragments(content: string): ContentFragment[] {
  * 混合渲染组件
  */
 export function MixedRenderer({ content, style }: MixedRendererProps) {
-  const theme = useTheme();
-  const [formulaHeights, setFormulaHeights] = useState<{ [key: string]: number }>({});
+  const [, setFormulaHeights] = useState<{ [key: string]: number }>({});
 
   // 解析内容片段
   const fragments = useMemo(() => {

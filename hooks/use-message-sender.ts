@@ -21,7 +21,7 @@ import { streamCompletion, type Provider } from '@/services/ai/AiClient';
 import { supportsVision } from '@/services/ai/ModelCapabilities';
 import { autoNameConversation } from '@/services/ai/TopicNaming';
 import { File } from 'expo-file-system';
-import type { CoreMessage } from 'ai';
+import type { ModelMessage } from 'ai';
 import type { Attachment } from '@/storage/core';
 import { appEvents, AppEvents } from '@/utils/events';
 import { logger } from '@/utils/logger';
@@ -147,7 +147,7 @@ export function useMessageSender(
     model: string,
     textFileContents: string,
     searchResults?: string | null
-  ): Promise<CoreMessage> => {
+  ): Promise<ModelMessage> => {
     const images = attachments.filter(a => a.kind === 'image' && a.uri);
 
     // 如果支持多模态且有图片，构造多段内容
@@ -289,7 +289,7 @@ export function useMessageSender(
       }
 
       // 构建消息数组
-      const msgs: CoreMessage[] = [];
+      const msgs: ModelMessage[] = [];
 
       if (contextCount > 0) {
         // 添加 system 消息

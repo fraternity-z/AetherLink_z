@@ -77,7 +77,7 @@ export function MessageList({ conversationId }: { conversationId: string | null 
         logger.warn('[MessageList] load attachments error', e);
       }
     })();
-  }, [messageIdsKey]);
+  }, [items, messageIdsKey]);
 
   // 🚀 性能优化：缓存思考链依赖键（包含 id + status + 文本长度）
   const thinkingChainKey = useMemo(
@@ -108,7 +108,7 @@ export function MessageList({ conversationId }: { conversationId: string | null 
         logger.error('[MessageList] load thinking chains error', e);
       }
     })();
-  }, [thinkingChainKey, thinkingRefreshTick]);
+  }, [items, thinkingChainKey, thinkingRefreshTick]);
 
   // 🚀 性能优化：使用 useCallback 缓存 renderItem，避免 FlatList 不必要的重渲染
   const renderItem: ListRenderItem<Message> = useCallback(

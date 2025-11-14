@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useLocalSearchParams, Stack } from 'expo-router';
-import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { Avatar, Button, HelperText, List, SegmentedButtons, Surface, Switch, Text, TextInput, useTheme, Snackbar, Portal } from 'react-native-paper';
 import { CustomProvidersRepository, type CustomProvider } from '@/storage/repositories/custom-providers';
@@ -20,7 +19,6 @@ export default function CustomProviderConfig() {
   const [saveStatus, setSaveStatus] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
   const [models, setModels] = useState<{ id: string; label: string }[]>([]);
   const [addDialog, setAddDialog] = useState<{ visible: boolean; id: string; label: string }>({ visible: false, id: '', label: '' });
-  const [discoverDialog, setDiscoverDialog] = useState<{ visible: boolean; loading: boolean } >({ visible: false, loading: false });
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
@@ -43,7 +41,7 @@ export default function CustomProviderConfig() {
     try {
       await CustomProvidersRepository.update(cp.id, { enabled, apiKey, baseURL: baseUrl });
       if (show) setSaveStatus({ visible: true, message: '✓ 配置已保存' });
-    } catch (e) {
+    } catch {
       if (show) setSaveStatus({ visible: true, message: '✗ 保存失败' });
     }
   };
@@ -103,17 +101,14 @@ export default function CustomProviderConfig() {
               onPress={async () => {
                 if (!cp) return;
                 try {
-                  setDiscoverDialog({ visible: true, loading: true });
                   const discovered = await fetchCustomProviderModels({ ...cp, apiKey, baseURL: baseUrl });
                   // 批量添加
                   for (const m of discovered) {
                     await ProviderModelsRepository.upsert(cp.id, m.id, m.label || m.id, true);
                   }
                   await loadModels();
-                  setDiscoverDialog({ visible: false, loading: false });
                   setSaveStatus({ visible: true, message: `✓ 已同步 ${discovered.length} 个模型` });
                 } catch (e: any) {
-                  setDiscoverDialog({ visible: false, loading: false });
                   setSaveStatus({ visible: true, message: `✗ 获取失败：${e?.message || e}` });
                 }
               }}

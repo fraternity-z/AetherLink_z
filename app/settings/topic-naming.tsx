@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { List, Switch, TextInput, Button, RadioButton, useTheme, Snackbar } from 'react-native-paper';
+import React, { useEffect, useMemo, useState } from 'react';
+import { List, Switch, TextInput, RadioButton, Snackbar } from 'react-native-paper';
 import { SettingScreen } from '@/components/settings/SettingScreen';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 import { ProviderModelsRepository } from '@/storage/repositories/provider-models';
+import { UnifiedDialog } from '@/components/common/UnifiedDialog';
 
 export default function TopicNamingSettings() {
-  const theme = useTheme();
-  const sr = SettingsRepository();
+  const sr = useMemo(() => SettingsRepository(), []);
 
   const [autoName, setAutoName] = useState<boolean>(true);
   const [prompt, setPrompt] = useState<string>('请用简短中文总结本次对话主题');
@@ -61,7 +61,7 @@ export default function TopicNamingSettings() {
         setNotice('上次选择的模型不可用，已自动切换');
       }
     })();
-  }, []);
+  }, [sr]);
 
   const persistAuto = async (v: boolean) => {
     setAutoName(v);
@@ -129,4 +129,3 @@ export default function TopicNamingSettings() {
     </SettingScreen>
   );
 }
-import { UnifiedDialog } from '@/components/common/UnifiedDialog';

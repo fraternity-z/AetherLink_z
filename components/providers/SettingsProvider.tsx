@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
@@ -13,7 +13,7 @@ export type AppSettings = {
 const SettingsContext = createContext<AppSettings | null>(null);
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const sr = SettingsRepository();
+  const sr = useMemo(() => SettingsRepository(), []);
   const [fontScale, _setFontScale] = useState<number>(16);
   const [themeMode, _setThemeMode] = useState<ThemeMode>('system');
 
@@ -24,20 +24,20 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       if (typeof fs === 'number' && !Number.isNaN(fs)) _setFontScale(fs);
       if (tm === 'light' || tm === 'dark' || tm === 'system') _setThemeMode(tm);
     })();
-  }, []);
+  }, [sr]);
 
-  const setFontScale = async (v: number) => {
+  const setFontScale = useCallback(async (v: number) => {
     const rounded = Math.round(v);
     _setFontScale(rounded);
     await sr.set(SettingKey.FontScale, rounded);
-  };
+  }, [sr]);
 
-  const setThemeMode = async (m: ThemeMode) => {
+  const setThemeMode = useCallback(async (m: ThemeMode) => {
     _setThemeMode(m);
     await sr.set(SettingKey.Theme, m);
-  };
+  }, [sr]);
 
-  const value = useMemo<AppSettings>(() => ({ fontScale, setFontScale, themeMode, setThemeMode }), [fontScale, themeMode]);
+  const value = useMemo<AppSettings>(() => ({ fontScale, setFontScale, themeMode, setThemeMode }), [fontScale, setFontScale, setThemeMode, themeMode]);
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }

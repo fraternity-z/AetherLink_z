@@ -3,7 +3,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Platform, TextInput as RNTextInput } from 'react-native';
+import { View, StyleSheet, TextInput as RNTextInput } from 'react-native';
 import { useTheme, Text, TextInput } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { UnifiedDialog, type UnifiedDialogAction } from './UnifiedDialog';

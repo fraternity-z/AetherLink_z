@@ -9,7 +9,7 @@
  * - 服务器统计信息
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import {
   List,
@@ -87,7 +87,7 @@ export default function MCPServerSettings() {
   /**
    * 加载服务器列表
    */
-  const loadServers = async () => {
+  const loadServers = useCallback(async () => {
     try {
       setLoading(true);
       const data = await McpServersRepository.getAllServers();
@@ -99,11 +99,11 @@ export default function MCPServerSettings() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [alert]);
 
   useEffect(() => {
     void loadServers();
-  }, []);
+  }, [loadServers]);
 
   // ========== 服务器操作 ==========
 

@@ -16,7 +16,7 @@ import { SettingsRepository, SettingKey } from '@/storage/repositories/settings'
 
 export default function BehaviorSettings() {
   const theme = useTheme();
-  const sr = SettingsRepository();
+  const sr = React.useMemo(() => SettingsRepository(), []);
   const [enterToSend, setEnterToSend] = React.useState(false);
 
   // 加载持久化设置
@@ -25,7 +25,7 @@ export default function BehaviorSettings() {
       const ets = await sr.get<boolean>(SettingKey.EnterToSend);
       if (ets !== null) setEnterToSend(ets);
     })();
-  }, []);
+  }, [sr]);
 
   return (
     <SettingScreen title="行为设置" description="自定义应用的交互方式和通知设置">

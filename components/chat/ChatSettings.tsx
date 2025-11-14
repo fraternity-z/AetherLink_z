@@ -8,7 +8,7 @@
  * - 流式输出（Stream output）开关
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, Switch, useTheme } from 'react-native-paper';
 import Slider from '@react-native-community/slider';
@@ -16,7 +16,7 @@ import { SettingsRepository, SettingKey } from '@/storage/repositories/settings'
 
 export function ChatSettings() {
   const theme = useTheme();
-  const sr = SettingsRepository();
+  const sr = useMemo(() => SettingsRepository(), []);
 
   // 状态管理
   const [temperature, setTemperature] = useState(0.7);
@@ -42,7 +42,7 @@ export function ChatSettings() {
       if (stream !== null) setStreamOutput(stream);
       // no-op: 系统提示词设置已移除
     })();
-  }, []);
+  }, [sr]);
 
   // 保存设置
   const saveTemperature = async (value: number) => {

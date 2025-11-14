@@ -1,13 +1,11 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { LogBox } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { PaperProvider } from 'react-native-paper';
 import 'react-native-reanimated';
 import '../global.css';
-import HiddenWebViewHost from '@/components/providers/HiddenWebViewHost'
+import HiddenWebViewHost from '@/components/providers/HiddenWebViewHost';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppThemeProvider } from '@/components/providers/ThemeProvider';
 import { SettingsProvider, useAppSettings } from '@/components/providers/SettingsProvider';

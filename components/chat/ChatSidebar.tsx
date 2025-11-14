@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, useWindowDimensions, View, ScrollView } from 'react-native';
 import { Surface, Text, List, TouchableRipple, useTheme, Avatar, IconButton, Menu } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,13 +22,11 @@ interface ChatSidebarProps {
 
 export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
   const theme = useTheme();
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const drawerWidth = Math.min(360, Math.max(280, Math.floor(width * 0.85)));
   const insets = useSafeAreaInsets();
   // 半透明背景：浅色提高不透明度以便在白底可见，深色保持低透明
   const translucentBg = theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)';
-  const hairline = StyleSheet.hairlineWidth;
-  const subtleBorder = theme.dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
 
   const translateX = useRef(new Animated.Value(-drawerWidth)).current;
   const [tab, setTab] = useState<TabKey>('assistants');

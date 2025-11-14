@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { Button, Text, Searchbar, useTheme, Chip } from 'react-native-paper';
+import { Text, Searchbar, Chip } from 'react-native-paper';
 import { AssistantsRepository } from '@/storage/repositories/assistants';
 import type { Assistant } from '@/types/assistant';
 import { UnifiedDialog } from '@/components/common/UnifiedDialog';
@@ -18,7 +18,6 @@ interface AssistantPickerDialogProps {
 }
 
 export function AssistantPickerDialog({ visible, onDismiss, onSelect }: AssistantPickerDialogProps) {
-  const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [allAssistants, setAllAssistants] = useState<Assistant[]>([]);
   const [enabledIds, setEnabledIds] = useState<string[]>([]);

@@ -51,7 +51,7 @@ export default function QuickPhrasesSettings() {
       async () => {
         try {
           await deletePhrase(phrase.id);
-        } catch (error) {
+        } catch {
           alert('删除失败', '删除快捷短语失败，请重试');
         }
       }

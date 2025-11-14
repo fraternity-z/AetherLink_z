@@ -11,12 +11,11 @@ import React from 'react';
 import { PaperProvider } from 'react-native-paper';
 import { paperLightTheme, paperDarkTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAppSettings } from './SettingsProvider';
 
 interface AppThemeProviderProps {
   children: React.ReactNode;
 }
-
-import { useAppSettings } from './SettingsProvider';
 
 export function AppThemeProvider({ children }: AppThemeProviderProps) {
   // 获取系统主题偏好

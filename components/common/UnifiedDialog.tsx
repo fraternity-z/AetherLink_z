@@ -87,7 +87,7 @@ export function UnifiedDialog({
         }),
       ]).start();
     }
-  }, [visible]);
+  }, [opacityAnim, scaleAnim, visible]);
 
   const scale = scaleAnim.interpolate({
     inputRange: [0, 1],
