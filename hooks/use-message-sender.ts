@@ -262,7 +262,7 @@ export function useMessageSender(
         conversationId: cid,
       });
 
-      const userMessage = await MessageRepository.addMessage({
+      const savedUserMessage = await MessageRepository.addMessage({
         conversationId: cid!,
         role: 'user',
         text: '', // 用户消息内容也通过块系统管理
@@ -275,7 +275,7 @@ export function useMessageSender(
 
       // 📦 为用户消息创建 TEXT 块
       await MessageBlocksRepository.addBlock({
-        messageId: userMessage.id,
+        messageId: savedUserMessage.id,
         type: 'TEXT',
         status: 'SUCCESS',
         content: text,
