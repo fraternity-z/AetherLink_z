@@ -23,7 +23,8 @@
       "Bash(npx depcheck:*)",
       "Bash(cat:*)",
       "mcp__mcp-router__list_dir",
-      "Bash(cloc:*)"
+      "Bash(cloc:*)",
+      "mcp__mcp-router__search_for_pattern"
     ],
     "deny": [],
     "ask": []
