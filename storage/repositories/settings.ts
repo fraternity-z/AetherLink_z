@@ -9,7 +9,6 @@ export enum SettingKey {
   DefaultModel = 'al:settings:default_model',
   DefaultProvider = 'al:settings:default_provider',
   HapticsOn = 'al:settings:haptics_on',
-  AnalyticsEnabled = 'al:settings:analytics_enabled',
   LocalCacheEnabled = 'al:settings:local_cache_enabled',
   // 对话参数设置
   ChatTemperature = 'al:settings:chat_temperature',

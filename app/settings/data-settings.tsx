@@ -15,7 +15,6 @@ import { logger } from '@/utils/logger';
 export default function DataSettings() {
   const theme = useTheme();
   const { alert, confirmAction } = useConfirmDialog();
-  const [analytics, setAnalytics] = useState(false);
   const [localCache, setLocalCache] = useState(true);
   const [stats, setStats] = useState<DataStatistics | null>(null);
   const [loading, setLoading] = useState(false);
@@ -46,9 +45,7 @@ export default function DataSettings() {
 
   const loadSettings = async () => {
     const sr = SettingsRepository();
-    const analyticsEnabled = await sr.get<boolean>(SettingKey.AnalyticsEnabled);
     const cacheEnabled = await sr.get<boolean>(SettingKey.LocalCacheEnabled);
-    setAnalytics(analyticsEnabled ?? false);
     setLocalCache(cacheEnabled ?? true);
   };
 
@@ -330,21 +327,6 @@ export default function DataSettings() {
         {/* 隐私设置 */}
         <List.Section>
           <List.Subheader>隐私设置</List.Subheader>
-          <List.Item
-            title="启用匿名分析"
-            description="帮助改进应用体验"
-            left={(props) => <List.Icon {...props} icon="chart-box" />}
-            right={() => (
-              <Switch
-                value={analytics}
-                onValueChange={async (v) => {
-                  setAnalytics(v);
-                  const sr = SettingsRepository();
-                  await sr.set(SettingKey.AnalyticsEnabled, v);
-                }}
-              />
-            )}
-          />
           <List.Item
             title="启用本地缓存"
             description="提高应用响应速度"
