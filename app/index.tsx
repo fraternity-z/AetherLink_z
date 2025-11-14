@@ -2,18 +2,21 @@
  * 💬 聊天主界面（作为根页面，无底部Tabs）
  */
 
-import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from 'react-native-paper';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { ChatHeader } from '@/components/chat/ChatHeader';
 import { MessageList } from '@/components/chat/MessageList';
 import { ChatInput, ChatInputRef } from '@/components/chat/ChatInput';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { TopicsSidebar } from '@/components/chat/TopicsSidebar';
 import { ModelPickerDialog } from '@/components/chat/ModelPickerDialog';
+import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
+import { appEvents, AppEvents } from '@/utils/events';
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
@@ -24,17 +27,49 @@ export default function ChatScreen() {
   const [topicsOpen, setTopicsOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [quickPhrasesEnabled, setQuickPhrasesEnabled] = useState(true);
   const params = useLocalSearchParams<{ cid?: string }>();
+  const settingsRepo = useMemo(() => SettingsRepository(), []);
+
+  useEffect(() => {
+    (async () => {
+      const stored = await settingsRepo.get<boolean>(SettingKey.QuickPhrasesEnabled);
+      if (stored === null) {
+        setQuickPhrasesEnabled(true);
+      } else {
+        setQuickPhrasesEnabled(stored);
+      }
+    })();
+  }, [settingsRepo]);
+
+  useEffect(() => {
+    const handleSettingChange = (enabled: boolean) => {
+      setQuickPhrasesEnabled(enabled);
+    };
+    appEvents.on(AppEvents.QUICK_PHRASES_SETTING_CHANGED, handleSettingChange);
+    return () => {
+      appEvents.off(AppEvents.QUICK_PHRASES_SETTING_CHANGED, handleSettingChange);
+    };
+  }, []);
 
   const handleMenuPress = () => {
     setDrawerOpen((v) => !v);
   };
 
+  const openQuickPhrasePicker = useCallback(() => {
+    if (!quickPhrasesEnabled) {
+      return;
+    }
+    chatInputRef.current?.openPhrasePicker();
+  }, [quickPhrasesEnabled]);
+
   // 双击手势处理器
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
-    .onEnd(() => {
-      chatInputRef.current?.openPhrasePicker();
+    .onEnd((_event, success) => {
+      if (success) {
+        runOnJS(openQuickPhrasePicker)();
+      }
     });
 
   useEffect(() => {

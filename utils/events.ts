@@ -79,4 +79,5 @@ export const AppEvents = {
   MESSAGE_CHANGED: 'message:changed',
   CONVERSATION_CHANGED: 'conversation:changed',
   ASSISTANT_CHANGED: 'assistant:changed',
+  QUICK_PHRASES_SETTING_CHANGED: 'quick_phrases:setting_changed',
 } as const;

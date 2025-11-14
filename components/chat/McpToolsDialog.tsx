@@ -54,7 +54,6 @@ export function McpToolsDialog({ visible, onDismiss, enabled, onChangeEnabled }:
         { text: '去设置', onPress: () => { onDismiss(); router.push('/settings/mcp-server'); } },
         { text: '关闭', type: 'cancel', onPress: onDismiss },
       ]}
-      showCloseButton
     >
       <View style={{ gap: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>

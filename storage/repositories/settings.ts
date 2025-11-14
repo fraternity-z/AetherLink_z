@@ -42,6 +42,8 @@ export enum SettingKey {
   VoiceShowPartial = 'al:settings:voice_show_partial',
   // 用户头像设置
   UserAvatarUri = 'al:settings:user_avatar_uri',
+  // 快捷短语
+  QuickPhrasesEnabled = 'al:settings:quick_phrases_enabled',
 }
 
 

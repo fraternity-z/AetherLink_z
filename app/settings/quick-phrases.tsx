@@ -1,12 +1,14 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { Card, Text, IconButton, FAB, ActivityIndicator, useTheme } from 'react-native-paper';
+import { Card, Text, IconButton, FAB, ActivityIndicator, useTheme, Switch } from 'react-native-paper';
 import { SettingScreen } from '@/components/settings/SettingScreen';
 import { QuickPhraseEditDialog } from '@/components/settings/QuickPhraseEditDialog';
 import { useQuickPhrases } from '@/hooks/use-quick-phrases';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import type { QuickPhrase } from '@/storage/core';
+import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
+import { appEvents, AppEvents } from '@/utils/events';
 
 /**
  * 快捷短语管理页面
@@ -19,6 +21,25 @@ export default function QuickPhrasesSettings() {
   const { confirmAction, alert } = useConfirmDialog();
   const [editingPhrase, setEditingPhrase] = useState<QuickPhrase | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [quickPhrasesEnabled, setQuickPhrasesEnabled] = useState(true);
+  const settingsRepo = useMemo(() => SettingsRepository(), []);
+
+  useEffect(() => {
+    (async () => {
+      const stored = await settingsRepo.get<boolean>(SettingKey.QuickPhrasesEnabled);
+      if (stored === null) {
+        setQuickPhrasesEnabled(true);
+      } else {
+        setQuickPhrasesEnabled(stored);
+      }
+    })();
+  }, [settingsRepo]);
+
+  const handleToggleEnabled = useCallback(async (value: boolean) => {
+    setQuickPhrasesEnabled(value);
+    await settingsRepo.set(SettingKey.QuickPhrasesEnabled, value);
+    appEvents.emit(AppEvents.QUICK_PHRASES_SETTING_CHANGED, value);
+  }, [settingsRepo]);
 
   /**
    * 处理删除操作
@@ -180,6 +201,36 @@ export default function QuickPhrasesSettings() {
       disableScroll
     >
       <View style={styles.container}>
+        <View
+          style={[
+            styles.settingCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.outlineVariant,
+            },
+          ]}
+        >
+          <View style={styles.settingRow}>
+            <View style={styles.iconContainer}>
+              <View style={[styles.iconCircle, { backgroundColor: 'rgba(99, 102, 241, 0.15)' }]}>
+                <Text style={{ fontSize: 18 }}>⚡</Text>
+              </View>
+            </View>
+            <View style={styles.settingContent}>
+              <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>
+                启用快捷短语
+              </Text>
+              <Text
+                variant="bodySmall"
+                style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}
+              >
+                开启后，可在聊天页双击空白区域快速插入短语
+              </Text>
+            </View>
+            <Switch value={quickPhrasesEnabled} onValueChange={handleToggleEnabled} />
+          </View>
+        </View>
+
         <FlashList
           data={phrases}
           renderItem={renderPhraseCard}
@@ -221,6 +272,31 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 80, // 为 FAB 留出空间
+  },
+  settingCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  iconContainer: {
+    marginRight: 16,
+  },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingContent: {
+    flex: 1,
   },
   phraseCard: {
     marginBottom: 12,
