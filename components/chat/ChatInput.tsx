@@ -146,6 +146,14 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(function
     const userMessage = message;
     const userAttachments = selectedAttachments;
 
+    // 🐛 调试日志：记录发送前的消息内容
+    logger.debug('[ChatInput] 准备发送消息', {
+      messageLength: userMessage.length,
+      messagePreview: userMessage.substring(0, 100),
+      hasURL: /https?:\/\//.test(userMessage),
+      searchEnabled,
+    });
+
     // 立即清空输入框和附件
     setMessage('');
     setSelectedAttachments([]);
@@ -154,8 +162,20 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(function
       // 执行网络搜索（如果启用）
       let searchResults: string | null = null;
       if (searchEnabled && userMessage.trim()) {
+        logger.debug('[ChatInput] 开始执行网络搜索', { query: userMessage });
         searchResults = await performWebSearch(userMessage);
+        logger.debug('[ChatInput] 网络搜索完成', {
+          hasResults: !!searchResults,
+          resultsLength: searchResults?.length || 0,
+        });
       }
+
+      // 🐛 调试日志：发送前再次确认消息内容
+      logger.debug('[ChatInput] 调用 sendMessage', {
+        textLength: userMessage.length,
+        textPreview: userMessage.substring(0, 100),
+        hasSearchResults: !!searchResults,
+      });
 
       // 发送消息
       await sendMessage({

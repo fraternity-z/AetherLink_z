@@ -1,5 +1,3 @@
-import { Platform } from 'react-native';
-
 export interface IKeyValueStore {
   get<T = any>(key: string): Promise<T | null>;
   set<T = any>(key: string, value: T): Promise<void>;
@@ -29,7 +27,6 @@ export const safeJSON = {
   },
 };
 
-export const isWeb = Platform.OS === 'web';
 export const now = () => Date.now();
 
 export type Role = 'user' | 'assistant' | 'system';

@@ -13,7 +13,7 @@ import { performSearch } from '@/services/search/SearchClient';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import type { SearchEngine } from '@/services/search/types';
 import { logger } from '@/utils/logger';
-import { useDebouncedCallback } from './use-debounced-callback';
+// import { useDebouncedCallback } from './use-debounced-callback'; // 🐛 临时禁用防抖
 
 /**
  * 搜索错误接口
@@ -206,13 +206,15 @@ export function useWebSearch(): UseWebSearchResult {
   }, [CACHE_TTL]);
 
   /**
-   * 防抖版本的搜索函数（对外暴露）
-   * 延迟500ms执行，减少频繁调用
+   * 🐛 临时禁用防抖，直接使用原始搜索函数进行调试
+   * TODO: 调试完成后可以重新启用防抖
    */
-  const performWebSearch = useDebouncedCallback(executeSearch, {
-    delay: 500,
-    maxWait: 2000, // 最多延迟2秒
-  });
+  const performWebSearch = executeSearch;
+
+  // const performWebSearch = useDebouncedCallback(executeSearch, {
+  //   delay: 500,
+  //   maxWait: 2000, // 最多延迟2秒
+  // });
 
   return {
     isSearching,

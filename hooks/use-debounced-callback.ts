@@ -81,7 +81,7 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
   }, []);
 
   const debouncedCallback = useCallback(
-    (...args: Parameters<T>) => {
+    (...args: Parameters<T>): ReturnType<T> => {
       const currentTime = Date.now();
       const timeSinceLastCall = currentTime - lastCallTimeRef.current;
       const timeSinceLastInvoke = currentTime - lastInvokeTimeRef.current;
@@ -103,34 +103,22 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
       // 立即执行（首次调用或达到最大等待时间）
       if (shouldInvokeLeading || shouldInvokeMaxWait) {
         lastInvokeTimeRef.current = currentTime;
-        callbackRef.current(...args);
+        const result = callbackRef.current(...args);
 
-        // 如果不需要尾部调用，直接返回
+        // 如果不需要尾部调用，直接返回结果
         if (!trailing) {
-          return;
+          return result;
         }
       }
 
-      // 设置延迟调用
-      if (trailing) {
+      // 设置延迟调用，返回 Promise（如果原函数返回 Promise）
+      return new Promise((resolve) => {
         timeoutRef.current = setTimeout(() => {
           lastInvokeTimeRef.current = Date.now();
-          callbackRef.current(...args);
+          const result = callbackRef.current(...args);
+          resolve(result);
         }, delay);
-      }
-
-      // 设置最大等待时间定时器
-      if (maxWait !== undefined && !maxWaitTimeoutRef.current) {
-        maxWaitTimeoutRef.current = setTimeout(() => {
-          if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
-            timeoutRef.current = null;
-          }
-          lastInvokeTimeRef.current = Date.now();
-          callbackRef.current(...args);
-          maxWaitTimeoutRef.current = null;
-        }, maxWait);
-      }
+      }) as ReturnType<T>;
     },
     [delay, leading, trailing, maxWait]
   ) as T;

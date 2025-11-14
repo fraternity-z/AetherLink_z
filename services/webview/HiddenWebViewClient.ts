@@ -24,7 +24,7 @@ export function registerHiddenWebViewHost(api: HostApi) {
 }
 
 export function isHiddenWebViewAvailable() {
-  return !!host && (Platform.OS === 'ios' || Platform.OS === 'android' || Platform.OS === 'web')
+  return !!host && (Platform.OS === 'ios' || Platform.OS === 'android')
 }
 
 export async function loadHtmlViaHiddenWebView(url: string, timeout = 10000): Promise<string> {

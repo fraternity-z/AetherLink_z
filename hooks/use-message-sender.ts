@@ -251,6 +251,15 @@ export function useMessageSender(
 
       // 先创建用户消息，并关联所选附件
       const attachmentIds = attachments.map(a => a.id);
+
+      // 🐛 调试日志：记录保存到数据库前的消息内容
+      logger.debug('[useMessageSender] 准备保存用户消息到数据库', {
+        textLength: text.length,
+        textPreview: text.substring(0, 100),
+        hasURL: /https?:\/\//.test(text),
+        conversationId: cid,
+      });
+
       await MessageRepository.addMessage({
         conversationId: cid!,
         role: 'user',
@@ -258,6 +267,9 @@ export function useMessageSender(
         status: 'sent',
         attachmentIds,
       });
+
+      // 🐛 调试日志：确认保存成功
+      logger.debug('[useMessageSender] 用户消息已保存到数据库');
 
       // 如果是新创建的话题，在用户消息写入后再通知父组件切换话题
       if (isFirstTurn && conversationId === null && onConversationChange) {
