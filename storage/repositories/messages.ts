@@ -142,6 +142,10 @@ export const MessageRepository = {
 
   /**
    * 缓写文本：仅缓存，不立即写库，等待窗口期结束统一写入
+   *
+   * @deprecated 已废弃！请使用 BlockManager 的文本块缓冲机制替代。
+   * 新实现在 services/messageStreaming/BlockManager.ts 中。
+   *
    * @param id 消息ID
    * @param text 最新完整文本（将覆盖以前的缓存）
    * @param debounceMs 去抖时间窗，默认200ms
@@ -170,6 +174,8 @@ export const MessageRepository = {
 
   /**
    * 立即写入当前缓冲的文本（如有）
+   *
+   * @deprecated 已废弃！请使用 BlockManager.flushBlock() 替代。
    */
   async flushBufferedMessageText(id: string): Promise<void> {
     const state = messageTextBuffers.get(id);
@@ -183,6 +189,8 @@ export const MessageRepository = {
 
   /**
    * 结束缓写：刷新一次并清理缓冲状态
+   *
+   * @deprecated 已废弃！请使用 BlockManager.cleanup() 替代。
    */
   async endBufferedMessageText(id: string): Promise<void> {
     const state = messageTextBuffers.get(id);

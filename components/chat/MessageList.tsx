@@ -17,7 +17,8 @@ import { useMessages } from '@/hooks/use-messages';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { AttachmentRepository } from '@/storage/repositories/attachments';
 import { ThinkingChainRepository } from '@/storage/repositories/thinking-chains';
-import type { Attachment, Message, ThinkingChain } from '@/storage/core';
+import { MessageBlocksRepository } from '@/storage/repositories/message-blocks';
+import type { Attachment, Message, ThinkingChain, MessageBlock } from '@/storage/core';
 import { appEvents, AppEvents } from '@/utils/events';
 import { logger } from '@/utils/logger';
 
@@ -27,6 +28,7 @@ export function MessageList({ conversationId }: { conversationId: string | null 
   const { avatarUri } = useUserProfile(); // 获取用户头像 URI（性能优化：在列表层级调用一次）
   const [attachmentsMap, setAttachmentsMap] = useState<Record<string, Attachment[]>>({});
   const [thinkingChainsMap, setThinkingChainsMap] = useState<Record<string, ThinkingChain>>({});
+  const [blocksMap, setBlocksMap] = useState<Record<string, MessageBlock[]>>({});
   const [thinkingRefreshTick, setThinkingRefreshTick] = useState(0);
 
   // 监听消息清空事件，立即刷新列表
@@ -110,22 +112,58 @@ export function MessageList({ conversationId }: { conversationId: string | null 
     })();
   }, [items, thinkingChainKey, thinkingRefreshTick]);
 
+  // ✨ 批量加载块数据（TEXT、TOOL等）
+  useEffect(() => {
+    (async () => {
+      try {
+        const ids = items.map(m => m.id);
+        if (ids.length === 0) {
+          setBlocksMap({});
+          return;
+        }
+        const map = await MessageBlocksRepository.getBlocksByMessageIds(ids);
+
+        // 将 Map 转换为普通对象
+        const objMap: Record<string, MessageBlock[]> = {};
+        map.forEach((value, key) => {
+          objMap[key] = value;
+        });
+        setBlocksMap(objMap);
+      } catch (e) {
+        logger.error('[MessageList] load message blocks error', e);
+      }
+    })();
+  }, [items, messageIdsKey]);
+
   // 🚀 性能优化：使用 useCallback 缓存 renderItem，避免 FlatList 不必要的重渲染
   const renderItem: ListRenderItem<Message> = useCallback(
-    ({ item }) => (
-      <MessageBubble
-        content={item.text ?? ''}
-        isUser={item.role === 'user'}
-        status={item.status}
-        timestamp={new Date(item.createdAt).toLocaleTimeString()}
-        attachments={attachmentsMap[item.id] || []}
-        thinkingChain={thinkingChainsMap[item.id] || null}
-        modelId={item.extra?.model} // 传递模型 ID
-        extra={item.extra} // 传递完整的 extra 数据（用于图片生成等特殊消息）
-        userAvatarUri={item.role === 'user' ? avatarUri : undefined} // 用户消息传递头像 URI
-      />
-    ),
-    [attachmentsMap, thinkingChainsMap, avatarUri] // 将 avatarUri 添加到依赖数组
+    ({ item }) => {
+      // 📦 从块中组合消息内容
+      const blocks = blocksMap[item.id] || [];
+      const textBlocks = blocks
+        .filter(b => b.type === 'TEXT')
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+
+      // 优先使用块内容，fallback 到 item.text（兼容旧数据）
+      const content = textBlocks.length > 0
+        ? textBlocks.map(b => b.content).join('')
+        : (item.text ?? '');
+
+      return (
+        <MessageBubble
+          content={content}
+          isUser={item.role === 'user'}
+          status={item.status}
+          timestamp={new Date(item.createdAt).toLocaleTimeString()}
+          attachments={attachmentsMap[item.id] || []}
+          thinkingChain={thinkingChainsMap[item.id] || null}
+          modelId={item.extra?.model} // 传递模型 ID
+          extra={item.extra} // 传递完整的 extra 数据（用于图片生成等特殊消息）
+          userAvatarUri={item.role === 'user' ? avatarUri : undefined} // 用户消息传递头像 URI
+        />
+      );
+    },
+    [attachmentsMap, thinkingChainsMap, blocksMap, avatarUri] // 添加 blocksMap 到依赖数组
   );
 
   // 🚀 性能优化：根据消息类型返回不同的类型标识，提升回收效率

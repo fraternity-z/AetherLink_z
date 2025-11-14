@@ -5,6 +5,7 @@ import { MIGRATION_0003 } from '@/storage/sqlite/migrations/0003_thinking_chains
 import { MIGRATION_0004 } from '@/storage/sqlite/migrations/0004_add_mcp_tables';
 import { MIGRATION_0005 } from '@/storage/sqlite/migrations/0005_quick_phrases';
 import { MIGRATION_0006 } from '@/storage/sqlite/migrations/0006_performance_indexes';
+import { MIGRATION_0007 } from '@/storage/sqlite/migrations/0007_message_blocks';
 
 let dbInstance: SQLiteDatabase | null = null;
 let dbOperationQueue: Promise<unknown> = Promise.resolve();
@@ -28,7 +29,7 @@ export async function initMigrations(): Promise<void> {
     // PRAGMA 语句应该在事务外执行
     await db.execAsync('PRAGMA foreign_keys = ON;');
 
-    const all = [MIGRATION_0001, MIGRATION_0002, MIGRATION_0003, MIGRATION_0004, MIGRATION_0005, MIGRATION_0006].join('\n');
+    const all = [MIGRATION_0001, MIGRATION_0002, MIGRATION_0003, MIGRATION_0004, MIGRATION_0005, MIGRATION_0006, MIGRATION_0007].join('\n');
     const stmts = all.split(';').map(s => s.trim()).filter(Boolean);
 
     await db.withTransactionAsync(async () => {

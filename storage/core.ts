@@ -98,6 +98,49 @@ export interface QuickPhrase {
   updatedAt: number;       // 更新时间戳 (毫秒)
 }
 
+/**
+ * 消息块类型
+ * - TEXT: 普通文本块
+ * - TOOL: MCP 工具调用块
+ * - THINKING: 思考链块（已废弃，使用独立的 ThinkingChain 表）
+ */
+export type MessageBlockType = 'TEXT' | 'TOOL' | 'THINKING';
+
+/**
+ * 消息块状态
+ * - PENDING: 执行中
+ * - SUCCESS: 执行成功
+ * - ERROR: 执行失败
+ */
+export type MessageBlockStatus = 'PENDING' | 'SUCCESS' | 'ERROR';
+
+/**
+ * 消息块(Message Block)数据结构
+ * 用于存储消息的结构化内容块（文本、工具调用等）
+ *
+ * 设计理念参考 Cherry Studio:
+ * - 每个消息可以包含多个块
+ * - 块可以是文本、工具调用、思考链等
+ * - 工具块用于展示 MCP 工具的执行过程和结果
+ */
+export interface MessageBlock {
+  id: string;              // 主键
+  messageId: string;       // 关联的消息 ID
+  type: MessageBlockType;  // 块类型
+  status: MessageBlockStatus; // 块状态
+  content: string;         // 块内容（文本、工具结果等）
+  sortOrder: number;       // 排序顺序（块在消息中的位置）
+
+  // 工具调用专用字段（仅当 type === 'TOOL' 时有效）
+  toolCallId?: string | null;   // AI SDK 生成的工具调用 ID
+  toolName?: string | null;     // 工具名称
+  toolArgs?: string | null;     // 工具参数（JSON 字符串）
+
+  createdAt: number;       // 创建时间戳 (毫秒)
+  updatedAt: number;       // 更新时间戳 (毫秒)
+  extra?: any;             // 扩展字段
+}
+
 export function uuid(): string {
   // RFC4122 v4-like uuid (non-crypto)
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {

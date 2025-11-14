@@ -15,6 +15,7 @@ import { ChatRepository } from '@/storage/repositories/chat';
 import { MessageRepository } from '@/storage/repositories/messages';
 import { ThinkingChainRepository } from '@/storage/repositories/thinking-chains';
 import { AttachmentRepository } from '@/storage/repositories/attachments';
+import { MessageBlocksRepository } from '@/storage/repositories/message-blocks';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import { AssistantsRepository } from '@/storage/repositories/assistants';
 import { streamCompletion, type Provider } from '@/services/ai/AiClient';
@@ -25,6 +26,7 @@ import type { ModelMessage } from 'ai';
 import type { Attachment } from '@/storage/core';
 import { appEvents, AppEvents } from '@/utils/events';
 import { logger } from '@/utils/logger';
+import { BlockManager } from '@/services/messageStreaming/BlockManager';
 
 /**
  * 助手消息接口
@@ -260,16 +262,27 @@ export function useMessageSender(
         conversationId: cid,
       });
 
-      await MessageRepository.addMessage({
+      const userMessage = await MessageRepository.addMessage({
         conversationId: cid!,
         role: 'user',
-        text,
+        text: '', // 用户消息内容也通过块系统管理
         status: 'sent',
         attachmentIds,
       });
 
       // 🐛 调试日志：确认保存成功
       logger.debug('[useMessageSender] 用户消息已保存到数据库');
+
+      // 📦 为用户消息创建 TEXT 块
+      await MessageBlocksRepository.addBlock({
+        messageId: userMessage.id,
+        type: 'TEXT',
+        status: 'SUCCESS',
+        content: text,
+        sortOrder: 0,
+      });
+
+      logger.debug('[useMessageSender] 用户消息的 TEXT 块已创建');
 
       // 如果是新创建的话题，在用户消息写入后再通知父组件切换话题
       if (isFirstTurn && conversationId === null && onConversationChange) {
@@ -316,11 +329,56 @@ export function useMessageSender(
           after: resetAt,
         });
         const recentHistory = historyMessages.slice(-contextCount * 2);
+
+        // ✨ 批量获取所有历史消息的块（性能优化）
+        const messageIds = recentHistory.map(m => m.id);
+        const blocksMap = await MessageBlocksRepository.getBlocksByMessageIds(messageIds);
+
         for (const msg of recentHistory) {
           if (msg.role === 'user' || msg.role === 'assistant') {
+            const blocks = blocksMap.get(msg.id) || [];
+
+            // ✨ 从块中组合内容（按 sortOrder 排序）
+            const sortedBlocks = blocks.sort((a, b) => a.sortOrder - b.sortOrder);
+
+            let content = '';
+
+            // 组合 TEXT 块内容
+            const textBlocks = sortedBlocks.filter(b => b.type === 'TEXT');
+            if (textBlocks.length > 0) {
+              content = textBlocks.map(b => b.content).join('');
+            } else if (msg.text) {
+              // ⚠️ 兼容旧数据：如果没有块，回退到 message.text
+              content = msg.text;
+              logger.warn('[useMessageSender] 消息没有块，使用旧的 message.text', {
+                messageId: msg.id,
+              });
+            }
+
+            // 附加工具块信息（如果有）
+            if (msg.role === 'assistant') {
+              const toolBlocks = sortedBlocks.filter(b => b.type === 'TOOL');
+
+              if (toolBlocks.length > 0) {
+                const toolResults = toolBlocks.map(block => {
+                  const status = block.status === 'SUCCESS' ? '✅ 成功' : block.status === 'ERROR' ? '❌ 失败' : '⏳ 执行中';
+                  const args = block.toolArgs ? `\n参数: ${block.toolArgs}` : '';
+                  return `\n\n[工具调用: ${block.toolName}${args}]\n状态: ${status}\n结果: ${block.content}`;
+                }).join('\n');
+
+                content += toolResults;
+
+                logger.debug('[useMessageSender] 历史消息包含工具块', {
+                  messageId: msg.id,
+                  toolBlockCount: toolBlocks.length,
+                  toolNames: toolBlocks.map(b => b.toolName),
+                });
+              }
+            }
+
             msgs.push({
               role: msg.role,
-              content: msg.text ?? '',
+              content,
             });
           }
         }
@@ -370,6 +428,20 @@ export function useMessageSender(
       let thinkingStartTime: number | null = null;
       let lastThinkingUpdateAt = 0;
 
+      // ✨ 块管理器（统一管理所有块：正文TEXT、工具TOOL等）
+      const blockManager = new BlockManager(assistant!.id);
+      logger.debug('[useMessageSender] BlockManager 已初始化', {
+        messageId: assistant!.id,
+      });
+
+      // ✨ 创建初始的正文块（TEXT 类型）
+      const textBlock = await blockManager.addBlock({
+        type: 'TEXT',
+        status: 'SUCCESS',
+        content: '',
+      });
+      logger.debug('[useMessageSender] 正文块已创建', { blockId: textBlock.id });
+
       await streamCompletion({
         provider,
         model,
@@ -380,7 +452,10 @@ export function useMessageSender(
         enableMcpTools: options.enableMcpTools === true,
         onToken: async (d) => {
           acc += d;
-          MessageRepository.bufferMessageText(assistant!.id, acc, 200);
+          // ✨ 新方式：更新 TEXT 块（BlockManager 内部有 200ms 节流）
+          await blockManager.updateBlock(textBlock.id, {
+            content: acc,
+          });
         },
         onThinkingStart: async () => {
           thinkingStartTime = Date.now();
@@ -437,9 +512,71 @@ export function useMessageSender(
             }
           }
         },
+        // ✨ MCP 工具调用回调（Cherry Studio 设计参考）
+        onToolCall: async (toolName, args) => {
+          try {
+            logger.info('[useMessageSender] 🔧 工具调用开始', { toolName, args });
+
+            // 创建 PENDING 状态的工具块
+            await blockManager.addBlock({
+              type: 'TOOL',
+              status: 'PENDING',
+              content: '', // 初始内容为空，等待工具执行结果
+              toolCallId: `${toolName}_${Date.now()}`, // 生成唯一的工具调用 ID
+              toolName,
+              toolArgs: args,
+            });
+
+            logger.debug('[useMessageSender] 工具块已创建（PENDING）', { toolName });
+          } catch (error) {
+            logger.error('[useMessageSender] 创建工具块失败', error, { toolName });
+          }
+        },
+        onToolResult: async (toolName, result) => {
+          try {
+            logger.info('[useMessageSender] ✅ 工具执行完成', { toolName, result });
+
+            // 查找对应的工具块（通过 toolName 匹配）
+            const blocks = blockManager.getBlocks();
+            const toolBlock = blocks.find(
+              b => b.type === 'TOOL' && b.toolName === toolName && b.status === 'PENDING'
+            );
+
+            if (!toolBlock) {
+              logger.warn('[useMessageSender] 未找到对应的工具块', { toolName });
+              return;
+            }
+
+            // 格式化工具结果
+            const formattedResult = typeof result === 'string'
+              ? result
+              : JSON.stringify(result, null, 2);
+
+            // 更新工具块状态和结果
+            await blockManager.updateBlock(toolBlock.id, {
+              content: formattedResult,
+              status: 'SUCCESS',
+            });
+
+            logger.debug('[useMessageSender] 工具块已更新（SUCCESS）', {
+              toolName,
+              resultLength: formattedResult.length,
+            });
+          } catch (error) {
+            logger.error('[useMessageSender] 更新工具块失败', error, { toolName });
+          }
+        },
         onDone: async () => {
-          await MessageRepository.endBufferedMessageText(assistant!.id);
+          // ✨ 清理 BlockManager（确保所有块都已写入数据库）
+          try {
+            await blockManager.cleanup();
+            logger.debug('[useMessageSender] BlockManager 已清理');
+          } catch (error) {
+            logger.error('[useMessageSender] 清理 BlockManager 失败', error);
+          }
+
           await MessageRepository.updateMessageStatus(assistant!.id, 'sent');
+
           setIsGenerating(false);
           onProgress?.('done');
 
@@ -452,15 +589,24 @@ export function useMessageSender(
           }
         },
         onError: async (e) => {
+          // ✨ 清理 BlockManager（无论成功还是失败）
+          try {
+            await blockManager.cleanup();
+            logger.debug('[useMessageSender] BlockManager 已清理（错误处理）');
+          } catch (cleanupError) {
+            logger.error('[useMessageSender] 清理 BlockManager 失败', cleanupError);
+          }
+
           // 用户主动取消，静默处理
           if (isUserCanceled(e)) {
             logger.debug('[useMessageSender] 用户主动取消请求');
             if (assistant) {
-              try {
-                await MessageRepository.endBufferedMessageText(assistant.id);
-              } catch {}
-              const currentText = assistant.text || '';
-              if (currentText.trim().length < 10) {
+              // 检查TEXT块内容，如果内容很少则删除消息
+              const blocks = blockManager.getBlocks();
+              const textBlocks = blocks.filter(b => b.type === 'TEXT');
+              const totalText = textBlocks.map(b => b.content).join('');
+
+              if (totalText.trim().length < 10) {
                 await MessageRepository.deleteMessage(assistant.id);
                 logger.debug('[useMessageSender] 已删除空的助手消息');
               } else {
@@ -475,9 +621,6 @@ export function useMessageSender(
           // 真实错误
           logger.error('[useMessageSender] Stream error', e);
           if (assistant) {
-            try {
-              await MessageRepository.endBufferedMessageText(assistant.id);
-            } catch {}
             await MessageRepository.updateMessageStatus(assistant.id, 'failed');
           }
           setIsGenerating(false);
@@ -486,18 +629,12 @@ export function useMessageSender(
         },
       });
     } catch (error) {
-      // 用户主动取消
+      // 用户主动取消（外层捕获，一般不会到这里，因为 onError 已处理）
       if (isUserCanceled(error)) {
         logger.debug('[useMessageSender] 用户主动取消请求（外层捕获）');
         if (assistant) {
-          const currentText = assistant.text || '';
-          if (currentText.trim().length < 10) {
-            await MessageRepository.deleteMessage(assistant.id);
-            logger.debug('[useMessageSender] 已删除空的助手消息（外层）');
-          } else {
-            await MessageRepository.updateMessageStatus(assistant.id, 'failed');
-            logger.debug('[useMessageSender] 助手消息已标记为失败状态（外层）');
-          }
+          await MessageRepository.updateMessageStatus(assistant.id, 'failed');
+          logger.debug('[useMessageSender] 助手消息已标记为失败状态（外层）');
         }
         setIsGenerating(false);
         abortRef.current = null;
