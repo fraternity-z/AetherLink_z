@@ -160,6 +160,10 @@ export function MessageList({ conversationId }: { conversationId: string | null 
           modelId={item.extra?.model} // 传递模型 ID
           extra={item.extra} // 传递完整的 extra 数据（用于图片生成等特殊消息）
           userAvatarUri={item.role === 'user' ? avatarUri : undefined} // 用户消息传递头像 URI
+          // TODO: 未来实现 - 重新发送消息（用户消息）
+          // onResend={() => handleResendMessage(item.id)}
+          // TODO: 未来实现 - 重新生成消息（助手消息）
+          // onRegenerate={() => handleRegenerateMessage(item.id)}
         />
       );
     },
