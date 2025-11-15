@@ -102,9 +102,10 @@ export interface QuickPhrase {
  * 消息块类型
  * - TEXT: 普通文本块
  * - TOOL: MCP 工具调用块
- * - THINKING: 思考链块（已废弃，使用独立的 ThinkingChain 表）
+ *
+ * 思考链内容已迁移至独立的 ThinkingChain 表，不再使用消息块承载。
  */
-export type MessageBlockType = 'TEXT' | 'TOOL' | 'THINKING';
+export type MessageBlockType = 'TEXT' | 'TOOL';
 
 /**
  * 消息块状态

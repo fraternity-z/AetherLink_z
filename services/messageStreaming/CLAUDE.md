@@ -8,7 +8,7 @@
 
 ## 核心功能
 
-- 📦 **块管理**: 管理消息的文本块、工具块、思考链块
+- 📦 **块管理**: 管理消息的文本块、工具块
 - 🔄 **实时更新**: 流式响应时实时更新块内容和状态
 - 💾 **智能持久化**: 工具块立即写入，文本块缓冲写入
 - 🗺️ **工具映射**: 维护 toolCallId → blockId 映射，快速查找
@@ -161,7 +161,7 @@ private readonly TEXT_BLOCK_FLUSH_DELAY = 200;
 
 ### 消息块类型
 ```typescript
-export type MessageBlockType = 'TEXT' | 'TOOL' | 'THINKING';
+export type MessageBlockType = 'TEXT' | 'TOOL';
 
 export type MessageBlockStatus = 'PENDING' | 'SUCCESS' | 'ERROR';
 
@@ -185,7 +185,7 @@ export interface MessageBlock {
 ```
 
 ### 数据库表结构
-参见 `storage/sqlite/migrations/0007_message_blocks.ts`
+参见 `storage/sqlite/migrations/0007_message_blocks.ts` 与 `0008_remove_thinking_block.ts`
 
 ## 实现细节
 
@@ -350,7 +350,7 @@ blockManager.dispose();
 ### 添加新的块类型
 ```typescript
 // 1. 在 storage/core.ts 中添加新类型
-export type MessageBlockType = 'TEXT' | 'TOOL' | 'THINKING' | 'IMAGE';
+export type MessageBlockType = 'TEXT' | 'TOOL' | 'IMAGE';
 
 // 2. 在 BlockManager 中处理新类型
 async addBlock(input: AddBlockInput) {
@@ -396,7 +396,7 @@ async updateBlock(blockId: string, updates: any) {
 ### 数据层
 - `../../storage/core.ts` - 核心类型定义
 - `../../storage/repositories/message-blocks.ts` - 消息块数据仓库
-- `../../storage/sqlite/migrations/0007_message_blocks.ts` - 数据库迁移
+- `../../storage/sqlite/migrations/0007_message_blocks.ts`、`0008_remove_thinking_block.ts` - 数据库迁移
 
 ### 使用位置
 - `../../hooks/use-message-sender.ts` - 消息发送 Hook
