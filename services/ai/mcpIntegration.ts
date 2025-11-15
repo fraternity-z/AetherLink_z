@@ -116,13 +116,37 @@ export function convertMcpToolsToAiSdkTools(mcpTools: MCPTool[]): ToolSet {
             isError: result.isError,
           });
 
-          // AI SDK 会处理序列化
+          // 检查错误
           if (result.isError) {
-            return Promise.reject(result);
+            const errorText = result.content
+              .filter((c) => c.type === 'text')
+              .map((c) => c.text)
+              .join('\n');
+            throw new Error(errorText || 'MCP tool execution failed');
           }
 
-          // 返回工具执行结果
-          return result;
+          // ✨ 将 MCP 的 content 数组转换为 AI SDK 可接受的格式
+          // AI SDK 期望简单的字符串或对象，而不是 {content: [...], isError: false} 格式
+          const textContent = result.content
+            .filter((c) => c.type === 'text')
+            .map((c) => c.text)
+            .join('\n');
+
+          const imageContent = result.content.filter((c) => c.type === 'image');
+
+          // 如果只有文本内容，直接返回文本
+          if (imageContent.length === 0) {
+            return textContent;
+          }
+
+          // 如果有图片和文本，返回组合对象
+          return {
+            text: textContent,
+            images: imageContent.map((img) => ({
+              data: img.data,
+              mimeType: img.mimeType,
+            })),
+          };
         } catch (error: any) {
           const execDuration = Date.now() - execStartTime;
 
@@ -221,9 +245,21 @@ export async function getAllActiveTools(): Promise<Record<string, Tool<any, any>
   // 使用新的转换函数
   const allTools = setupToolsConfig(allMcpTools) || {};
 
+  // 🐛 调试：输出工具的详细信息
   log.info(`所有激活服务器的工具已加载`, {
     totalTools: Object.keys(allTools).length,
+    toolNames: Object.keys(allTools),
   });
+
+  // 🐛 输出每个工具的描述（用于调试 AI 是否能理解工具用途）
+  for (const mcpTool of allMcpTools) {
+    log.debug(`MCP 工具详情`, {
+      name: mcpTool.name,
+      description: mcpTool.description || '(无描述)',
+      serverName: mcpTool.serverName,
+      inputSchema: mcpTool.inputSchema,
+    });
+  }
 
   return allTools;
 }

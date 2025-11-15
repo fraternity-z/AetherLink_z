@@ -315,6 +315,29 @@ export function useMessageSender(
         logger.debug('[useMessageSender] 无系统提示词（使用纯对话上下文）');
       }
 
+      // ✨ 如果启用了 MCP 工具，自动追加工具使用指引
+      if (options.enableMcpTools) {
+        const toolGuidance = `
+
+## 可用工具说明
+
+你现在可以使用以下工具来帮助用户完成任务：
+
+- **查询类工具**：当用户询问实时信息、数据查询、网络资源时，优先使用相关工具
+- **操作类工具**：当用户需要执行某些操作（如文件处理、数据转换）时，使用对应工具
+- **时间工具**：当用户询问当前时间、日期时，使用时间工具
+- **网络工具**：当用户需要获取 URL 内容、访问网页时，使用网络请求工具
+
+**重要**：
+1. 当用户的请求明确需要外部数据或实时信息时，**必须优先调用工具**，而不是依赖你的知识库
+2. 工具调用完成后，请根据工具返回的结果为用户提供清晰的回答
+3. 如果工具调用失败，请向用户说明原因并尝试其他方法
+`;
+
+        systemPrompt = systemPrompt ? `${systemPrompt}\n${toolGuidance}` : toolGuidance.trim();
+        logger.debug('[useMessageSender] 已追加 MCP 工具使用指引到系统提示词');
+      }
+
       // 构建消息数组
       const msgs: ModelMessage[] = [];
 
@@ -515,37 +538,34 @@ export function useMessageSender(
           }
         },
         // ✨ MCP 工具调用回调（Cherry Studio 设计参考）
-        onToolCall: async (toolName, args) => {
+        onToolCall: async (toolName, args, toolCallId) => {
           try {
-            logger.info('[useMessageSender] 🔧 工具调用开始', { toolName, args });
+            logger.info('[useMessageSender] 🔧 工具调用开始', { toolName, args, toolCallId });
 
-            // 创建 PENDING 状态的工具块
+            // 创建 PENDING 状态的工具块，使用 AI SDK 提供的真实 toolCallId
             await blockManager.addBlock({
               type: 'TOOL',
               status: 'PENDING',
               content: '', // 初始内容为空，等待工具执行结果
-              toolCallId: `${toolName}_${Date.now()}`, // 生成唯一的工具调用 ID
+              toolCallId, // ✨ 使用 AI SDK 提供的真实 toolCallId
               toolName,
               toolArgs: args,
             });
 
-            logger.debug('[useMessageSender] 工具块已创建（PENDING）', { toolName });
+            logger.debug('[useMessageSender] 工具块已创建（PENDING）', { toolName, toolCallId });
           } catch (error) {
-            logger.error('[useMessageSender] 创建工具块失败', error, { toolName });
+            logger.error('[useMessageSender] 创建工具块失败', error, { toolName, toolCallId });
           }
         },
-        onToolResult: async (toolName, result) => {
+        onToolResult: async (toolName, result, toolCallId) => {
           try {
-            logger.info('[useMessageSender] ✅ 工具执行完成', { toolName, result });
+            logger.info('[useMessageSender] ✅ 工具执行完成', { toolName, result, toolCallId });
 
-            // 查找对应的工具块（通过 toolName 匹配）
-            const blocks = blockManager.getBlocks();
-            const toolBlock = blocks.find(
-              b => b.type === 'TOOL' && b.toolName === toolName && b.status === 'PENDING'
-            );
+            // ✨ 使用 BlockManager 的 toolCallId 映射精确查找工具块
+            const toolBlock = blockManager.getBlockByToolCallId(toolCallId);
 
             if (!toolBlock) {
-              logger.warn('[useMessageSender] 未找到对应的工具块', { toolName });
+              logger.warn('[useMessageSender] 未找到对应的工具块', { toolName, toolCallId });
               return;
             }
 
@@ -562,10 +582,11 @@ export function useMessageSender(
 
             logger.debug('[useMessageSender] 工具块已更新（SUCCESS）', {
               toolName,
+              toolCallId,
               resultLength: formattedResult.length,
             });
           } catch (error) {
-            logger.error('[useMessageSender] 更新工具块失败', error, { toolName });
+            logger.error('[useMessageSender] 更新工具块失败', error, { toolName, toolCallId });
           }
         },
         onDone: async () => {

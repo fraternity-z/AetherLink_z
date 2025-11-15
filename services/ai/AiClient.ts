@@ -38,8 +38,8 @@ export interface StreamOptions {
 
   // MCP 工具集成 (Model Context Protocol)
   enableMcpTools?: boolean; // 是否启用 MCP 工具
-  onToolCall?: (toolName: string, args: ToolCallArgs) => void; // 工具调用开始回调
-  onToolResult?: (toolName: string, result: ToolCallResult) => void; // 工具执行完成回调
+  onToolCall?: (toolName: string, args: ToolCallArgs, toolCallId: string) => void; // 工具调用开始回调
+  onToolResult?: (toolName: string, result: ToolCallResult, toolCallId: string) => void; // 工具执行完成回调
 }
 
 /**
@@ -172,6 +172,7 @@ export async function streamCompletion(opts: StreamOptions) {
       mcpTools = await getAllActiveTools();
       logger.info('[AiClient] MCP 工具已加载', {
         toolCount: Object.keys(mcpTools).length,
+        toolNames: Object.keys(mcpTools),
       });
     } catch (error: unknown) {
       logger.error('[AiClient] 加载 MCP 工具失败', error, { message: getErrorMessage(error) });
@@ -179,6 +180,19 @@ export async function streamCompletion(opts: StreamOptions) {
       mcpTools = undefined;
     }
   }
+
+  // 🐛 调试：输出传递给 streamText 的配置
+  logger.debug('[AiClient] streamText 配置', {
+    provider,
+    model,
+    temperature: opts.temperature,
+    maxOutputTokens: opts.maxTokens,
+    hasTools: !!mcpTools,
+    toolCount: mcpTools ? Object.keys(mcpTools).length : 0,
+    toolNames: mcpTools ? Object.keys(mcpTools) : [],
+    hasReasoningSupport,
+    maxSteps: 5,
+  });
 
   // 使用 AI SDK 原生 streamText，集成 MCP 工具
   const result = streamText({
@@ -228,23 +242,25 @@ export async function streamCompletion(opts: StreamOptions) {
           // ✨ AI SDK 原生工具调用事件
           const toolName = part.toolName;
           const toolArgs = ('args' in part ? part.args : part.input) as ToolCallArgs; // AI SDK 使用 input 字段
-          logger.info('[AiClient] 🔧 工具调用开始', { toolName, args: toolArgs, toolCallId: part.toolCallId });
+          const toolCallId = part.toolCallId;
+          logger.info('[AiClient] 🔧 工具调用开始', { toolName, args: toolArgs, toolCallId });
           try {
-            opts.onToolCall?.(toolName, toolArgs);
-            logger.debug('[AiClient] onToolCall 回调已执行', { toolName });
+            opts.onToolCall?.(toolName, toolArgs, toolCallId);
+            logger.debug('[AiClient] onToolCall 回调已执行', { toolName, toolCallId });
           } catch (cbErr) {
-            logger.warn('[AiClient] onToolCall 回调异常', { toolName, error: getErrorMessage(cbErr) });
+            logger.warn('[AiClient] onToolCall 回调异常', { toolName, toolCallId, error: getErrorMessage(cbErr) });
           }
         } else if (part.type === 'tool-result') {
           // ✨ AI SDK 原生工具结果事件
           const toolName = part.toolName;
           const toolResult = 'result' in part ? part.result : part.output; // AI SDK 使用 output 字段
-          logger.info('[AiClient] ✅ 工具执行完成', { toolName, result: toolResult, toolCallId: part.toolCallId });
+          const toolCallId = part.toolCallId;
+          logger.info('[AiClient] ✅ 工具执行完成', { toolName, result: toolResult, toolCallId });
           try {
-            opts.onToolResult?.(toolName, toolResult);
-            logger.debug('[AiClient] onToolResult 回调已执行', { toolName });
+            opts.onToolResult?.(toolName, toolResult, toolCallId);
+            logger.debug('[AiClient] onToolResult 回调已执行', { toolName, toolCallId });
           } catch (cbErr) {
-            logger.warn('[AiClient] onToolResult 回调异常', { toolName, error: getErrorMessage(cbErr) });
+            logger.warn('[AiClient] onToolResult 回调异常', { toolName, toolCallId, error: getErrorMessage(cbErr) });
           }
         } else if (part.type === 'finish-step') {
           // 每一步完成（可能包含工具调用）
@@ -302,22 +318,24 @@ export async function streamCompletion(opts: StreamOptions) {
         } else if (part.type === 'tool-call') {
           const toolName = part.toolName;
           const toolArgs = ('args' in part ? part.args : part.input) as ToolCallArgs; // AI SDK 使用 input 字段
-          logger.info('[AiClient] 🔧 工具调用开始', { toolName, args: toolArgs, toolCallId: part.toolCallId });
+          const toolCallId = part.toolCallId;
+          logger.info('[AiClient] 🔧 工具调用开始', { toolName, args: toolArgs, toolCallId });
           try {
-            opts.onToolCall?.(toolName, toolArgs);
-            logger.debug('[AiClient] onToolCall 回调已执行', { toolName });
+            opts.onToolCall?.(toolName, toolArgs, toolCallId);
+            logger.debug('[AiClient] onToolCall 回调已执行', { toolName, toolCallId });
           } catch (cbErr) {
-            logger.warn('[AiClient] onToolCall 回调异常', { toolName, error: getErrorMessage(cbErr) });
+            logger.warn('[AiClient] onToolCall 回调异常', { toolName, toolCallId, error: getErrorMessage(cbErr) });
           }
         } else if (part.type === 'tool-result') {
           const toolName = part.toolName;
           const toolResult = 'result' in part ? part.result : part.output; // AI SDK 使用 output 字段
-          logger.info('[AiClient] ✅ 工具执行完成', { toolName, result: toolResult, toolCallId: part.toolCallId });
+          const toolCallId = part.toolCallId;
+          logger.info('[AiClient] ✅ 工具执行完成', { toolName, result: toolResult, toolCallId });
           try {
-            opts.onToolResult?.(toolName, toolResult);
-            logger.debug('[AiClient] onToolResult 回调已执行', { toolName });
+            opts.onToolResult?.(toolName, toolResult, toolCallId);
+            logger.debug('[AiClient] onToolResult 回调已执行', { toolName, toolCallId });
           } catch (cbErr) {
-            logger.warn('[AiClient] onToolResult 回调异常', { toolName, error: getErrorMessage(cbErr) });
+            logger.warn('[AiClient] onToolResult 回调异常', { toolName, toolCallId, error: getErrorMessage(cbErr) });
           }
         } else if (part.type === 'finish-step') {
           logger.info('[AiClient] 🏁 完成一步', {
