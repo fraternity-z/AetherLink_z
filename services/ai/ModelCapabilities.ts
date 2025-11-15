@@ -200,7 +200,7 @@ export function supportsVision(
  * - 其他: 包含 "reasoning", "thinking", "qwq" 等关键词
  */
 const REASONING_REGEX =
-  /^(?!.*-non-reasoning\b)(o\d+(?:-[\w-]+)?|.*\b(?:reasoning|reasoner|thinking)\b.*|.*-[rR]\d+.*|.*\bqwq(?:-[\w-]+)?\b.*|.*\bhunyuan-t1(?:-[\w-]+)?\b.*|.*\bglm-zero-preview\b.*|.*\bgrok-(?:3-mini|4|4-fast)(?:-[\w-]+)?\b.*)$/i;
+  /^(?!.*-non-reasoning\b)(o\d+(?:-[\w-]+)?|.*\b(?:reasoning|reasoner|thinking)\b.*|.*-[rR]\d+.*|.*\bqwq(?:-[\w-]+)?\b.*|.*\bhunyuan-t1(?:-[\w-]+)?\b.*|.*\bglm-zero-preview\b.*|.*\bgrok-(?:3-mini|4|4-fast)(?:-[\w-]+)?\b.*|.*\bgpt-5(?:-[\w-]+)*\b.*)$/i;
 
 const DEEPSEEK_HYBRID_REGEX = /deepseek-v3(?:\.\d|-\d)(?:(\.|-)\w+)?$|deepseek-chat-v3\.1/i;
 const GEMINI_THINKING_REGEX =
