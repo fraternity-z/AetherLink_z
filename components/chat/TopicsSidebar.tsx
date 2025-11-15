@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { Animated, Pressable, StyleSheet, useWindowDimensions, View, ScrollView } from 'react-native';
 import { Surface, Text, List, TouchableRipple, useTheme, Button, IconButton, Searchbar, Checkbox } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -72,7 +72,8 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
     }).start();
   }, [visible, drawerWidth, translateX]);
 
-  const toggleSelection = (id: string) => {
+  // 🚀 性能优化：使用 useCallback 缓存切换选择函数
+  const toggleSelection = useCallback((id: string) => {
     setSelectedIds(prev => {
       const newSet = new Set(prev);
       if (newSet.has(id)) {
@@ -82,7 +83,65 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
       }
       return newSet;
     });
-  };
+  }, []);
+
+  // 🚀 性能优化：缓存话题点击处理函数
+  const handleTopicPress = useCallback((id: string) => {
+    if (batchMode) {
+      toggleSelection(id);
+    } else {
+      onSelectTopic?.(id);
+      onClose();
+    }
+  }, [batchMode, toggleSelection, onSelectTopic, onClose]);
+
+  // 🚀 性能优化：缓存话题长按处理函数
+  const handleTopicLongPress = useCallback((id: string) => {
+    if (!batchMode) {
+      setBatchMode(true);
+      toggleSelection(id);
+    }
+  }, [batchMode, toggleSelection]);
+
+  // 🚀 性能优化：缓存话题重命名处理函数
+  const handleRenameTopicPress = useCallback((conversation: Conversation) => {
+    prompt({
+      title: '重命名话题',
+      placeholder: '请输入新标题',
+      defaultValue: conversation.title || '',
+      maxLength: 50,
+      icon: {
+        name: 'pencil',
+        type: 'material-community',
+        color: theme.colors.primary,
+      },
+      validation: (value) => ({
+        valid: value.trim().length > 0,
+        error: '标题不能为空',
+      }),
+      onConfirm: async (value) => {
+        await ChatRepository.renameConversation(conversation.id, value.trim());
+        await reload();
+      },
+    });
+  }, [prompt, theme.colors.primary, reload]);
+
+  // 🚀 性能优化：缓存话题删除处理函数
+  const handleDeleteTopicPress = useCallback((id: string) => {
+    confirmAction(
+      '删除话题',
+      '删除后不可恢复，确认删除？',
+      async () => {
+        await ChatRepository.deleteConversation(id);
+        await reload();
+      },
+      {
+        confirmText: '删除',
+        cancelText: '取消',
+        destructive: true,
+      }
+    );
+  }, [confirmAction, reload]);
 
   const deleteSelected = async () => {
     if (selectedIds.size === 0) return;
@@ -112,20 +171,8 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
     return (
       <TouchableRipple
         key={c.id}
-        onPress={() => {
-          if (batchMode) {
-            toggleSelection(c.id);
-          } else {
-            onSelectTopic?.(c.id);
-            onClose();
-          }
-        }}
-        onLongPress={() => {
-          if (!batchMode) {
-            setBatchMode(true);
-            toggleSelection(c.id);
-          }
-        }}
+        onPress={() => handleTopicPress(c.id)}
+        onLongPress={() => handleTopicLongPress(c.id)}
         rippleColor={theme.colors.primary + '20'}
       >
         <List.Item
@@ -164,48 +211,14 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
                   {...p}
                   icon="pencil-outline"
                   size={20}
-                  onPress={() =>
-                    prompt({
-                      title: '重命名话题',
-                      placeholder: '请输入新标题',
-                      defaultValue: c.title || '',
-                      maxLength: 50,
-                      icon: {
-                        name: 'pencil',
-                        type: 'material-community',
-                        color: theme.colors.primary,
-                      },
-                      validation: (value) => ({
-                        valid: value.trim().length > 0,
-                        error: '标题不能为空',
-                      }),
-                      onConfirm: async (value) => {
-                        await ChatRepository.renameConversation(c.id, value.trim());
-                        await reload();
-                      },
-                    })
-                  }
+                  onPress={() => handleRenameTopicPress(c)}
                 />
                 <IconButton
                   {...p}
                   icon="delete-outline"
                   size={20}
                   iconColor={theme.colors.error}
-                  onPress={() =>
-                    confirmAction(
-                      '删除话题',
-                      '删除后不可恢复，确认删除？',
-                      async () => {
-                        await ChatRepository.deleteConversation(c.id);
-                        await reload();
-                      },
-                      {
-                        confirmText: '删除',
-                        cancelText: '取消',
-                        destructive: true,
-                      }
-                    )
-                  }
+                  onPress={() => handleDeleteTopicPress(c.id)}
                 />
               </View>
             ) : undefined

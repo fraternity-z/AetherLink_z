@@ -202,7 +202,8 @@ export function useWebSearch(): UseWebSearchResult {
 
     // 等待搜索完成
     return searchPromise;
-  }, [CACHE_TTL]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // CACHE_TTL 是常量，不需要放在依赖数组中
 
   /**
    * 🐛 临时禁用防抖，直接使用原始搜索函数进行调试
