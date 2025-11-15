@@ -49,7 +49,7 @@ export type UserAgentType = 'desktop' | 'mobile';
  * @example
  * ```typescript
  * const ua = getRandomUserAgent('mobile');
- * console.log(ua); // "Mozilla/5.0 (iPhone; ..."
+ * logger.info(ua); // "Mozilla/5.0 (iPhone; ..."
  * ```
  */
 export function getRandomUserAgent(type: UserAgentType = 'mobile'): string {

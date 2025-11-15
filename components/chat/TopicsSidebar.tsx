@@ -14,6 +14,125 @@ interface TopicsSidebarProps {
   currentTopicId?: string;
 }
 
+/**
+ * 🎯 TopicItem 组件属性接口
+ */
+interface TopicItemProps {
+  conversation: Conversation;
+  isCurrentTopic: boolean;
+  batchMode: boolean;
+  selectedIds: Set<string>;
+  onPress: (id: string) => void;
+  onLongPress: (id: string) => void;
+  onRename: (conversation: Conversation) => void;
+  onDelete: (id: string) => void;
+  onToggleSelection: (id: string) => void;
+  themeColors: {
+    primary: string;
+    primaryContainer: string;
+    error: string;
+  };
+}
+
+/**
+ * 🚀 TopicItem 独立组件 - 使用 React.memo 优化渲染性能
+ *
+ * 性能优化说明：
+ * - 提取为独立组件，避免父组件重渲染时重新创建
+ * - 使用 React.memo 进行浅比较
+ * - 自定义比较函数，仅在关键 props 变化时重渲染
+ *
+ * @param props TopicItemProps
+ */
+const TopicItem = React.memo<TopicItemProps>(({
+  conversation,
+  isCurrentTopic,
+  batchMode,
+  selectedIds,
+  onPress,
+  onLongPress,
+  onRename,
+  onDelete,
+  onToggleSelection,
+  themeColors,
+}) => {
+  const isSelected = selectedIds.has(conversation.id);
+
+  return (
+    <TouchableRipple
+      onPress={() => onPress(conversation.id)}
+      onLongPress={() => onLongPress(conversation.id)}
+      rippleColor={themeColors.primary + '20'}
+    >
+      <List.Item
+        title={conversation.title || '默认话题'}
+        description={new Date(conversation.updatedAt).toLocaleString('zh-CN', {
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        })}
+        style={isCurrentTopic ? {
+          backgroundColor: themeColors.primaryContainer,
+        } : undefined}
+        titleStyle={isCurrentTopic ? {
+          color: themeColors.primary,
+          fontWeight: '600',
+        } : undefined}
+        left={(p) =>
+          batchMode ? (
+            <Checkbox
+              status={isSelected ? 'checked' : 'unchecked'}
+              onPress={() => onToggleSelection(conversation.id)}
+            />
+          ) : (
+            <List.Icon
+              {...p}
+              icon="chat-outline"
+              color={isCurrentTopic ? themeColors.primary : p.color}
+            />
+          )
+        }
+        right={(p) =>
+          !batchMode ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <IconButton
+                {...p}
+                icon="pencil-outline"
+                size={20}
+                onPress={() => onRename(conversation)}
+              />
+              <IconButton
+                {...p}
+                icon="delete-outline"
+                size={20}
+                iconColor={themeColors.error}
+                onPress={() => onDelete(conversation.id)}
+              />
+            </View>
+          ) : undefined
+        }
+      />
+    </TouchableRipple>
+  );
+}, (prevProps, nextProps) => {
+  // 🎯 自定义比较函数 - 仅在以下 props 变化时重渲染
+  return (
+    prevProps.conversation.id === nextProps.conversation.id &&
+    prevProps.conversation.title === nextProps.conversation.title &&
+    prevProps.conversation.updatedAt === nextProps.conversation.updatedAt &&
+    prevProps.isCurrentTopic === nextProps.isCurrentTopic &&
+    prevProps.batchMode === nextProps.batchMode &&
+    prevProps.selectedIds.has(prevProps.conversation.id) === nextProps.selectedIds.has(nextProps.conversation.id) &&
+    prevProps.themeColors.primary === nextProps.themeColors.primary &&
+    prevProps.themeColors.primaryContainer === nextProps.themeColors.primaryContainer &&
+    prevProps.themeColors.error === nextProps.themeColors.error
+  );
+});
+
+// 设置显示名称，便于 React DevTools 调试
+TopicItem.displayName = 'TopicItem';
+
 // 时间分类辅助函数
 function categorizeByTime(conversations: Conversation[]) {
   const now = Date.now();
@@ -63,6 +182,13 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
 
   // 时间分类
   const categorized = useMemo(() => categorizeByTime(filteredItems), [filteredItems]);
+
+  // 🚀 性能优化：缓存主题颜色对象，避免每次渲染都创建新对象
+  const themeColors = useMemo(() => ({
+    primary: theme.colors.primary,
+    primaryContainer: theme.colors.primaryContainer,
+    error: theme.colors.error,
+  }), [theme.colors.primary, theme.colors.primaryContainer, theme.colors.error]);
 
   useEffect(() => {
     Animated.timing(translateX, {
@@ -165,69 +291,9 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
     );
   };
 
-  const renderTopicItem = (c: Conversation) => {
-    const isCurrentTopic = c.id === currentTopicId;
-
-    return (
-      <TouchableRipple
-        key={c.id}
-        onPress={() => handleTopicPress(c.id)}
-        onLongPress={() => handleTopicLongPress(c.id)}
-        rippleColor={theme.colors.primary + '20'}
-      >
-        <List.Item
-          title={c.title || '默认话题'}
-          description={new Date(c.updatedAt).toLocaleString('zh-CN', {
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-          style={isCurrentTopic ? {
-            backgroundColor: theme.colors.primaryContainer,
-          } : undefined}
-          titleStyle={isCurrentTopic ? {
-            color: theme.colors.primary,
-            fontWeight: '600',
-          } : undefined}
-          left={(p) =>
-            batchMode ? (
-              <Checkbox
-                status={selectedIds.has(c.id) ? 'checked' : 'unchecked'}
-                onPress={() => toggleSelection(c.id)}
-              />
-            ) : (
-              <List.Icon
-                {...p}
-                icon="chat-outline"
-                color={isCurrentTopic ? theme.colors.primary : p.color}
-              />
-            )
-          }
-          right={(p) =>
-            !batchMode ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <IconButton
-                  {...p}
-                  icon="pencil-outline"
-                  size={20}
-                  onPress={() => handleRenameTopicPress(c)}
-                />
-                <IconButton
-                  {...p}
-                  icon="delete-outline"
-                  size={20}
-                  iconColor={theme.colors.error}
-                  onPress={() => handleDeleteTopicPress(c.id)}
-                />
-              </View>
-            ) : undefined
-          }
-        />
-      </TouchableRipple>
-    );
-  };
-
+  /**
+   * 🚀 渲染分类区块 - 使用优化后的 TopicItem 组件
+   */
   const renderSection = (title: string, data: Conversation[]) => {
     if (data.length === 0) return null;
     return (
@@ -237,7 +303,21 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
             {title}
           </Text>
         </View>
-        {data.map((item) => renderTopicItem(item))}
+        {data.map((item) => (
+          <TopicItem
+            key={item.id}
+            conversation={item}
+            isCurrentTopic={item.id === currentTopicId}
+            batchMode={batchMode}
+            selectedIds={selectedIds}
+            onPress={handleTopicPress}
+            onLongPress={handleTopicLongPress}
+            onRename={handleRenameTopicPress}
+            onDelete={handleDeleteTopicPress}
+            onToggleSelection={toggleSelection}
+            themeColors={themeColors}
+          />
+        ))}
       </View>
     );
   };

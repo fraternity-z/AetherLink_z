@@ -34,7 +34,7 @@ interface TavilyApiResponse {
  * @example
  * ```typescript
  * const results = await searchTavily('React Native', 'your-api-key', 5);
- * console.log(results); // [{ title, url, snippet, source }]
+ * logger.info(results); // [{ title, url, snippet, source }]
  * ```
  */
 export async function searchTavily(

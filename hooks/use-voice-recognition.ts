@@ -81,9 +81,9 @@ export interface UseVoiceRecognitionOptions {
  * const handleRecordingComplete = async (audioUri: string) => {
  *   try {
  *     const text = await recognizeFromFile(audioUri);
- *     console.log('识别结果:', text);
+ *     logger.info('识别结果:', text);
  *   } catch (err) {
- *     console.error('识别失败:', err);
+ *     logger.error('识别失败:', err);
  *   }
  * };
  *
@@ -94,7 +94,7 @@ export interface UseVoiceRecognitionOptions {
  *
  * const handleStopRealtime = async () => {
  *   const text = await stopRealtimeRecognition();
- *   console.log('识别结果:', text);
+ *   logger.info('识别结果:', text);
  * };
  * ```
  */

@@ -25,6 +25,7 @@ import {
   HelperText,
 } from 'react-native-paper';
 import type { QuickPhrase } from '@/storage/core';
+import { logger } from '@/utils/logger';
 
 // 常用 Emoji 列表
 const COMMON_EMOJIS = [
@@ -137,7 +138,7 @@ export function QuickPhraseEditDialog({
       onDismiss();
     } catch (error) {
       // 错误由父组件处理
-      console.error('保存失败:', error);
+      logger.error('[QuickPhraseEditDialog] 保存失败', error);
     } finally {
       setIsSubmitting(false);
     }

@@ -25,7 +25,7 @@ import { isHiddenWebViewAvailable, loadHtmlViaHiddenWebView } from '@/services/w
  * @example
  * ```typescript
  * const results = await searchGoogle('React Native', 5);
- * console.log(results); // [{ title, url, snippet, source }]
+ * logger.info(results); // [{ title, url, snippet, source }]
  * ```
  */
 export async function searchGoogle(
