@@ -168,8 +168,8 @@ export async function streamCompletion(opts: StreamOptions) {
   let mcpTools: Record<string, any> | undefined;
   if (opts.enableMcpTools) {
     try {
-      const { ToolConverter } = await import('@/services/mcp/ToolConverter');
-      mcpTools = await ToolConverter.getAllActiveTools();
+      const { getAllActiveTools } = await import('@/services/ai/mcpIntegration');
+      mcpTools = await getAllActiveTools();
       logger.info('[AiClient] MCP 工具已加载', {
         toolCount: Object.keys(mcpTools).length,
       });

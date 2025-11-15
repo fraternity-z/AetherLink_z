@@ -27,6 +27,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect config changes
+        id: config_changes
+        uses: dorny/paths-filter@v3
+        with:
+          base: origin/main
+          filters: |
+            requires-prebuild:
+              - 'app.json'
+              - 'app.config.*'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'config/**'
+              - 'scripts/**'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -74,7 +90,12 @@ jobs:
         shell: bash
 
       - name: Prebuild native android project (Expo)
+        if: steps.config_changes.outputs.requires-prebuild == 'true'
         run: npx expo prebuild --platform android --non-interactive --no-install
+
+      - name: Skip Expo prebuild
+        if: steps.config_changes.outputs.requires-prebuild != 'true'
+        run: echo "Skipping Expo prebuild: no config changes detected."
 
       - name: Configure release signing
         run: |
