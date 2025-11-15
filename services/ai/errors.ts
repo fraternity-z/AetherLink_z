@@ -140,37 +140,3 @@ export class NetworkError extends AiError {
   }
 }
 
-/**
- * 根据错误对象创建合适的错误类型
- */
-export function createAiError(error: any, provider?: string, model?: string): AiError {
-  // 如果已经是 AiError，直接返回
-  if (error instanceof AiError) {
-    return error;
-  }
-
-  // 解析 HTTP 错误
-  if (error.status || error.statusCode) {
-    const statusCode = error.status || error.statusCode;
-    return new NetworkError(
-      error.message || '网络请求失败',
-      statusCode,
-      provider,
-      model,
-      error
-    );
-  }
-
-  // 解析超时错误
-  if (error.name === 'AbortError' || error.message?.includes('timeout')) {
-    return new NetworkError('请求超时', undefined, provider, model, error);
-  }
-
-  // 默认返回通用错误
-  return new AiError(
-    error.message || '未知错误',
-    provider,
-    model,
-    error
-  );
-}

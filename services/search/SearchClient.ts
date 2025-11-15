@@ -107,28 +107,3 @@ export async function performSearch(
   }
 }
 
-/**
- * 验证搜索引擎配置是否完整
- *
- * @param engine 搜索引擎类型
- * @param apiKey API Key（可选）
- * @returns 配置是否有效
- */
-export function validateSearchConfig(
-  engine: SearchOptions['engine'],
-  apiKey?: string
-): boolean {
-  switch (engine) {
-    case 'bing':
-    case 'google':
-      // Bing 和 Google 使用网页爬取，无需 API Key
-      return true;
-
-    case 'tavily':
-      // Tavily 需要有效的 API Key
-      return !!apiKey && apiKey.trim().length > 0;
-
-    default:
-      return false;
-  }
-}

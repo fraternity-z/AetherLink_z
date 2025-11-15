@@ -12,12 +12,7 @@
  */
 export type SearchEngine = 'bing' | 'google' | 'tavily';
 
-/**
- * 搜索实现方式
- */
-export type SearchMethod = 'web-scraping' | 'api';
-
-/**
+/** 
  * 搜索结果项
  */
 export interface SearchResult {
