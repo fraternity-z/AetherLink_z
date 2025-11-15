@@ -185,7 +185,7 @@ export interface MessageBlock {
 ```
 
 ### 数据库表结构
-参见 `storage/sqlite/migrations/0007_message_blocks.ts` 与 `0008_remove_thinking_block.ts`
+参见 `storage/sqlite/migrations/0001_init.ts`
 
 ## 实现细节
 
@@ -396,7 +396,7 @@ async updateBlock(blockId: string, updates: any) {
 ### 数据层
 - `../../storage/core.ts` - 核心类型定义
 - `../../storage/repositories/message-blocks.ts` - 消息块数据仓库
-- `../../storage/sqlite/migrations/0007_message_blocks.ts`、`0008_remove_thinking_block.ts` - 数据库迁移
+- `../../storage/sqlite/migrations/0001_init.ts` - 数据库迁移脚本
 
 ### 使用位置
 - `../../hooks/use-message-sender.ts` - 消息发送 Hook

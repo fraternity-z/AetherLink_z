@@ -120,10 +120,10 @@ interface Attachment {
 ## 常见问题 (FAQ)
 
 ### Q: 如何添加新的数据实体？
-A: 1) 在 `core.ts` 中定义接口 2) 创建迁移脚本 3) 实现对应的 Repository
+A: 1) 在 `core.ts` 中定义接口 2) 更新 `migrations/0001_init.ts` 的建表脚本 3) 清理本地数据库 4) 实现对应的 Repository
 
 ### Q: 如何处理数据库升级？
-A: 在 `migrations/` 目录下添加新的迁移文件，按序号命名，在 `db.ts` 中注册。
+A: 当前处于开发阶段，所有表结构集中在 `migrations/0001_init.ts`。如需调整 schema，可直接更新该文件并清理本地数据库；当进入发布阶段再恢复分步骤迁移。
 
 ### Q: Web 端数据库如何处理？
 A: Web 端使用 `expo-sqlite` 的 Web 实现，数据存储在浏览器中。
@@ -146,8 +146,7 @@ A: 使用索引、分页查询、事务批量操作，考虑数据归档策略�
 - `repositories/provider-models.ts` - 模型数据仓库
 
 ### 数据库迁移
-- `sqlite/migrations/0001_init.ts` - 初始化表结构
-- `sqlite/migrations/0002_provider_models.ts` - 提供商模型表
+- `sqlite/migrations/0001_init.ts` - 全量表结构脚本
 
 ### 存储适配器
 - `adapters/async-storage.ts` - 移动端存储适配器

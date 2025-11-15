@@ -5,7 +5,7 @@ import { execute, queryOne, queryAll } from '@/storage/sqlite/db';
  * MessageBlocksRepository - 消息块数据访问层
  *
  * 提供消息块(Message Blocks)的 CRUD 操作
- * 支持文本块、MCP 工具调用块、思考链块等
+ * 支持文本块、MCP 工具调用块
  *
  * 设计理念参考 Cherry Studio:
  * - 每个消息可以包含多个块

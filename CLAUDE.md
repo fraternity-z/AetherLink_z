@@ -297,7 +297,7 @@ npm run reset-project
   - 修改 `AiClient` 使用 `fullStream` 分离 reasoning 和 text
   - 新增 `ThinkingChainRepository` 数据访问层
   - 创建 `ThinkingBlock` UI 组件 (支持 Reanimated 动画)
-  - 扩展数据库表 `thinking_chains` (迁移 0003)
+  - 扩展数据库表 `thinking_chains`（见 `storage/sqlite/migrations/0001_init.ts`）
   - 集成到 `MessageBubble` 和 `MessageList` 组件
 - 📚 新增文档: `docs/THINKING_CHAIN.md` 和技术调研报告
 

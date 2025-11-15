@@ -239,15 +239,11 @@ AetherLink_z/
 3. 在 `AiClient.ts` 注册提供商
 4. 更新 UI 选择列表
 
-### 数据库迁移
+### 数据库结构
 
-```bash
-# 创建新的迁移文件
-# 在 storage/sqlite/migrations/ 目录下创建新文件
-# 文件名格式: XXXX_description.ts
-
-# 迁移会在应用启动时自动执行
-```
+- 当前处于开发阶段，所有表结构集中在 `storage/sqlite/migrations/0001_init.ts`
+- 修改 schema 时直接更新该文件，并清理本地 SQLite 数据以生效
+- 准备发布时可再拆分增量迁移脚本
 
 ### 运行代码检查
 

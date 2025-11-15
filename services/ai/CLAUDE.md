@@ -121,7 +121,7 @@ A: 使用 `expo-secure-store` 通过 `ProvidersRepository` 统一管理密钥。
 - `../../storage/repositories/provider-models.ts` - 模型数据
 
 ### 配置文件
-- `../../storage/sqlite/migrations/0002_provider_models.ts` - 模型数据表结构
+- `../../storage/sqlite/migrations/0001_init.ts` - 模型数据表结构
 
 ## 变更记录 (Changelog)
 

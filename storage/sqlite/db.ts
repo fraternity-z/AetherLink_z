@@ -1,12 +1,5 @@
 import { openDatabaseSync, SQLiteDatabase } from 'expo-sqlite';
 import { MIGRATION_0001 } from '@/storage/sqlite/migrations/0001_init';
-import { MIGRATION_0002 } from '@/storage/sqlite/migrations/0002_provider_models';
-import { MIGRATION_0003 } from '@/storage/sqlite/migrations/0003_thinking_chains';
-import { MIGRATION_0004 } from '@/storage/sqlite/migrations/0004_add_mcp_tables';
-import { MIGRATION_0005 } from '@/storage/sqlite/migrations/0005_quick_phrases';
-import { MIGRATION_0006 } from '@/storage/sqlite/migrations/0006_performance_indexes';
-import { MIGRATION_0007 } from '@/storage/sqlite/migrations/0007_message_blocks';
-import { MIGRATION_0008 } from '@/storage/sqlite/migrations/0008_remove_thinking_block';
 
 let dbInstance: SQLiteDatabase | null = null;
 let dbOperationQueue: Promise<unknown> = Promise.resolve();
@@ -30,8 +23,7 @@ export async function initMigrations(): Promise<void> {
     // PRAGMA 语句应该在事务外执行
     await db.execAsync('PRAGMA foreign_keys = ON;');
 
-    const all = [MIGRATION_0001, MIGRATION_0002, MIGRATION_0003, MIGRATION_0004, MIGRATION_0005, MIGRATION_0006, MIGRATION_0007, MIGRATION_0008].join('\n');
-    const stmts = all.split(';').map(s => s.trim()).filter(Boolean);
+    const stmts = MIGRATION_0001.split(';').map(s => s.trim()).filter(Boolean);
 
     await db.withTransactionAsync(async () => {
       for (const sql of stmts) {
@@ -78,7 +70,7 @@ export async function execute(sql: string, args: any[] = []): Promise<{ changes:
  * 注意：因为 MCP 功能是新增的，删除旧表不会造成数据丢失
  */
 async function ensureMcpServersSchema(db: SQLiteDatabase): Promise<void> {
-  // 若表不存在，按 0004 迁移已创建，直接返回
+  // 若表不存在，初始化脚本已创建，直接返回
   const tables = await db.getAllAsync<any>(
     "SELECT name FROM sqlite_master WHERE type='table' AND name='mcp_servers'"
   );
@@ -109,7 +101,7 @@ async function ensureMcpServersSchema(db: SQLiteDatabase): Promise<void> {
     // 删除旧表
     await db.execAsync('DROP TABLE IF EXISTS mcp_servers;');
 
-    // 重新创建表（使用 MIGRATION_0004 的定义）
+    // 重新创建表（使用初始化脚本中的定义）
     await db.execAsync(`
       CREATE TABLE mcp_servers (
         id TEXT PRIMARY KEY,
