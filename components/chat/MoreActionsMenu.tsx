@@ -20,7 +20,7 @@ import {
 import { useTheme, Text } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
-import { supportsImageGeneration } from '@/services/ai/ModelCapabilities';
+import { describeModelCapabilities } from '@/services/ai/ModelCapabilities';
 import type { Provider } from '@/services/ai/AiClient';
 
 interface MoreActionsMenuProps {
@@ -50,6 +50,8 @@ export function MoreActionsMenu({
   const { confirmAction, alert } = useConfirmDialog();
   const slideAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const capabilityDescriptor =
+    provider && model ? describeModelCapabilities({ id: model, provider }) : null;
 
   useEffect(() => {
     if (visible) {
@@ -139,7 +141,7 @@ export function MoreActionsMenu({
       return;
     }
 
-    if (!supportsImageGeneration({ id: model, provider })) {
+    if (!capabilityDescriptor?.imageGeneration) {
       alert('提示', '当前模型不支持图片生成功能\\n\\n请切换到 DALL-E 3、GPT-Image-1 等专用图片生成模型');
       onClose();
       return;
@@ -155,7 +157,7 @@ export function MoreActionsMenu({
   // no undo entry per product decision
 
   // 判断是否支持图片生成
-  const imageGenerationSupported = provider && model && supportsImageGeneration({ id: model, provider });
+  const imageGenerationSupported = capabilityDescriptor?.imageGeneration ?? false;
 
   const menuItems = [
     {

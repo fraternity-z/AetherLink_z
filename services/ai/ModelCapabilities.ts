@@ -68,12 +68,53 @@ export interface ModelWithCapabilities {
   capabilities?: ModelCapability[];
 }
 
+/**
+ * provider 级别的额外配置（主要用于 reasoning 模型的 providerOptions）
+ */
+export interface ProviderOptions {
+  providerOptions?: {
+    openai?: {
+      reasoningSummary?: 'auto' | 'detailed' | 'brief';
+    };
+    anthropic?: {
+      thinking?: {
+        type: 'enabled';
+        budgetTokens: number;
+      };
+    };
+  };
+}
+
+export interface ModelCapabilityDescriptor {
+  modelId: string;
+  provider: ProviderId;
+  tags: ModelTag[];
+  reasoning: boolean;
+  vision: boolean;
+  functionCalling: boolean;
+  webSearch: boolean;
+  embedding: boolean;
+  rerank: boolean;
+  imageGeneration: boolean;
+  providerOptions: ProviderOptions;
+}
+
 // ============================================
 // 工具函数
 // ============================================
 
 function norm(id: string): string {
   return (id || '').toLowerCase().trim();
+}
+
+const KNOWN_PROVIDERS: ProviderId[] = ['openai', 'anthropic', 'google', 'gemini', 'deepseek', 'volc', 'zhipu'];
+const KNOWN_PROVIDER_SET = new Set(KNOWN_PROVIDERS);
+
+function asProviderId(provider?: string): ProviderId {
+  if (provider && KNOWN_PROVIDER_SET.has(provider as ProviderId)) {
+    return provider as ProviderId;
+  }
+  return 'openai';
 }
 
 /**
@@ -248,6 +289,53 @@ export function supportsReasoning(modelWithCaps: ModelWithCapabilities): boolean
     QWEN_REASONING_REGEX.test(modelId) ||
     CLAUDE_REASONING_REGEX.test(modelId)
   );
+}
+
+/**
+ * 以 provider + model 字符串快速判断是否为推理模型
+ */
+export function isReasoningModel(provider: ProviderId, model: string, name?: string): boolean {
+  return supportsReasoning({
+    id: model,
+    provider,
+    name,
+  });
+}
+
+/**
+ * 针对推理模型返回 providerOptions（供 AiClient 直接使用）
+ */
+export function getProviderOptionsForModel(
+  provider: ProviderId,
+  model: string
+): ProviderOptions {
+  // OpenAI o1/o3 系列 - 需要 reasoningSummary 配置
+  if (provider === 'openai' && /^o[134]/i.test(model)) {
+    return {
+      providerOptions: {
+        openai: {
+          reasoningSummary: 'detailed',
+        },
+      },
+    };
+  }
+
+  // Anthropic Claude 3.7+ - 需要启用 thinking
+  if (provider === 'anthropic' && /claude-3\.[789]|claude-[4-9]/i.test(model)) {
+    return {
+      providerOptions: {
+        anthropic: {
+          thinking: {
+            type: 'enabled',
+            budgetTokens: 12000,
+          },
+        },
+      },
+    };
+  }
+
+  // 其它推理/兼容端点暂不需要额外配置
+  return {};
 }
 
 // ============================================
@@ -443,6 +531,33 @@ export function getModelCapabilities(modelWithCaps: ModelWithCapabilities): Mode
         isUserSelected: existing?.isUserSelected,
       };
     });
+}
+
+/**
+ * 汇总模型的能力描述，用于 UI/服务统一读取
+ */
+export function describeModelCapabilities(modelWithCaps: ModelWithCapabilities): ModelCapabilityDescriptor {
+  const provider = asProviderId(modelWithCaps.provider);
+  const normalizedModel: ModelWithCapabilities = {
+    ...modelWithCaps,
+    provider,
+  };
+
+  const reasoning = supportsReasoning(normalizedModel);
+
+  return {
+    modelId: normalizedModel.id,
+    provider,
+    tags: getModelTags(normalizedModel),
+    reasoning,
+    vision: supportsVision(provider, normalizedModel.id, normalizedModel),
+    functionCalling: supportsFunctionCalling(normalizedModel),
+    webSearch: supportsWebSearch(normalizedModel),
+    embedding: supportsEmbedding(normalizedModel),
+    rerank: supportsRerank(normalizedModel),
+    imageGeneration: supportsImageGeneration(normalizedModel),
+    providerOptions: reasoning ? getProviderOptionsForModel(provider, normalizedModel.id) : {},
+  };
 }
 
 /**

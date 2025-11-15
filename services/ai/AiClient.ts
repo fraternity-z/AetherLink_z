@@ -5,10 +5,10 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 import { ImageGenerationError, ImageModelResolutionError } from './errors';
-import { supportsImageGeneration } from './ModelCapabilities';
+import { describeModelCapabilities } from './ModelCapabilities';
 import { logger } from '@/utils/logger';
 
-export type Provider = 'openai' | 'anthropic' | 'google' | 'gemini' | 'deepseek' | 'volc' | 'zhipu';
+export type Provider = ProviderId;
 
 /**
  * MCP 工具调用参数类型
@@ -19,23 +19,6 @@ export type ToolCallArgs = Record<string, unknown>;
  * MCP 工具调用结果类型
  */
 export type ToolCallResult = unknown;
-
-/**
- * Provider 配置选项类型
- */
-export interface ProviderOptions {
-  providerOptions?: {
-    openai?: {
-      reasoningSummary?: 'auto' | 'detailed' | 'brief';
-    };
-    anthropic?: {
-      thinking?: {
-        type: 'enabled';
-        budgetTokens: number;
-      };
-    };
-  };
-}
 
 export interface StreamOptions {
   provider: Provider;
@@ -78,70 +61,7 @@ function getErrorMessage(error: unknown): string {
 async function getApiKey(provider: Provider): Promise<string> {
   // 统一使用 ProvidersRepository 获取所有提供商的 API Key
   const normalizedProvider = provider === 'gemini' ? 'google' : provider;
-  return (await ProvidersRepository.getApiKey(normalizedProvider as ProviderId)) ?? '';
-}
-
-/**
- * 检测模型是否支持思考链(Reasoning)功能
- */
-function supportsReasoning(provider: Provider, model: string): boolean {
-  const modelLower = model.toLowerCase();
-
-  // OpenAI o1/o3/o4/o5 系列 + GPT-5 系列（都是推理模型）
-  if (provider === 'openai' && /^(o[1345]|gpt-[5-9])(-preview|-mini)?$/i.test(model)) {
-    return true;
-  }
-
-  // DeepSeek R1 系列 (支持通过 openai 兼容接口或 deepseek 直接调用)
-  // 匹配: deepseek-r1, deepseek-reasoner, r1, 等
-  if (/deepseek.*r1|^r1$|reasoner/i.test(modelLower)) {
-    return true;
-  }
-
-  // Anthropic Claude 3.7+
-  if (provider === 'anthropic' && /claude-3\.[789]|claude-[4-9]/i.test(model)) {
-    return true;
-  }
-
-  // Google Gemini Thinking 模型
-  if ((provider === 'google' || provider === 'gemini') && /thinking/i.test(model)) {
-    return true;
-  }
-
-  return false;
-}
-
-/**
- * 获取推理模型的 providerOptions 配置
- */
-function getProviderOptions(provider: Provider, model: string): ProviderOptions {
-  // OpenAI o1/o3 系列 - 需要 reasoningSummary 配置
-  if (provider === 'openai' && /^o[134]/i.test(model)) {
-    return {
-      providerOptions: {
-        openai: {
-          reasoningSummary: 'detailed',
-        },
-      },
-    };
-  }
-
-  // Anthropic Claude 3.7+ - 需要启用 thinking
-  if (provider === 'anthropic' && /claude-3\.[789]|claude-[4-9]/i.test(model)) {
-    return {
-      providerOptions: {
-        anthropic: {
-          thinking: {
-            type: 'enabled',
-            budgetTokens: 12000,
-          },
-        },
-      },
-    };
-  }
-
-  // DeepSeek R1 和 Google Thinking 可能不需要特殊配置
-  return {};
+  return (await ProvidersRepository.getApiKey(normalizedProvider)) ?? '';
 }
 
 export async function streamCompletion(opts: StreamOptions) {
@@ -157,7 +77,7 @@ export async function streamCompletion(opts: StreamOptions) {
   let didFinish = false;
 
   try {
-    const openaiCfg = provider === 'openai' ? await ProvidersRepository.getConfig('openai' as ProviderId) : null;
+    const openaiCfg = provider === 'openai' ? await ProvidersRepository.getConfig('openai') : null;
     const openaiBase = provider === 'openai' ? String(openaiCfg?.baseURL || '').replace(/\/$/, '') : '';
     const isOpenAIOfficial = provider === 'openai' && (!openaiBase || /^https?:\/\/api\.openai\.com\/?v1?$/i.test(openaiBase));
 
@@ -176,8 +96,8 @@ export async function streamCompletion(opts: StreamOptions) {
     async function pickCompatibleProvider(): Promise<Provider | null> {
       const candidates: Provider[] = ['deepseek', 'volc', 'zhipu'];
       for (const id of candidates) {
-        const key = await ProvidersRepository.getApiKey(id as ProviderId);
-        const cfg = await ProvidersRepository.getConfig(id as ProviderId);
+        const key = await ProvidersRepository.getApiKey(id);
+        const cfg = await ProvidersRepository.getConfig(id);
         if (key || cfg?.baseURL) return id;
       }
       return null;
@@ -187,7 +107,7 @@ export async function streamCompletion(opts: StreamOptions) {
       const compat = await pickCompatibleProvider();
       if (compat) {
         provider = compat;
-        const cfg = await ProvidersRepository.getConfig(compat as ProviderId);
+        const cfg = await ProvidersRepository.getConfig(compat);
         logger.info('[AiClient] 规范化路由: openai 官方端点 + 非官方模型 -> 切换到兼容提供商', {
           model,
           compatProvider: provider,
@@ -211,14 +131,14 @@ export async function streamCompletion(opts: StreamOptions) {
   // resolve baseURL for openai-compatible vendors
   let baseURL: string | undefined;
   if (provider === 'openai' || provider === 'deepseek' || provider === 'volc' || provider === 'zhipu') {
-    const cfg = await ProvidersRepository.getConfig(provider as ProviderId);
+    const cfg = await ProvidersRepository.getConfig(provider);
     baseURL = cfg.baseURL || undefined;
   }
 
   // resolve baseURL for anthropic
   let anthropicBaseURL: string | undefined;
   if (provider === 'anthropic') {
-    const cfg = await ProvidersRepository.getConfig(provider as ProviderId);
+    const cfg = await ProvidersRepository.getConfig(provider);
     anthropicBaseURL = cfg.baseURL || undefined;
   }
 
@@ -240,8 +160,9 @@ export async function streamCompletion(opts: StreamOptions) {
       })
       : () => createOpenAI({ apiKey, baseURL });
 
-  // 检查模型是否支持思考链
-  const hasReasoningSupport = supportsReasoning(provider, model);
+  const capabilityDescriptor = describeModelCapabilities({ id: model, provider });
+  const hasReasoningSupport = capabilityDescriptor.reasoning;
+  const reasoningOptions = capabilityDescriptor.providerOptions;
 
   // MCP 工具集成：如果启用，加载所有激活的 MCP 工具（使用 AI SDK 原生 tools）
   let mcpTools: Record<string, any> | undefined;
@@ -269,7 +190,7 @@ export async function streamCompletion(opts: StreamOptions) {
     tools: mcpTools, // ✨ 使用 AI SDK 原生 tools 参数
     // @ts-expect-error - maxSteps is valid but not in SDK type definitions
     maxSteps: 5, // 允许最多 5 轮工具调用（防止无限循环）
-    ...(hasReasoningSupport ? getProviderOptions(provider, model) : {}),
+    ...(hasReasoningSupport ? reasoningOptions : {}),
   });
 
   // 处理流式响应，集成思考链和工具调用回调
@@ -521,7 +442,8 @@ export async function generateImageWithAI(
 
   try {
     // 1. 验证模型支持
-    if (!supportsImageGeneration({ id: model, provider })) {
+    const imageDescriptor = describeModelCapabilities({ id: model, provider });
+    if (!imageDescriptor.imageGeneration) {
       throw new ImageModelResolutionError(model, provider);
     }
 
@@ -561,7 +483,7 @@ export async function generateImageWithAI(
     // 6. 获取 baseURL（如果有自定义）
     let baseURL: string | undefined;
     if (provider === 'openai' || provider === 'deepseek' || provider === 'volc' || provider === 'zhipu') {
-      const cfg = await ProvidersRepository.getConfig(provider as ProviderId);
+      const cfg = await ProvidersRepository.getConfig(provider);
       baseURL = cfg.baseURL || undefined;
     }
 

@@ -19,7 +19,7 @@ import { MessageBlocksRepository } from '@/storage/repositories/message-blocks';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import { AssistantsRepository } from '@/storage/repositories/assistants';
 import { streamCompletion, type Provider } from '@/services/ai/AiClient';
-import { supportsVision } from '@/services/ai/ModelCapabilities';
+import { describeModelCapabilities } from '@/services/ai/ModelCapabilities';
 import { autoNameConversation } from '@/services/ai/TopicNaming';
 import { File } from 'expo-file-system';
 import type { ModelMessage } from 'ai';
@@ -152,8 +152,10 @@ export function useMessageSender(
   ): Promise<ModelMessage> => {
     const images = attachments.filter(a => a.kind === 'image' && a.uri);
 
+    const capabilityDescriptor = describeModelCapabilities({ id: model, provider });
+
     // 如果支持多模态且有图片，构造多段内容
-    if (images.length > 0 && supportsVision(provider, model)) {
+    if (images.length > 0 && capabilityDescriptor.vision) {
       logger.debug('[useMessageSender] 🖼️ 检测到图片附件，准备发送多模态消息', {
         imageCount: images.length,
         provider,
