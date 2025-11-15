@@ -46,18 +46,6 @@ export type ModelTag = ModelCapabilityType | 'free';
 /**
  * 模型能力对象
  */
-export interface ModelCapability {
-  /** 能力类型 */
-  type: ModelCapabilityType;
-  /**
-   * 是否为用户手动选择
-   * - true: 用户手动启用该能力
-   * - false: 用户手动禁用该能力
-   * - undefined: 使用自动识别结果
-   */
-  isUserSelected?: boolean;
-}
-
 /**
  * 扩展的模型信息(包含能力标签)
  */
@@ -65,7 +53,6 @@ export interface ModelWithCapabilities {
   id: string;
   provider: string;
   name?: string;
-  capabilities?: ModelCapability[];
 }
 
 /**
@@ -117,23 +104,6 @@ function asProviderId(provider?: string): ProviderId {
   return 'openai';
 }
 
-/**
- * 获取用户手动配置的能力状态
- */
-function getUserSelectedCapability(
-  model: ModelWithCapabilities,
-  type: ModelCapabilityType
-): boolean | undefined {
-  if (!model.capabilities) {
-    return undefined;
-  }
-  const capability = model.capabilities.find((c) => c.type === type);
-  if (!capability || capability.isUserSelected === undefined) {
-    return undefined;
-  }
-  return capability.isUserSelected;
-}
-
 // ============================================
 // 视觉能力识别
 // ============================================
@@ -178,14 +148,6 @@ export function supportsVision(
   model: string,
   modelWithCaps?: ModelWithCapabilities
 ): boolean {
-  // 检查用户手动配置
-  if (modelWithCaps) {
-    const userSelected = getUserSelectedCapability(modelWithCaps, 'vision');
-    if (userSelected !== undefined) {
-      return userSelected;
-    }
-  }
-
   const m = norm(model);
   switch (provider) {
     case 'openai':
@@ -262,12 +224,6 @@ const DOUBAO_REASONING_REGEX =
  * ```
  */
 export function supportsReasoning(modelWithCaps: ModelWithCapabilities): boolean {
-  // 检查用户手动配置
-  const userSelected = getUserSelectedCapability(modelWithCaps, 'reasoning');
-  if (userSelected !== undefined) {
-    return userSelected;
-  }
-
   const modelId = norm(modelWithCaps.id);
   const modelName = norm(modelWithCaps.name || '');
 
@@ -386,12 +342,6 @@ const FUNCTION_CALLING_REGEX = new RegExp(
  * ```
  */
 export function supportsFunctionCalling(modelWithCaps: ModelWithCapabilities): boolean {
-  // 检查用户手动配置
-  const userSelected = getUserSelectedCapability(modelWithCaps, 'function_calling');
-  if (userSelected !== undefined) {
-    return userSelected;
-  }
-
   const modelId = norm(modelWithCaps.id);
 
   // 特定提供商默认支持
@@ -420,9 +370,6 @@ const IMAGE_GENERATION_REGEX = /flux|diffusion|stabilityai|sd-|dall|cogview|imag
  * 判断模型是否具备网络搜索能力
  */
 export function supportsWebSearch(modelWithCaps: ModelWithCapabilities): boolean {
-  const userSelected = getUserSelectedCapability(modelWithCaps, 'web_search');
-  if (userSelected !== undefined) return userSelected;
-
   if (modelWithCaps.provider === 'perplexity') return true;
   return WEB_SEARCH_REGEX.test(norm(modelWithCaps.id));
 }
@@ -431,8 +378,6 @@ export function supportsWebSearch(modelWithCaps: ModelWithCapabilities): boolean
  * 判断模型是否为嵌入模型
  */
 export function supportsEmbedding(modelWithCaps: ModelWithCapabilities): boolean {
-  const userSelected = getUserSelectedCapability(modelWithCaps, 'embedding');
-  if (userSelected !== undefined) return userSelected;
   return EMBEDDING_REGEX.test(norm(modelWithCaps.id));
 }
 
@@ -440,8 +385,6 @@ export function supportsEmbedding(modelWithCaps: ModelWithCapabilities): boolean
  * 判断模型是否为重排序模型
  */
 export function supportsRerank(modelWithCaps: ModelWithCapabilities): boolean {
-  const userSelected = getUserSelectedCapability(modelWithCaps, 'rerank');
-  if (userSelected !== undefined) return userSelected;
   return RERANK_REGEX.test(norm(modelWithCaps.id));
 }
 
@@ -449,9 +392,6 @@ export function supportsRerank(modelWithCaps: ModelWithCapabilities): boolean {
  * 判断模型是否支持图像生成
  */
 export function supportsImageGeneration(modelWithCaps: ModelWithCapabilities): boolean {
-  const userSelected = getUserSelectedCapability(modelWithCaps, 'image_generation');
-  if (userSelected !== undefined) return userSelected;
-
   const modelId = norm(modelWithCaps.id);
 
   // 专用图像生成模型
@@ -514,26 +454,6 @@ export function getModelTags(modelWithCaps: ModelWithCapabilities): ModelTag[] {
 }
 
 /**
- * 获取模型的所有能力对象
- *
- * @param modelWithCaps - 模型信息
- * @returns 模型具备的所有能力对象数组
- */
-export function getModelCapabilities(modelWithCaps: ModelWithCapabilities): ModelCapability[] {
-  const tags = getModelTags(modelWithCaps);
-
-  return tags
-    .filter((tag): tag is ModelCapabilityType => tag !== 'free')
-    .map((type) => {
-      const existing = modelWithCaps.capabilities?.find((c) => c.type === type);
-      return {
-        type,
-        isUserSelected: existing?.isUserSelected,
-      };
-    });
-}
-
-/**
  * 汇总模型的能力描述，用于 UI/服务统一读取
  */
 export function describeModelCapabilities(modelWithCaps: ModelWithCapabilities): ModelCapabilityDescriptor {
@@ -557,69 +477,6 @@ export function describeModelCapabilities(modelWithCaps: ModelWithCapabilities):
     rerank: supportsRerank(normalizedModel),
     imageGeneration: supportsImageGeneration(normalizedModel),
     providerOptions: reasoning ? getProviderOptionsForModel(provider, normalizedModel.id) : {},
-  };
-}
-
-/**
- * 判断模型是否具备指定标签
- *
- * @param modelWithCaps - 模型信息
- * @param tag - 要检查的标签
- * @returns true 表示模型具备该标签
- */
-export function hasModelTag(modelWithCaps: ModelWithCapabilities, tag: ModelTag): boolean {
-  return getModelTags(modelWithCaps).includes(tag);
-}
-
-/**
- * 设置模型的能力(用户手动覆盖)
- *
- * @param modelWithCaps - 模型信息
- * @param type - 能力类型
- * @param enabled - true 表示启用, false 表示禁用, undefined 表示使用自动识别
- * @returns 更新后的模型对象
- */
-export function setModelCapability(
-  modelWithCaps: ModelWithCapabilities,
-  type: ModelCapabilityType,
-  enabled: boolean | undefined
-): ModelWithCapabilities {
-  const capabilities = modelWithCaps.capabilities || [];
-  const existingIndex = capabilities.findIndex((c) => c.type === type);
-
-  const newCapabilities = [...capabilities];
-
-  if (enabled === undefined) {
-    // 移除手动配置,恢复自动识别
-    if (existingIndex !== -1) {
-      newCapabilities.splice(existingIndex, 1);
-    }
-  } else {
-    // 添加或更新手动配置
-    const newCapability: ModelCapability = { type, isUserSelected: enabled };
-    if (existingIndex !== -1) {
-      newCapabilities[existingIndex] = newCapability;
-    } else {
-      newCapabilities.push(newCapability);
-    }
-  }
-
-  return {
-    ...modelWithCaps,
-    capabilities: newCapabilities.length > 0 ? newCapabilities : undefined,
-  };
-}
-
-/**
- * 批量设置模型能力
- */
-export function setModelCapabilities(
-  modelWithCaps: ModelWithCapabilities,
-  capabilities: ModelCapability[]
-): ModelWithCapabilities {
-  return {
-    ...modelWithCaps,
-    capabilities: capabilities.length > 0 ? capabilities : undefined,
   };
 }
 
