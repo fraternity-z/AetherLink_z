@@ -151,7 +151,7 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
       logger.error('[MessageBubble] 复制失败:', error);
       Alert.alert('错误', '复制失败，请重试');
     }
-  }, [content]);
+  }, [content, closeMenu]);
 
   // TODO: 重新发送消息（用户消息）
   // const handleResend = React.useCallback(() => {

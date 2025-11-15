@@ -87,8 +87,8 @@ async function getApiKey(provider: Provider): Promise<string> {
 function supportsReasoning(provider: Provider, model: string): boolean {
   const modelLower = model.toLowerCase();
 
-  // OpenAI o1/o3/o4 系列
-  if (provider === 'openai' && /^o[134](-preview|-mini)?$/i.test(model)) {
+  // OpenAI o1/o3/o4/o5 系列 + GPT-5 系列（都是推理模型）
+  if (provider === 'openai' && /^(o[1345]|gpt-[5-9])(-preview|-mini)?$/i.test(model)) {
     return true;
   }
 
@@ -274,10 +274,20 @@ export async function streamCompletion(opts: StreamOptions) {
 
   // 处理流式响应，集成思考链和工具调用回调
   try {
-    if (hasReasoningSupport && (opts.onThinkingToken || opts.onThinkingStart || opts.onThinkingEnd)) {
+    // ✨ 修复：只要支持推理，就进入推理模式（不管是否有回调）
+    if (hasReasoningSupport) {
       // 支持推理模型的思考链输出
       let isThinking = false;
       didFinish = false;
+
+      logger.info('[AiClient] 🚀 开始处理 fullStream（推理模式）', {
+        provider,
+        model,
+        hasReasoningSupport,
+        enableMcpTools: opts.enableMcpTools,
+        mcpToolsCount: mcpTools ? Object.keys(mcpTools).length : 0,
+        hasThinkingCallbacks: !!(opts.onThinkingToken || opts.onThinkingStart || opts.onThinkingEnd),
+      });
 
       for await (const part of result.fullStream) {
         logger.debug('[AiClient] 🔍 fullStream part.type:', part.type);
@@ -297,28 +307,41 @@ export async function streamCompletion(opts: StreamOptions) {
           // ✨ AI SDK 原生工具调用事件
           const toolName = part.toolName;
           const toolArgs = ('args' in part ? part.args : part.input) as ToolCallArgs; // AI SDK 使用 input 字段
-          logger.info('[AiClient] 🔧 工具调用开始', { toolName, args: toolArgs });
+          logger.info('[AiClient] 🔧 工具调用开始', { toolName, args: toolArgs, toolCallId: part.toolCallId });
           try {
             opts.onToolCall?.(toolName, toolArgs);
+            logger.debug('[AiClient] onToolCall 回调已执行', { toolName });
           } catch (cbErr) {
-            logger.warn('[AiClient] onToolCall 回调异常', { error: getErrorMessage(cbErr) });
+            logger.warn('[AiClient] onToolCall 回调异常', { toolName, error: getErrorMessage(cbErr) });
           }
         } else if (part.type === 'tool-result') {
           // ✨ AI SDK 原生工具结果事件
           const toolName = part.toolName;
           const toolResult = 'result' in part ? part.result : part.output; // AI SDK 使用 output 字段
-          logger.info('[AiClient] ✅ 工具执行完成', { toolName, result: toolResult });
+          logger.info('[AiClient] ✅ 工具执行完成', { toolName, result: toolResult, toolCallId: part.toolCallId });
           try {
             opts.onToolResult?.(toolName, toolResult);
+            logger.debug('[AiClient] onToolResult 回调已执行', { toolName });
           } catch (cbErr) {
-            logger.warn('[AiClient] onToolResult 回调异常', { error: getErrorMessage(cbErr) });
+            logger.warn('[AiClient] onToolResult 回调异常', { toolName, error: getErrorMessage(cbErr) });
           }
         } else if (part.type === 'finish-step') {
           // 每一步完成（可能包含工具调用）
-          logger.debug('[AiClient] 完成一步', { usage: part.usage });
+          logger.info('[AiClient] 🏁 完成一步', {
+            finishReason: part.finishReason,
+            usage: part.usage,
+          });
+          continue;
+        } else if (part.type === 'text-end') {
+          // SDK 会在文本输出完成后发送 text-end 事件，不需要额外处理
+          logger.debug('[AiClient] 📄 文本输出结束', { type: part.type });
           continue;
         } else if (part.type === 'finish') {
           // 整个流程完成
+          logger.info('[AiClient] 🎉 整个流程完成', {
+            finishReason: part.finishReason,
+            totalUsage: part.totalUsage,
+          });
           if (isThinking) {
             opts.onThinkingEnd?.();
           }
@@ -339,35 +362,69 @@ export async function streamCompletion(opts: StreamOptions) {
       }
     } else {
       // 无思考链，处理纯文本流（仍需监听工具调用）
+      logger.info('[AiClient] 🚀 开始处理 fullStream（普通模式）', {
+        provider,
+        model,
+        enableMcpTools: opts.enableMcpTools,
+        mcpToolsCount: mcpTools ? Object.keys(mcpTools).length : 0,
+      });
+
       for await (const part of result.fullStream) {
+        logger.debug('[AiClient] 🔍 fullStream part.type:', part.type);
+
         if (part.type === 'text-delta') {
           opts.onToken?.(part.text);
         } else if (part.type === 'tool-call') {
           const toolName = part.toolName;
           const toolArgs = ('args' in part ? part.args : part.input) as ToolCallArgs; // AI SDK 使用 input 字段
-          logger.info('[AiClient] 🔧 工具调用开始', { toolName, args: toolArgs });
+          logger.info('[AiClient] 🔧 工具调用开始', { toolName, args: toolArgs, toolCallId: part.toolCallId });
           try {
             opts.onToolCall?.(toolName, toolArgs);
+            logger.debug('[AiClient] onToolCall 回调已执行', { toolName });
           } catch (cbErr) {
-            logger.warn('[AiClient] onToolCall 回调异常', { error: getErrorMessage(cbErr) });
+            logger.warn('[AiClient] onToolCall 回调异常', { toolName, error: getErrorMessage(cbErr) });
           }
         } else if (part.type === 'tool-result') {
           const toolName = part.toolName;
           const toolResult = 'result' in part ? part.result : part.output; // AI SDK 使用 output 字段
-          logger.info('[AiClient] ✅ 工具执行完成', { toolName, result: toolResult });
+          logger.info('[AiClient] ✅ 工具执行完成', { toolName, result: toolResult, toolCallId: part.toolCallId });
           try {
             opts.onToolResult?.(toolName, toolResult);
+            logger.debug('[AiClient] onToolResult 回调已执行', { toolName });
           } catch (cbErr) {
-            logger.warn('[AiClient] onToolResult 回调异常', { error: getErrorMessage(cbErr) });
+            logger.warn('[AiClient] onToolResult 回调异常', { toolName, error: getErrorMessage(cbErr) });
           }
+        } else if (part.type === 'finish-step') {
+          logger.info('[AiClient] 🏁 完成一步', {
+            finishReason: part.finishReason,
+            usage: part.usage,
+          });
+        } else if (part.type === 'reasoning-start' || part.type === 'reasoning-delta' || part.type === 'reasoning-end') {
+          // 某些模型即便未启用 reasoning callback 也会发送事件，这里静默忽略以避免警告
+          logger.debug('[AiClient] 💡 忽略 reasoning chunk', { type: part.type });
+        } else if (part.type === 'text-end') {
+          logger.debug('[AiClient] 📄 文本输出结束', { type: part.type });
+        } else if (part.type === 'finish') {
+          logger.info('[AiClient] 🎉 整个流程完成', {
+            finishReason: part.finishReason,
+            totalUsage: part.totalUsage,
+          });
+          didFinish = true;
+          break;
         } else if (part.type === 'error') {
+          logger.error('[AiClient] ❌ 流式响应错误', { error: part.error });
           try {
             opts.onError?.(part.error);
           } catch (cbErr) {
             logger.warn('[AiClient] onError 回调异常', { error: getErrorMessage(cbErr) });
           }
+        } else {
+          // 记录未知的 chunk 类型
+          logger.warn('[AiClient] ⚠️ 未知的 chunk 类型', { type: (part as any).type });
         }
       }
+
+      logger.info('[AiClient] 💤 fullStream 循环结束');
     }
   } catch (e: unknown) {
     const errorName = e && typeof e === 'object' && 'name' in e ? String(e.name) : '';

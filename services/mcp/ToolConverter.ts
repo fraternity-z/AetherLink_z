@@ -110,11 +110,14 @@ export class ToolConverter {
           description: mcpTool.description || `${mcpTool.name} from ${mcpTool.serverName}`,
           inputSchema: parametersSchema,
           execute: async (args: any, options: ToolCallOptions) => {
-            log.info(`执行 MCP 工具`, {
+            const execStartTime = Date.now();
+
+            log.info(`🚀 [execute] 开始执行 MCP 工具`, {
               toolId,
               serverId: mcpTool.serverId,
               toolName: mcpTool.name,
               args,
+              toolCallId: options?.toolCallId,
             });
 
             try {
@@ -123,16 +126,29 @@ export class ToolConverter {
               try {
                 if (mcpTool.serverId) {
                   const srv = await McpServersRepository.getServerById(mcpTool.serverId);
-                  if (srv?.timeout && srv.timeout > 0) timeoutMs = srv.timeout * 1000;
+                  if (srv?.timeout && srv.timeout > 0) {
+                    timeoutMs = srv.timeout * 1000;
+                    log.debug(`[execute] 使用服务器自定义超时`, { timeoutMs, serverId: mcpTool.serverId });
+                  }
                 }
-              } catch {}
+              } catch (configError: any) {
+                log.warn(`[execute] 获取服务器超时配置失败，使用默认值`, {
+                  error: configError.message,
+                  timeoutMs,
+                });
+              }
 
               const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
                 new Promise<T>((resolve, reject) => {
-                  const id = setTimeout(() => reject(new Error(`MCP tool timeout after ${ms}ms`)), ms);
+                  const id = setTimeout(() => {
+                    log.error(`⏰ [execute] 工具执行超时`, { toolId, timeoutMs: ms });
+                    reject(new Error(`MCP tool timeout after ${ms}ms`));
+                  }, ms);
                   p.then(v => { clearTimeout(id); resolve(v); })
                    .catch(e => { clearTimeout(id); reject(e); });
                 });
+
+              log.debug(`⏳ [execute] 准备调用 mcpClient.callTool`, { toolId, timeoutMs });
 
               // 调用 MCP 工具（带超时保护）
               const result = await withTimeout(
@@ -144,18 +160,38 @@ export class ToolConverter {
                 timeoutMs
               );
 
-              // 转换结果格式
-              return ToolConverter.formatToolResult(result);
-            } catch (error: any) {
-              log.error(`MCP 工具执行失败`, {
+              const execDuration = Date.now() - execStartTime;
+              log.info(`✅ [execute] MCP 工具执行成功`, {
                 toolId,
                 toolName: mcpTool.name,
-                error: error.message,
+                duration: `${execDuration}ms`,
+                isError: result.isError,
               });
 
-              // 返回错误信息
+              // 转换结果格式
+              const formattedResult = ToolConverter.formatToolResult(result);
+              log.debug(`📦 [execute] 工具结果已格式化`, { toolId, formattedResult });
+
+              return formattedResult;
+            } catch (error: any) {
+              const execDuration = Date.now() - execStartTime;
+
+              log.error(`❌ [execute] MCP 工具执行失败`, {
+                toolId,
+                toolName: mcpTool.name,
+                duration: `${execDuration}ms`,
+                errorName: error.name,
+                errorMessage: error.message,
+                errorStack: error.stack,
+              });
+
+              // 返回错误信息（而不是抛出异常，避免中断流）
               const message = typeof error?.message === 'string' ? error.message : String(error);
-              return `MCP 工具执行失败: ${message}`;
+              const errorResult = `MCP 工具执行失败: ${message}`;
+
+              log.debug(`🔄 [execute] 返回错误信息而不是抛出异常`, { toolId, errorResult });
+
+              return errorResult;
             }
           },
         });
