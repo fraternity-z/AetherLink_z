@@ -5,7 +5,7 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 import { ImageGenerationError, ImageModelResolutionError } from './errors';
-import { isDedicatedImageGenerationModel } from './ModelDiscovery';
+import { supportsImageGeneration } from './ModelCapabilities';
 import { logger } from '@/utils/logger';
 
 export type Provider = 'openai' | 'anthropic' | 'google' | 'gemini' | 'deepseek' | 'volc' | 'zhipu';
@@ -332,6 +332,10 @@ export async function streamCompletion(opts: StreamOptions) {
             usage: part.usage,
           });
           continue;
+        } else if (part.type === 'start') {
+          // AI SDK 流开始事件，正常情况，静默处理
+          logger.debug('[AiClient] 🚀 流式响应开始', { type: part.type });
+          continue;
         } else if (part.type === 'text-end') {
           // SDK 会在文本输出完成后发送 text-end 事件，不需要额外处理
           logger.debug('[AiClient] 📄 文本输出结束', { type: part.type });
@@ -402,6 +406,9 @@ export async function streamCompletion(opts: StreamOptions) {
         } else if (part.type === 'reasoning-start' || part.type === 'reasoning-delta' || part.type === 'reasoning-end') {
           // 某些模型即便未启用 reasoning callback 也会发送事件，这里静默忽略以避免警告
           logger.debug('[AiClient] 💡 忽略 reasoning chunk', { type: part.type });
+        } else if (part.type === 'start') {
+          // AI SDK 流开始事件，正常情况，静默处理
+          logger.debug('[AiClient] 🚀 流式响应开始', { type: part.type });
         } else if (part.type === 'text-end') {
           logger.debug('[AiClient] 📄 文本输出结束', { type: part.type });
         } else if (part.type === 'finish') {
@@ -514,7 +521,7 @@ export async function generateImageWithAI(
 
   try {
     // 1. 验证模型支持
-    if (!isDedicatedImageGenerationModel(model)) {
+    if (!supportsImageGeneration({ id: model, provider })) {
       throw new ImageModelResolutionError(model, provider);
     }
 

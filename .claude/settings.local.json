@@ -28,7 +28,8 @@
       "mcp__mcp-router__create_text_file",
       "mcp__mcp-router__write_memory",
       "Bash(npx expo start)",
-      "mcp__mcp-router__get_symbols_overview"
+      "mcp__mcp-router__get_symbols_overview",
+      "mcp__mcp-router__read_file"
     ],
     "deny": [],
     "ask": []

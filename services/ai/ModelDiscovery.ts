@@ -1,10 +1,46 @@
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
+import { getModelTags, type ModelTag, type ModelWithCapabilities } from './ModelCapabilities';
+import { logger } from '@/utils/logger';
 
-export interface DiscoveredModel { id: string; label?: string }
+/**
+ * 发现的模型信息(包含标签)
+ */
+export interface DiscoveredModel {
+  id: string;
+  label?: string;
+  tags?: ModelTag[];
+}
 
 async function getKey(provider: ProviderId): Promise<string | null> {
   // 统一使用 ProvidersRepository 获取所有提供商的 API Key
   return ProvidersRepository.getApiKey(provider);
+}
+
+/**
+ * 为模型添加能力标签
+ *
+ * @param models - 发现的模型列表
+ * @param provider - 提供商 ID
+ * @returns 包含标签信息的模型列表
+ */
+function enrichModelsWithTags(models: DiscoveredModel[], provider: ProviderId): DiscoveredModel[] {
+  return models.map((model) => {
+    try {
+      const modelWithCaps: ModelWithCapabilities = {
+        id: model.id,
+        provider,
+        name: model.label,
+      };
+      const tags = getModelTags(modelWithCaps);
+      return {
+        ...model,
+        tags,
+      };
+    } catch (err) {
+      logger.warn(`[ModelDiscovery] 为模型 ${model.id} 识别标签失败`, { error: err });
+      return model;
+    }
+  });
 }
 
 export async function fetchProviderModels(provider: ProviderId): Promise<DiscoveredModel[]> {
@@ -43,12 +79,19 @@ export async function fetchProviderModels(provider: ProviderId): Promise<Discove
         throw new Error('API 返回的模型列表为空');
       }
 
-      return arr
+      const models = arr
         .map((m) => ({
           id: String(m.id || m.model || ''),
           label: String(m.id || m.model || '')
         }))
         .filter((x) => x.id);
+
+      logger.info(`[ModelDiscovery] 从 ${provider} 获取到 ${models.length} 个模型`, {
+        provider,
+        count: models.length,
+      });
+
+      return enrichModelsWithTags(models, provider);
     } catch (err: any) {
       throw new Error(`获取模型列表失败：${err.message || err}\n请求地址：${url}\n请确认 Base URL 和 API Key 配置正确`);
     }
@@ -75,10 +118,17 @@ export async function fetchProviderModels(provider: ProviderId): Promise<Discove
         throw new Error('API 返回的模型列表为空');
       }
 
-      return items.map((m) => ({
+      const models = items.map((m) => ({
         id: String(m.id || ''),
         label: String(m.display_name || m.id || '')
       }));
+
+      logger.info(`[ModelDiscovery] 从 ${provider} 获取到 ${models.length} 个模型`, {
+        provider,
+        count: models.length,
+      });
+
+      return enrichModelsWithTags(models, provider);
     } catch (err: any) {
       throw new Error(`获取 Anthropic 模型列表失败：${err.message || err}\n请求地址：${url}`);
     }
@@ -98,7 +148,7 @@ export async function fetchProviderModels(provider: ProviderId): Promise<Discove
         throw new Error('API 返回的模型列表为空');
       }
 
-      return items
+      const models = items
         .filter((m) => typeof m?.name === 'string')
         .map((m) => {
           // Gemini 模型名称格式：models/gemini-pro，需要提取最后部分
@@ -109,88 +159,17 @@ export async function fetchProviderModels(provider: ProviderId): Promise<Discove
           };
         })
         .filter((x) => x.id);
+
+      logger.info(`[ModelDiscovery] 从 ${provider} 获取到 ${models.length} 个模型`, {
+        provider,
+        count: models.length,
+      });
+
+      return enrichModelsWithTags(models, provider);
     } catch (err: any) {
       throw new Error(`获取 Gemini 模型列表失败：${err.message || err}\n请求地址：${url}`);
     }
   }
 
   throw new Error('不支持的提供商');
-}
-
-// ============================================
-// 图片生成模型识别功能
-// ============================================
-
-/**
- * 专用图片生成模型列表
- * 这些模型必须使用 Images API 而非 Chat Completions API
- */
-export const DEDICATED_IMAGE_MODELS = [
-  'dall-e-3',
-  'dall-e-2',
-  'gpt-image-1',
-  'grok-2-image',
-  'grok-2-image-1212',
-  'grok-2-image-latest',
-] as const;
-
-/**
- * 支持对话式图片生成的模型（通过 Chat Completions API + providerOptions）
- */
-export const CONVERSATIONAL_IMAGE_MODELS = [
-  'gemini-2.0-flash-exp',
-  'gemini-2.0-flash-exp-image-generation',
-  'gemini-2.0-flash-preview-image-generation',
-  'gemini-2.5-flash-image',
-] as const;
-
-/**
- * 判断是否为专用图片生成模型
- *
- * @param model - 模型 ID（如 "dall-e-3", "gpt-4o"）
- * @returns true 表示该模型是专用图片生成模型，需要使用 Images API
- *
- * @example
- * ```typescript
- * isDedicatedImageGenerationModel('dall-e-3') // => true
- * isDedicatedImageGenerationModel('gpt-4o') // => false
- * isDedicatedImageGenerationModel('grok-2-image-1212') // => true
- * ```
- */
-export function isDedicatedImageGenerationModel(model: string): boolean {
-  const modelLower = model.toLowerCase();
-  return DEDICATED_IMAGE_MODELS.some(m => modelLower.includes(m));
-}
-
-/**
- * 判断模型是否支持图片生成（包括专用模型和对话式图片生成模型）
- *
- * @param provider - AI 提供商 ID
- * @param model - 模型 ID
- * @returns true 表示该模型支持图片生成功能
- *
- * @example
- * ```typescript
- * supportsImageGeneration('openai', 'dall-e-3') // => true
- * supportsImageGeneration('google', 'gemini-2.5-flash-image') // => true
- * supportsImageGeneration('anthropic', 'claude-3-opus') // => false
- * ```
- */
-export function supportsImageGeneration(provider: ProviderId, model: string): boolean {
-  // 1. 专用图片生成模型（所有提供商通用）
-  if (isDedicatedImageGenerationModel(model)) {
-    return true;
-  }
-
-  // 2. Gemini 对话式图片生成模型
-  const modelLower = model.toLowerCase();
-  if ((provider === 'google' || provider === 'gemini') &&
-      CONVERSATIONAL_IMAGE_MODELS.some(m => modelLower.includes(m))) {
-    return true;
-  }
-
-  // 3. 未来可扩展其他提供商的对话式图片生成支持
-  // 例如：Anthropic Claude 未来可能支持
-
-  return false;
 }

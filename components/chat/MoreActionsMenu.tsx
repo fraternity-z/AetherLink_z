@@ -20,7 +20,7 @@ import {
 import { useTheme, Text } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
-import { supportsImageGeneration } from '@/services/ai/ModelDiscovery';
+import { supportsImageGeneration } from '@/services/ai/ModelCapabilities';
 import type { Provider } from '@/services/ai/AiClient';
 
 interface MoreActionsMenuProps {
@@ -139,7 +139,7 @@ export function MoreActionsMenu({
       return;
     }
 
-    if (!supportsImageGeneration(provider, model)) {
+    if (!supportsImageGeneration({ id: model, provider })) {
       alert('提示', '当前模型不支持图片生成功能\\n\\n请切换到 DALL-E 3、GPT-Image-1 等专用图片生成模型');
       onClose();
       return;
@@ -155,7 +155,7 @@ export function MoreActionsMenu({
   // no undo entry per product decision
 
   // 判断是否支持图片生成
-  const imageGenerationSupported = provider && model && supportsImageGeneration(provider, model);
+  const imageGenerationSupported = provider && model && supportsImageGeneration({ id: model, provider });
 
   const menuItems = [
     {
