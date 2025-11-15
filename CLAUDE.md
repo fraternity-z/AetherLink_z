@@ -66,6 +66,7 @@ graph TD
     D --> D4["mcp (MCP工具)"];
     D --> D5["voice (语音识别)"];
     D --> D6["webview (WebView服务)"];
+    D --> D7["messageStreaming (消息流管理)"];
 
     E --> E1["repositories (数据仓库)"];
     E --> E2["sqlite (数据库)"];
@@ -75,12 +76,11 @@ graph TD
     F --> F1["use-conversations.ts"];
     F --> F2["use-messages.ts"];
     F --> F3["use-setting.ts"];
-    F --> F4["use-theme-color.ts"];
-    F --> F5["use-color-scheme.ts"];
-    F --> F6["use-confirm-dialog.tsx"];
-    F --> F7["use-image-generation.ts"];
-    F --> F8["use-voice-recognition.ts"];
-    F --> F9["use-quick-phrases.ts"];
+    F --> F4["use-color-scheme.ts"];
+    F --> F5["use-confirm-dialog.tsx"];
+    F --> F6["use-image-generation.ts"];
+    F --> F7["use-voice-recognition.ts"];
+    F --> F8["use-quick-phrases.ts"];
 
     G --> G1["theme.ts (主题配置)"];
     G --> G2["prompts.ts (提示词)"];
@@ -92,16 +92,20 @@ graph TD
     K --> K4["model-logo.ts (模型Logo)"];
     K --> K5["http.ts (HTTP工具)"];
 
+    click B "./app/CLAUDE.md" "查看应用路由"
     click B1 "./app/index.tsx" "查看聊天主页"
     click B2 "./app/_layout.tsx" "查看根布局"
     click C1 "./components/chat/CLAUDE.md" "查看聊天组件"
+    click C3 "./components/providers/CLAUDE.md" "查看Provider组件"
     click C4 "./components/common/CLAUDE.md" "查看通用组件"
     click D1 "./services/ai/CLAUDE.md" "查看AI服务"
+    click D2 "./services/data/CLAUDE.md" "查看数据服务"
     click D3 "./services/search/CLAUDE.md" "查看搜索服务"
     click D4 "./services/mcp/CLAUDE.md" "查看MCP服务"
     click D5 "./services/voice/CLAUDE.md" "查看语音服务"
-    click E1 "./storage/CLAUDE.md" "查看数据仓库"
-    click E2 "./storage/CLAUDE.md" "查看数据库"
+    click D6 "./services/webview/CLAUDE.md" "查看WebView服务"
+    click D7 "./services/messageStreaming/CLAUDE.md" "查看消息流服务"
+    click E "./storage/CLAUDE.md" "查看数据仓库"
     click F "./hooks/CLAUDE.md" "查看Hooks"
     click G "./constants/CLAUDE.md" "查看常量配置"
     click K "./utils/CLAUDE.md" "查看工具函数"
@@ -111,22 +115,24 @@ graph TD
 
 | 模块路径 | 类型 | 职责描述 | 入口文件 | 测试覆盖 | 文档 |
 |---------|------|----------|----------|----------|------|
-| `app/` | 页面路由 | 应用页面和路由结构 | `index.tsx`, `_layout.tsx` | ❌ | [CLAUDE.md](./CLAUDE.md) |
+| `app/` | 页面路由 | 应用页面和路由结构(Expo Router) | `index.tsx`, `_layout.tsx` | ❌ | [CLAUDE.md](./app/CLAUDE.md) |
 | `components/chat/` | UI组件 | 聊天界面相关组件 | `ChatInput.tsx`, `MessageList.tsx`, `MessageBubble.tsx` | ❌ | [CLAUDE.md](./components/chat/CLAUDE.md) |
-| `components/settings/` | UI组件 | 设置页面相关组件 | `SettingsList.tsx`, `ThemeStyleCard.tsx` | ❌ | [CLAUDE.md](./components/settings/CLAUDE.md) |
+| `components/settings/` | UI组件 | 设置页面相关组件 | `SettingsList.tsx`, `ModelDiscoveryDialog.tsx` | ❌ | [CLAUDE.md](./components/settings/CLAUDE.md) |
 | `components/common/` | UI组件 | 通用UI组件(弹窗、对话框等) | `ConfirmDialog.tsx`, `InputDialog.tsx` | ❌ | [CLAUDE.md](./components/common/CLAUDE.md) |
-| `components/providers/` | UI组件 | React Context 提供者 | `ThemeProvider.tsx`, `DataProvider.tsx` | ❌ | [CLAUDE.md](./components/providers/CLAUDE.md) |
+| `components/providers/` | UI组件 | React Context 提供者 | `ThemeProvider.tsx`, `DataProvider.tsx`, `SettingsProvider.tsx` | ❌ | [CLAUDE.md](./components/providers/CLAUDE.md) |
 | `services/ai/` | 业务服务 | AI提供商集成和流式响应 | `AiClient.ts`, `ModelDiscovery.ts` | ❌ | [CLAUDE.md](./services/ai/CLAUDE.md) |
-| `services/data/` | 业务服务 | 数据备份、清理、统计服务 | `DataBackup.ts`, `DataCleanup.ts` | ❌ | [CLAUDE.md](./services/data/CLAUDE.md) |
+| `services/data/` | 业务服务 | 数据备份、清理、统计服务 | `DataBackup.ts`, `DataCleanup.ts`, `DataStats.ts` | ❌ | [CLAUDE.md](./services/data/CLAUDE.md) |
 | `services/search/` | 业务服务 | 网络搜索引擎集成 | `SearchClient.ts`, `engines/` | ❌ | [CLAUDE.md](./services/search/CLAUDE.md) |
-| `services/mcp/` | 业务服务 | MCP 工具集成服务 | `McpClient.ts`, `ToolConverter.ts` | ❌ | - |
-| `services/voice/` | 业务服务 | 语音识别服务 | `VoiceRecognition.ts`, `NativeRecognition.ts` | ❌ | [CLAUDE.md](./services/voice/CLAUDE.md) |
-| `storage/repositories/` | 数据层 | 数据访问层,封装SQLite操作 | `chat.ts`, `messages.ts`, `providers.ts` | ❌ | [CLAUDE.md](./storage/CLAUDE.md) |
+| `services/mcp/` | 业务服务 | MCP 工具集成服务 | `McpClient.ts`, `ToolConverter.ts` | ❌ | [CLAUDE.md](./services/mcp/CLAUDE.md) |
+| `services/voice/` | 业务服务 | 语音识别服务 | `VoiceRecognition.ts`, `NativeRecognition.ts`, `WhisperRecognition.ts` | ❌ | [CLAUDE.md](./services/voice/CLAUDE.md) |
+| `services/webview/` | 业务服务 | 隐藏WebView服务（反爬虫） | `HiddenWebViewClient.ts` | ❌ | [CLAUDE.md](./services/webview/CLAUDE.md) |
+| `services/messageStreaming/` | 业务服务 | 消息块管理（流式响应） | `BlockManager.ts` | ❌ | [CLAUDE.md](./services/messageStreaming/CLAUDE.md) |
+| `storage/repositories/` | 数据层 | 数据访问层,封装SQLite操作 | `chat.ts`, `messages.ts`, `providers.ts`, `mcp.ts` | ❌ | [CLAUDE.md](./storage/CLAUDE.md) |
 | `storage/sqlite/` | 数据层 | 数据库连接和迁移管理 | `db.ts`, `migrations/` | ❌ | [CLAUDE.md](./storage/CLAUDE.md) |
 | `storage/adapters/` | 数据层 | 跨平台存储适配器 | `async-storage.ts` | ❌ | [CLAUDE.md](./storage/CLAUDE.md) |
-| `hooks/` | 逻辑层 | React Hooks,封装业务逻辑 | `use-conversations.ts`, `use-messages.ts` | ❌ | [CLAUDE.md](./hooks/CLAUDE.md) |
-| `constants/` | 配置 | 应用常量和主题配置 | `theme.ts`, `prompts.ts` | ❌ | [CLAUDE.md](./constants/CLAUDE.md) |
-| `utils/` | 工具 | 通用工具函数 | `logger.ts`, `render-cache.ts` | ❌ | [CLAUDE.md](./utils/CLAUDE.md) |
+| `hooks/` | 逻辑层 | React Hooks,封装业务逻辑 | `use-conversations.ts`, `use-messages.ts`, `use-setting.ts` | ❌ | [CLAUDE.md](./hooks/CLAUDE.md) |
+| `constants/` | 配置 | 应用常量和主题配置 | `theme.ts`, `prompts.ts`, `assistants.ts` | ❌ | [CLAUDE.md](./constants/CLAUDE.md) |
+| `utils/` | 工具 | 通用工具函数 | `logger.ts`, `render-cache.ts`, `events.ts`, `http.ts` | ❌ | [CLAUDE.md](./utils/CLAUDE.md) |
 
 ## 运行与开发
 
@@ -223,6 +229,21 @@ npm run reset-project
 - 语音识别需要考虑设备端和云端的差异
 
 ## 变更记录 (Changelog)
+
+### 2025-11-15 (架构文档全面更新)
+- ✨ 新增缺失的模块文档：
+  - `app/CLAUDE.md` - 应用路由模块（Expo Router）
+  - `services/data/CLAUDE.md` - 数据服务模块（备份、清理、统计）
+  - `services/mcp/CLAUDE.md` - MCP 服务模块（工具集成）
+  - `services/webview/CLAUDE.md` - WebView 服务模块（反爬虫）
+  - `services/messageStreaming/CLAUDE.md` - 消息流管理模块（BlockManager）
+  - `components/providers/CLAUDE.md` - Provider 组件模块
+- 📝 更新模块结构图，新增 messageStreaming 模块
+- 🔄 完善模块索引表，补全所有模块的文档链接
+- 📊 统一文档结构和格式，提升可读性
+- 🎯 强调各模块的核心功能、关键依赖和使用示例
+- ⚡ 提供性能优化、安全性考虑和扩展指南
+- 🧪 明确测试策略和质量保证标准
 
 ### 2025-11-13 (架构文档增量更新)
 - ✨ 更新模块结构图,新增 MCP、Voice、Utils 模块
