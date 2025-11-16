@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
-import { generateImageWithAI, type ImageGenerationResult, type Provider } from '@/services/ai/AiClient';
+import { generateImageWithAI, type ImageGenerationResult, type Provider, ImageGenerationError } from '@/services/ai';
 import { MessageRepository } from '@/storage/repositories/messages';
 import { AttachmentRepository } from '@/storage/repositories/attachments';
-import { ImageGenerationError } from '@/services/ai/errors';
 import { File, Paths } from 'expo-file-system';
 import { uuid } from '@/storage/core';
 import { logger } from '@/utils/logger';

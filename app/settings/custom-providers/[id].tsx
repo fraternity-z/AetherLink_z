@@ -4,8 +4,7 @@ import { View, StyleSheet } from 'react-native';
 import { Avatar, Button, HelperText, List, SegmentedButtons, Surface, Switch, Text, TextInput, useTheme, Snackbar, Portal } from 'react-native-paper';
 import { CustomProvidersRepository, type CustomProvider } from '@/storage/repositories/custom-providers';
 import { ProviderModelsRepository } from '@/storage/repositories/provider-models';
-import { fetchCustomProviderModels } from '@/services/ai/CustomModelDiscovery';
-import { validateCustomProviderModel } from '@/services/ai/CustomModelValidation';
+import { fetchCustomProviderModels, validateCustomProviderModel } from '@/services/ai';
 import { UnifiedDialog } from '@/components/common/UnifiedDialog';
 
 export default function CustomProviderConfig() {

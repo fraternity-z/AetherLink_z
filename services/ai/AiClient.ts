@@ -4,8 +4,8 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
-import { ImageGenerationError, ImageModelResolutionError } from './errors';
-import { describeModelCapabilities } from './ModelCapabilities';
+import { ImageGenerationError, ImageModelResolutionError } from './utils/errors';
+import { describeModelCapabilities } from './capabilities/ModelCapabilities';
 import { logger } from '@/utils/logger';
 
 export type Provider = ProviderId;
@@ -174,7 +174,7 @@ export async function streamCompletion(opts: StreamOptions) {
   let mcpTools: Record<string, any> | undefined;
   if (opts.enableMcpTools) {
     try {
-      const { getAllActiveTools } = await import('@/services/ai/mcpIntegration');
+      const { getAllActiveTools } = await import('@/services/ai/integration/mcpIntegration');
       mcpTools = await getAllActiveTools();
       logger.info('[AiClient] MCP 工具已加载', {
         toolCount: Object.keys(mcpTools).length,

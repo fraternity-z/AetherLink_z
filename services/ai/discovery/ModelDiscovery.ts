@@ -1,5 +1,5 @@
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
-import { getModelTags, type ModelTag, type ModelWithCapabilities } from './ModelCapabilities';
+import { getModelTags, type ModelTag, type ModelWithCapabilities } from '../capabilities/ModelCapabilities';
 import { logger } from '@/utils/logger';
 
 /**

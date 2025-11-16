@@ -14,7 +14,7 @@ export interface ValidationTarget {
 const REQUEST_TIMEOUT = 8000;
 const OPENAI_DEFAULT_BASE = 'https://api.openai.com/v1';
 const ANTHROPIC_DEFAULT_BASE = 'https://api.anthropic.com';
-const GOOGLE_DEFAULT_BASE = 'https://generativelanguage.googleapis.com';
+const GOOGLE_DEFAULT_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 export async function validateModelWithTarget(
   target: ValidationTarget,

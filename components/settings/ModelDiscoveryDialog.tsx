@@ -6,7 +6,7 @@ import React, { useState, useMemo, useCallback, memo } from 'react';
 import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { Text, useTheme, Searchbar, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
-import type { DiscoveredModel } from '@/services/ai/ModelDiscovery';
+import type { DiscoveredModel } from '@/services/ai';
 import { UnifiedDialog } from '@/components/common/UnifiedDialog';
 
 interface ModelGroup {

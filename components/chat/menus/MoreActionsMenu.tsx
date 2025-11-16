@@ -20,8 +20,7 @@ import {
 import { useTheme, Text } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
-import { describeModelCapabilities } from '@/services/ai/ModelCapabilities';
-import type { Provider } from '@/services/ai/AiClient';
+import { describeModelCapabilities, type Provider } from '@/services/ai';
 
 interface MoreActionsMenuProps {
   visible: boolean;
