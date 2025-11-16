@@ -27,11 +27,22 @@ const realSemverPath = path.join(
 );
 
 const baseResolve = config.resolver.resolveRequest;
+const pkceChallengeBrowserPath = path.join(
+  projectRoot,
+  'node_modules',
+  'pkce-challenge',
+  'dist',
+  'index.browser.js'
+);
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   try {
     const originRaw = context?.originModulePath || '';
     const origin = originRaw.replace(/\\/g, '/');
+
+    if (moduleName === 'pkce-challenge') {
+      return { type: 'sourceFile', filePath: pkceChallengeBrowserPath };
+    }
 
     if (
       moduleName === './semver' &&

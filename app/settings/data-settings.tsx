@@ -5,6 +5,7 @@ import { SettingScreen } from '@/components/settings/SettingScreen';
 import { DataStatsService, DataStatistics } from '@/services/data/DataStats';
 import { DataBackupService, BackupData } from '@/services/data/DataBackup';
 import { DataCleanupService } from '@/services/data/DataCleanup';
+import { LegacyImportService } from '@/services/data/LegacyImport';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { UnifiedDialog } from '@/components/common/UnifiedDialog';
@@ -103,6 +104,70 @@ export default function DataSettings() {
         } catch (e: any) {
           alert('导入失败', e?.message || String(e));
           logger.error('[DataSettings] Import failed:', e);
+        } finally {
+          setLoading(false);
+          hideConfirm();
+        }
+      }
+    );
+  };
+
+  // 导入旧版备份（仅提供商和模型配置）
+  const handleLegacyImport = async () => {
+    showConfirm(
+      '导入旧版配置',
+      '此功能将从旧版 AetherLink 备份文件中导入提供商配置、API 密钥和模型列表。不会导入会话和消息数据。',
+      async () => {
+        try {
+          // 选择文件
+          const result = await DocumentPicker.getDocumentAsync({
+            type: 'application/json',
+            copyToCacheDirectory: true,
+          });
+
+          if (result.canceled) {
+            hideConfirm();
+            return;
+          }
+
+          const fileUri = result.assets[0].uri;
+
+          // 读取文件内容
+          const file = new File(fileUri);
+          const content = await file.text();
+          const legacyData = JSON.parse(content);
+
+          // 验证格式
+          if (!LegacyImportService.validateBackup(legacyData)) {
+            alert('格式错误', '不是有效的旧版备份文件');
+            hideConfirm();
+            return;
+          }
+
+          // 执行导入
+          setLoading(true);
+          const result_1 = await LegacyImportService.importProvidersAndModels(legacyData, {
+            overwriteExisting: false,
+            importApiKeys: true,
+          });
+
+          // 显示结果
+          const summary = [
+            `✓ 已导入 ${result_1.providersImported} 个官方提供商`,
+            `✓ 已创建 ${result_1.customProvidersCreated} 个自定义提供商`,
+            `✓ 已导入 ${result_1.modelsImported} 个模型`,
+          ];
+
+          if (result_1.errors.length > 0) {
+            summary.push(`\n⚠️ ${result_1.errors.length} 个错误（已记录）`);
+          }
+
+          alert('导入完成', summary.join('\n'));
+          logger.info('[DataSettings] Legacy import result:', result_1);
+
+        } catch (e: any) {
+          alert('导入失败', e?.message || String(e));
+          logger.error('[DataSettings] Legacy import failed:', e);
         } finally {
           setLoading(false);
           hideConfirm();
@@ -282,6 +347,13 @@ export default function DataSettings() {
             description="从备份文件恢复数据"
             left={(props) => <List.Icon {...props} icon="import" />}
             onPress={handleImport}
+            disabled={loading}
+          />
+          <List.Item
+            title="导入旧版配置"
+            description="从旧版 AetherLink 导入提供商和模型"
+            left={(props) => <List.Icon {...props} icon="cog-transfer" />}
+            onPress={handleLegacyImport}
             disabled={loading}
           />
         </List.Section>
