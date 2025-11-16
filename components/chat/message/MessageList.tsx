@@ -22,7 +22,11 @@ import type { Attachment, Message, ThinkingChain, MessageBlock } from '@/storage
 import { appEvents, AppEvents } from '@/utils/events';
 import { logger } from '@/utils/logger';
 
-export function MessageList({ conversationId }: { conversationId: string | null }) {
+interface MessageListProps {
+  conversationId: string | null;
+}
+
+function MessageListComponent({ conversationId }: MessageListProps) {
   const theme = useTheme();
   const { items, reload } = useMessages(conversationId ?? null, 50);
   const { avatarUri } = useUserProfile(); // 获取用户头像 URI（性能优化：在列表层级调用一次）
@@ -217,4 +221,10 @@ const styles = StyleSheet.create({
   messagesContainer: {
     width: '100%',
   },
+});
+
+// 🚀 性能优化：使用 React.memo 避免不必要的重渲染
+// 只在 conversationId 改变时才重新渲染
+export const MessageList = React.memo(MessageListComponent, (prev, next) => {
+  return prev.conversationId === next.conversationId;
 });

@@ -46,6 +46,7 @@ const log = logger.createNamespace('McpClient');
 interface ClientConnection {
   client: Client;
   connectedAt: number;
+  lastUsedAt: number; // 🛡️ 新增：最后使用时间（用于自动清理）
   serverId: string;
   serverName: string;
 }
@@ -79,8 +80,16 @@ export class McpClient {
   /** 数据仓库实例 */
   private repo = McpServersRepository;
 
+  /** 🛡️ 自动清理定时器 */
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+  /** 🛡️ 闲置连接的最大时间（毫秒），默认 10 分钟 */
+  private readonly maxIdleTime: number = 10 * 60 * 1000;
+
   constructor() {
     log.info('McpClient 初始化完成');
+    // 🛡️ 启动自动清理定时器（每 5 分钟检查一次）
+    this.startAutoCleanup();
   }
 
   /**
@@ -137,10 +146,15 @@ export class McpClient {
   private async _createNewClient(server: MCPServer): Promise<Client> {
     const serverId = server.id;
 
+    const baseUrl = server.baseUrl;
+    if (!baseUrl) {
+      throw new Error(`MCP 服务器 ${server.name ?? serverId} 未配置 baseUrl/url，无法建立连接`);
+    }
+
     log.info(`创建新的 MCP 客户端`, {
       serverId,
       serverName: server.name,
-      baseUrl: server.baseUrl,
+      baseUrl,
     });
 
     // 合并默认请求头与用户自定义头（用于鉴权/版本协商等）
@@ -166,7 +180,7 @@ export class McpClient {
     };
 
     // 创建 Streamable HTTP 传输（带请求头/自定义 fetch）
-    const transport = new StreamableHTTPClientTransport(new URL(server.baseUrl), transportOptions);
+    const transport = new StreamableHTTPClientTransport(new URL(baseUrl), transportOptions);
 
     // 创建客户端
     const client = new Client(
@@ -187,9 +201,11 @@ export class McpClient {
       await client.connect(transport);
 
       // 保存连接信息
+      const now = Date.now();
       this.clients.set(serverId, {
         client,
-        connectedAt: Date.now(),
+        connectedAt: now,
+        lastUsedAt: now, // 🛡️ 初始化最后使用时间
         serverId,
         serverName: server.name,
       });
@@ -268,16 +284,23 @@ export class McpClient {
     // 3. 初始化客户端
     const client = await this.initClient(server);
 
+    // 🛡️ 更新最后使用时间
+    this.updateLastUsedAt(serverId);
+
     // 4. 调用 listTools
     try {
       const result = await client.listTools();
 
-      const tools: MCPTool[] = result.tools.map((tool) => ({
+      const tools: MCPTool[] = result.tools.map((tool, idx) => ({
+        id: `${server.id}:tool:${tool.name ?? idx}`,
+        type: 'mcp',
         name: tool.name,
         description: tool.description,
         inputSchema: tool.inputSchema as any,
+        outputSchema: tool.outputSchema as any,
         serverId: server.id,
-        serverName: server.name,
+        serverName: server.name ?? server.id,
+        isBuiltIn: false,
       }));
 
       // 5. 缓存结果（5 分钟）
@@ -317,6 +340,9 @@ export class McpClient {
 
     // 2. 初始化客户端
     const client = await this.initClient(server);
+
+    // 🛡️ 更新最后使用时间
+    this.updateLastUsedAt(serverId);
 
     // 3. 调用工具
     try {
@@ -388,6 +414,9 @@ export class McpClient {
     // 3. 初始化客户端
     const client = await this.initClient(server);
 
+    // 🛡️ 更新最后使用时间
+    this.updateLastUsedAt(serverId);
+
     // 4. 调用 listResources
     try {
       const result = await client.listResources();
@@ -398,6 +427,10 @@ export class McpClient {
         description: resource.description,
         mimeType: resource.mimeType,
         serverId: server.id,
+        serverName: server.name ?? server.id,
+        size: typeof resource.size === 'number' ? resource.size : undefined,
+        text: typeof resource.text === 'string' ? resource.text : undefined,
+        blob: typeof resource.blob === 'string' ? resource.blob : undefined,
       }));
 
       // 5. 缓存结果（60 分钟）
@@ -439,6 +472,9 @@ export class McpClient {
 
     // 3. 初始化客户端
     const client = await this.initClient(server);
+
+    // 🛡️ 更新最后使用时间
+    this.updateLastUsedAt(serverId);
 
     // 4. 调用 readResource
     try {
@@ -486,15 +522,20 @@ export class McpClient {
     // 3. 初始化客户端
     const client = await this.initClient(server);
 
+    // 🛡️ 更新最后使用时间
+    this.updateLastUsedAt(serverId);
+
     // 4. 调用 listPrompts
     try {
       const result = await client.listPrompts();
 
       const prompts: MCPPrompt[] = result.prompts.map((prompt) => ({
+        id: `${server.id}:${prompt.name}`,
         name: prompt.name,
         description: prompt.description,
         arguments: prompt.arguments,
         serverId: server.id,
+        serverName: server.name ?? server.id,
       }));
 
       // 5. 缓存结果（60 分钟）
@@ -543,6 +584,9 @@ export class McpClient {
 
     // 3. 初始化客户端
     const client = await this.initClient(server);
+
+    // 🛡️ 更新最后使用时间
+    this.updateLastUsedAt(serverId);
 
     // 4. 调用 getPrompt
     try {
@@ -672,6 +716,90 @@ export class McpClient {
    */
   getConnectedServerIds(): string[] {
     return Array.from(this.clients.keys());
+  }
+
+  /**
+   * 🛡️ 更新连接的最后使用时间
+   *
+   * @param serverId 服务器 ID
+   */
+  private updateLastUsedAt(serverId: string): void {
+    const conn = this.clients.get(serverId);
+    if (conn) {
+      conn.lastUsedAt = Date.now();
+    }
+  }
+
+  /**
+   * 🛡️ 启动自动清理定时器
+   */
+  private startAutoCleanup(): void {
+    if (this.cleanupTimer) {
+      return;
+    }
+
+    // 每 5 分钟检查一次闲置连接
+    this.cleanupTimer = setInterval(() => {
+      this.cleanupIdleClients().catch((err) => {
+        log.error('自动清理闲置连接失败', err);
+      });
+    }, 5 * 60 * 1000);
+
+    log.debug('自动清理定时器已启动', {
+      checkInterval: '5分钟',
+      maxIdleTime: `${this.maxIdleTime / 1000 / 60}分钟`,
+    });
+  }
+
+  /**
+   * 🛡️ 清理闲置的客户端连接
+   */
+  private async cleanupIdleClients(): Promise<void> {
+    const now = Date.now();
+    const idleServerIds: string[] = [];
+
+    // 查找所有闲置连接
+    for (const [serverId, conn] of this.clients) {
+      if (now - conn.lastUsedAt > this.maxIdleTime) {
+        idleServerIds.push(serverId);
+      }
+    }
+
+    if (idleServerIds.length === 0) {
+      return;
+    }
+
+    log.info('检测到闲置连接，开始清理', {
+      count: idleServerIds.length,
+      serverIds: idleServerIds,
+    });
+
+    // 关闭所有闲置连接
+    const promises = idleServerIds.map((id) => this.closeClient(id));
+    await Promise.allSettled(promises);
+
+    log.info('闲置连接清理完成', { count: idleServerIds.length });
+  }
+
+  /**
+   * 🛡️ 销毁 McpClient 实例，清理所有资源
+   *
+   * 应在应用退出或不再需要 MCP 功能时调用
+   */
+  async destroy(): Promise<void> {
+    log.info('正在销毁 McpClient 实例...');
+
+    // 停止自动清理定时器
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+      log.debug('自动清理定时器已停止');
+    }
+
+    // 关闭所有连接
+    await this.closeAll();
+
+    log.info('McpClient 实例已销毁');
   }
 }
 

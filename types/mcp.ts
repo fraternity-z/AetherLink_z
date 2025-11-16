@@ -11,6 +11,8 @@
 import * as z from 'zod';
 import type { BaseTool, MCPTool } from './tool';
 
+export type { MCPTool } from './tool';
+
 /**
  * MCP 配置示例 Schema
  */

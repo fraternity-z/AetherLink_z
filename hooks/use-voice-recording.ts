@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import AudioModule from 'expo-audio/build/AudioModule';
 import { RecordingPresets } from 'expo-audio';
 import type { AudioRecorder } from 'expo-audio/build/AudioModule.types';
@@ -22,6 +22,27 @@ export function useVoiceRecording(
 
   const recorderRef = useRef<AudioRecorder | null>(null);
   const timerRef = useRef<number | null>(null);
+
+  // 🛡️ 组件卸载时清理资源，防止内存泄漏
+  useEffect(() => {
+    return () => {
+      // 清理定时器
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+        logger.debug('[VoiceRecording] Timer cleaned up on unmount');
+      }
+
+      // 清理录音对象
+      if (recorderRef.current) {
+        recorderRef.current.stop().catch((err) => {
+          logger.error('[VoiceRecording] Failed to stop recorder on unmount:', err);
+        });
+        recorderRef.current = null;
+        logger.debug('[VoiceRecording] Recorder cleaned up on unmount');
+      }
+    };
+  }, []);
 
   /**
    * 开始录音

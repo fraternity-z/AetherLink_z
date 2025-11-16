@@ -62,7 +62,7 @@ export interface ChatInputRef {
 /**
  * 聊天输入框组件（重构版）
  */
-export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(function ChatInput({
+const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(function ChatInput({
   conversationId,
   onConversationChange,
 }, ref) {
@@ -454,3 +454,10 @@ function getSearchErrorHint(code?: string): string {
       return '';
   }
 }
+
+// 🚀 性能优化：使用 React.memo 避免不必要的重渲染
+// 只在 conversationId 或 onConversationChange 改变时才重新渲染
+export const ChatInput = React.memo(ChatInputComponent, (prev, next) => {
+  return prev.conversationId === next.conversationId &&
+         prev.onConversationChange === next.onConversationChange;
+});
