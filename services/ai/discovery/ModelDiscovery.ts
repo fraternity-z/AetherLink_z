@@ -1,6 +1,7 @@
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 import { getModelTags, type ModelTag, type ModelWithCapabilities } from '../capabilities/ModelCapabilities';
 import { logger } from '@/utils/logger';
+import { withAiServiceContext } from '../error-handler';
 
 /**
  * 发现的模型信息(包含标签)
@@ -12,8 +13,10 @@ export interface DiscoveredModel {
 }
 
 async function getKey(provider: ProviderId): Promise<string | null> {
-  // 统一使用 ProvidersRepository 获取所有提供商的 API Key
-  return ProvidersRepository.getApiKey(provider);
+  return withAiServiceContext('ModelDiscovery', 'getKey', { provider }, async () => {
+    // 统一使用 ProvidersRepository 获取所有提供商的 API Key
+    return ProvidersRepository.getApiKey(provider);
+  });
 }
 
 /**
@@ -44,9 +47,10 @@ function enrichModelsWithTags(models: DiscoveredModel[], provider: ProviderId): 
 }
 
 export async function fetchProviderModels(provider: ProviderId): Promise<DiscoveredModel[]> {
-  const apiKey = await getKey(provider);
-  if (!apiKey) throw new Error('缺少 API Key，请先在该提供商页填写并保存');
-  const cfg = await ProvidersRepository.getConfig(provider);
+  return withAiServiceContext('ModelDiscovery', 'fetchProviderModels', { provider }, async () => {
+    const apiKey = await getKey(provider);
+    if (!apiKey) throw new Error('缺少 API Key，请先在该提供商页填写并保存');
+    const cfg = await ProvidersRepository.getConfig(provider);
 
   // Helper fetch wrapper
   async function j(url: string, init?: RequestInit) {
@@ -171,5 +175,6 @@ export async function fetchProviderModels(provider: ProviderId): Promise<Discove
     }
   }
 
-  throw new Error('不支持的提供商');
+    throw new Error('不支持的提供商');
+  });
 }

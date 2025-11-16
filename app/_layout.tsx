@@ -12,6 +12,7 @@ import { SettingsProvider, useAppSettings } from '@/components/providers/Setting
 import { AppDataProvider } from '@/components/providers/DataProvider';
 import { ConfirmDialogProvider } from '@/hooks/use-confirm-dialog';
 import { DarkTheme as NavDarkTheme, DefaultTheme as NavDefaultTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 
 
 function RootLayoutInner() {
@@ -41,20 +42,22 @@ function RootLayoutInner() {
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <SettingsProvider>
-          <AppThemeProvider>
-            <AppDataProvider>
-              <ConfirmDialogProvider>
-                <HiddenWebViewHost />
-                <RootLayoutInner />
-              </ConfirmDialogProvider>
-            </AppDataProvider>
-          </AppThemeProvider>
-        </SettingsProvider>
-      </GestureHandlerRootView>
-    </SafeAreaProvider>
+    <ErrorBoundary level="root">
+      <SafeAreaProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <SettingsProvider>
+            <AppThemeProvider>
+              <AppDataProvider>
+                <ConfirmDialogProvider>
+                  <HiddenWebViewHost />
+                  <RootLayoutInner />
+                </ConfirmDialogProvider>
+              </AppDataProvider>
+            </AppThemeProvider>
+          </SettingsProvider>
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
 // 忽略第三方依赖内部仍使用 RN SafeAreaView 的开发期警告

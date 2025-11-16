@@ -13,6 +13,7 @@ import type { ProviderId } from '@/storage/repositories/providers';
 import { ProviderKeysRepository } from '@/storage/repositories/provider-keys';
 import { ProviderKeyManagementRepository } from '@/storage/repositories/provider-key-management';
 import { logger } from '@/utils/logger';
+import { withAiServiceContext, withSyncAiServiceContext } from './error-handler';
 
 /**
  * API Key 管理服务（单例）
@@ -44,50 +45,52 @@ export class ApiKeyManager {
     providerId: ProviderId,
     strategy?: LoadBalanceStrategy
   ): Promise<KeySelectionResult> {
-    // 1. 获取负载均衡策略
-    const actualStrategy =
-      strategy || (await ProviderKeyManagementRepository.getStrategy(providerId));
+    return withAiServiceContext('ApiKeyManager', 'selectApiKey', { providerId, strategy }, async () => {
+      // 1. 获取负载均衡策略
+      const actualStrategy =
+        strategy || (await ProviderKeyManagementRepository.getStrategy(providerId));
 
-    // 2. 获取冷却时间配置
-    const cooldownMinutes =
-      await ProviderKeyManagementRepository.getFailureRecoveryTimeMinutes(providerId);
+      // 2. 获取冷却时间配置
+      const cooldownMinutes =
+        await ProviderKeyManagementRepository.getFailureRecoveryTimeMinutes(providerId);
 
-    // 3. 获取可用的 Key 列表（已过滤 disabled 和冷却期）
-    const availableKeys = await ProviderKeysRepository.listActiveKeys(
-      providerId,
-      cooldownMinutes
-    );
+      // 3. 获取可用的 Key 列表（已过滤 disabled 和冷却期）
+      const availableKeys = await ProviderKeysRepository.listActiveKeys(
+        providerId,
+        cooldownMinutes
+      );
 
-    if (availableKeys.length === 0) {
+      if (availableKeys.length === 0) {
+        return {
+          key: null,
+          reason: '没有可用的 API Key',
+        };
+      }
+
+      // 4. 根据策略选择 Key
+      let selectedKey: ApiKeyConfig;
+
+      switch (actualStrategy) {
+        case 'priority':
+          selectedKey = this.selectByPriority(availableKeys);
+          break;
+        case 'least_used':
+          selectedKey = this.selectByLeastUsed(availableKeys);
+          break;
+        case 'random':
+          selectedKey = this.selectByRandom(availableKeys);
+          break;
+        case 'round_robin':
+        default:
+          selectedKey = this.selectByRoundRobin(providerId, availableKeys);
+          break;
+      }
+
       return {
-        key: null,
-        reason: '没有可用的 API Key',
+        key: selectedKey,
+        reason: `使用 ${actualStrategy} 策略选择`,
       };
-    }
-
-    // 4. 根据策略选择 Key
-    let selectedKey: ApiKeyConfig;
-
-    switch (actualStrategy) {
-      case 'priority':
-        selectedKey = this.selectByPriority(availableKeys);
-        break;
-      case 'least_used':
-        selectedKey = this.selectByLeastUsed(availableKeys);
-        break;
-      case 'random':
-        selectedKey = this.selectByRandom(availableKeys);
-        break;
-      case 'round_robin':
-      default:
-        selectedKey = this.selectByRoundRobin(providerId, availableKeys);
-        break;
-    }
-
-    return {
-      key: selectedKey,
-      reason: `使用 ${actualStrategy} 策略选择`,
-    };
+    });
   }
 
   /**
@@ -168,67 +171,73 @@ export class ApiKeyManager {
     success: boolean,
     error?: string
   ): Promise<void> {
-    const key = await ProviderKeysRepository.getById(keyId);
-    if (!key) {
-      logger.warn('[ApiKeyManager] Key 不存在，无法更新状态', { keyId });
-      return;
-    }
-
-    // 更新使用统计
-    await ProviderKeysRepository.updateUsageStats(keyId, success, error);
-
-    if (success) {
-      // 成功：重置连续失败计数，恢复为 active 状态
-      await ProviderKeysRepository.resetConsecutiveFailures(keyId);
-      if (key.status === 'error') {
-        await ProviderKeysRepository.setStatus(keyId, 'active');
-        logger.info('[ApiKeyManager] ✅ Key 恢复为 active 状态', { keyId });
+    return withAiServiceContext('ApiKeyManager', 'updateKeyStatus', { keyId, success }, async () => {
+      const key = await ProviderKeysRepository.getById(keyId);
+      if (!key) {
+        logger.warn('[ApiKeyManager] Key 不存在，无法更新状态', { keyId });
+        return;
       }
-    } else {
-      // 失败：检查连续失败次数
-      const maxFailures =
-        await ProviderKeyManagementRepository.getMaxFailuresBeforeDisable(
-          key.providerId
-        );
 
-      const updatedKey = await ProviderKeysRepository.getById(keyId);
-      if (updatedKey && updatedKey.usage.consecutiveFailures >= maxFailures) {
-        // 连续失败达到阈值，自动禁用
-        await ProviderKeysRepository.setStatus(keyId, 'error');
-        logger.warn(
-          `[ApiKeyManager] ❌ Key 连续失败 ${maxFailures} 次，自动禁用`,
-          {
-            keyId,
-            keyName: updatedKey.name,
-            error: error?.substring(0, 100),
-          }
-        );
+      // 更新使用统计
+      await ProviderKeysRepository.updateUsageStats(keyId, success, error);
+
+      if (success) {
+        // 成功：重置连续失败计数，恢复为 active 状态
+        await ProviderKeysRepository.resetConsecutiveFailures(keyId);
+        if (key.status === 'error') {
+          await ProviderKeysRepository.setStatus(keyId, 'active');
+          logger.info('[ApiKeyManager] ✅ Key 恢复为 active 状态', { keyId });
+        }
+      } else {
+        // 失败：检查连续失败次数
+        const maxFailures =
+          await ProviderKeyManagementRepository.getMaxFailuresBeforeDisable(
+            key.providerId
+          );
+
+        const updatedKey = await ProviderKeysRepository.getById(keyId);
+        if (updatedKey && updatedKey.usage.consecutiveFailures >= maxFailures) {
+          // 连续失败达到阈值，自动禁用
+          await ProviderKeysRepository.setStatus(keyId, 'error');
+          logger.warn(
+            `[ApiKeyManager] ❌ Key 连续失败 ${maxFailures} 次，自动禁用`,
+            {
+              keyId,
+              keyName: updatedKey.name,
+              error: error?.substring(0, 100),
+            }
+          );
+        }
       }
-    }
+    });
   }
 
   /**
    * 检查 Key 是否在冷却期
    */
   async isInCooldown(keyId: string): Promise<boolean> {
-    const key = await ProviderKeysRepository.getById(keyId);
-    if (!key || key.status !== 'error') return false;
+    return withAiServiceContext('ApiKeyManager', 'isInCooldown', { keyId }, async () => {
+      const key = await ProviderKeysRepository.getById(keyId);
+      if (!key || key.status !== 'error') return false;
 
-    const cooldownMinutes =
-      await ProviderKeyManagementRepository.getFailureRecoveryTimeMinutes(
-        key.providerId
-      );
-    const cooldownMs = cooldownMinutes * 60 * 1000;
-    const timeSinceUpdate = Date.now() - key.updatedAt;
+      const cooldownMinutes =
+        await ProviderKeyManagementRepository.getFailureRecoveryTimeMinutes(
+          key.providerId
+        );
+      const cooldownMs = cooldownMinutes * 60 * 1000;
+      const timeSinceUpdate = Date.now() - key.updatedAt;
 
-    return timeSinceUpdate < cooldownMs;
+      return timeSinceUpdate < cooldownMs;
+    });
   }
 
   /**
    * 获取统计数据
    */
   async getKeyStats(providerId: ProviderId): Promise<KeyStats> {
-    return await ProviderKeysRepository.getKeyStats(providerId);
+    return withAiServiceContext('ApiKeyManager', 'getKeyStats', { providerId }, async () => {
+      return await ProviderKeysRepository.getKeyStats(providerId);
+    });
   }
 
   /**
@@ -250,26 +259,28 @@ export class ApiKeyManager {
    * 验证 API Key 格式
    */
   validateKeyFormat(key: string, providerId: ProviderId): boolean {
-    if (!key || key.trim().length === 0) return false;
+    return withSyncAiServiceContext('ApiKeyManager', 'validateKeyFormat', { providerId }, () => {
+      if (!key || key.trim().length === 0) return false;
 
-    // 根据不同供应商验证 Key 格式
-    switch (providerId) {
-      case 'openai':
-        return key.startsWith('sk-') && key.length > 20;
-      case 'anthropic':
-        return key.startsWith('sk-ant-') && key.length > 30;
-      case 'google':
-      case 'gemini':
-        return key.length > 20; // Google/Gemini Key 没有固定前缀
-      case 'deepseek':
-        return key.startsWith('sk-') && key.length > 20;
-      case 'zhipu':
-        return key.includes('.') && key.length > 30; // 智谱 Key 包含点号
-      case 'volc':
-        return key.length > 20;
-      default:
-        return key.length > 10; // 通用验证
-    }
+      // 根据不同供应商验证 Key 格式
+      switch (providerId) {
+        case 'openai':
+          return key.startsWith('sk-') && key.length > 20;
+        case 'anthropic':
+          return key.startsWith('sk-ant-') && key.length > 30;
+        case 'google':
+        case 'gemini':
+          return key.length > 20; // Google/Gemini Key 没有固定前缀
+        case 'deepseek':
+          return key.startsWith('sk-') && key.length > 20;
+        case 'zhipu':
+          return key.includes('.') && key.length > 30; // 智谱 Key 包含点号
+        case 'volc':
+          return key.length > 20;
+        default:
+          return key.length > 10; // 通用验证
+      }
+    });
   }
 }
 

@@ -1,5 +1,6 @@
 import { AsyncKVStore } from '@/storage/adapters/async-storage';
 import { safeJSON, uuid } from '@/storage/core';
+import { withRepositoryContext } from './error-handler';
 
 export type CustomProviderType = 'openai-compatible' | 'anthropic' | 'google';
 
@@ -26,40 +27,50 @@ async function writeList(items: CustomProvider[]): Promise<void> {
 
 export const CustomProvidersRepository = {
   async list(): Promise<CustomProvider[]> {
-    return await readList();
+    return withRepositoryContext('CustomProvidersRepository', 'list', { storage: 'AsyncStorage' }, async () => {
+      return await readList();
+    });
   },
 
   async add(input: { name: string; type: CustomProviderType; baseURL?: string | null; apiKey?: string | null; enabled?: boolean }): Promise<CustomProvider> {
-    const item: CustomProvider = {
-      id: `cp-${uuid()}`,
-      name: input.name.trim(),
-      type: input.type,
-      baseURL: input.baseURL ?? null,
-      apiKey: input.apiKey ?? null,
-      enabled: input.enabled ?? true,
-      createdAt: Date.now(),
-    };
-    const list = await readList();
-    list.push(item);
-    await writeList(list);
-    return item;
+    return withRepositoryContext('CustomProvidersRepository', 'add', { name: input.name, type: input.type, storage: 'AsyncStorage' }, async () => {
+      const item: CustomProvider = {
+        id: `cp-${uuid()}`,
+        name: input.name.trim(),
+        type: input.type,
+        baseURL: input.baseURL ?? null,
+        apiKey: input.apiKey ?? null,
+        enabled: input.enabled ?? true,
+        createdAt: Date.now(),
+      };
+      const list = await readList();
+      list.push(item);
+      await writeList(list);
+      return item;
+    });
   },
 
   async remove(id: string): Promise<void> {
-    const list = await readList();
-    const next = list.filter(x => x.id !== id);
-    await writeList(next);
+    return withRepositoryContext('CustomProvidersRepository', 'remove', { providerId: id, storage: 'AsyncStorage' }, async () => {
+      const list = await readList();
+      const next = list.filter(x => x.id !== id);
+      await writeList(next);
+    });
   },
 
   async setEnabled(id: string, enabled: boolean): Promise<void> {
-    const list = await readList();
-    const next = list.map(x => (x.id === id ? { ...x, enabled } : x));
-    await writeList(next);
+    return withRepositoryContext('CustomProvidersRepository', 'setEnabled', { providerId: id, enabled, storage: 'AsyncStorage' }, async () => {
+      const list = await readList();
+      const next = list.map(x => (x.id === id ? { ...x, enabled } : x));
+      await writeList(next);
+    });
   },
 
   async update(id: string, patch: Partial<Omit<CustomProvider, 'id' | 'createdAt'>>): Promise<void> {
-    const list = await readList();
-    const next = list.map(x => (x.id === id ? { ...x, ...patch } : x));
-    await writeList(next);
+    return withRepositoryContext('CustomProvidersRepository', 'update', { providerId: id, storage: 'AsyncStorage' }, async () => {
+      const list = await readList();
+      const next = list.map(x => (x.id === id ? { ...x, ...patch } : x));
+      await writeList(next);
+    });
   },
 };

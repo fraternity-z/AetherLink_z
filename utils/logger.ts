@@ -2,7 +2,7 @@
  * 统一日志管理工具
  *
  * 提供一致的日志API，替代直接使用 console.*
- * 支持日志分级、生产环境优化、未来可扩展至第三方日志服务
+ * 支持日志分级、生产环境优化、错误追踪、第三方日志服务集成
  *
  * @module utils/logger
  * @example
@@ -18,10 +18,17 @@
  * // 警告信息
  * logger.warn('API 响应缓慢', { duration: 3000 });
  *
- * // 错误信息
- * logger.error('网络请求失败', error, { context: { url: '/api/chat' } });
+ * // 错误信息（自动收集错误上下文）
+ * logger.error('网络请求失败', error, { url: '/api/chat' });
+ *
+ * // 捕获异常（集成错误上报）
+ * logger.captureException(error, { userAction: 'submit_form' });
  * ```
  */
+
+import { AppError, normalizeError } from '@/utils/errors';
+import { errorContextCollector } from '@/utils/error-context';
+import { errorReporter } from '@/utils/error-reporter';
 
 /**
  * 日志级别枚举
@@ -276,6 +283,128 @@ class Logger {
         this.error(`[${namespace}] ${message}`, error, context);
       },
     };
+  }
+
+  /**
+   * 捕获异常并上报
+   *
+   * 自动收集错误上下文（设备信息、路由、应用状态等）并上报到错误追踪服务
+   *
+   * @param error - 错误对象
+   * @param extra - 额外的自定义数据
+   *
+   * @example
+   * ```typescript
+   * try {
+   *   await riskyOperation();
+   * } catch (err) {
+   *   logger.captureException(err, {
+   *     operation: 'riskyOperation',
+   *     userId: '123',
+   *   });
+   * }
+   * ```
+   */
+  async captureException(error: Error | unknown, extra?: Record<string, unknown>): Promise<void> {
+    // 规范化错误
+    const appError = normalizeError(error);
+
+    // 收集错误上下文
+    const errorContext = await errorContextCollector.collect(extra);
+
+    // 记录到日志
+    const entry: LogEntry = {
+      level: LogLevel.ERROR,
+      message: `[捕获异常] ${appError.getUserMessage()}`,
+      timestamp: Date.now(),
+      error: appError,
+      context: {
+        errorCode: appError.code,
+        severity: appError.severity,
+        retryable: appError.retryable,
+        ...errorContext,
+      },
+    };
+
+    console.error(
+      this.formatPrefix(LogLevel.ERROR),
+      `[捕获异常] ${appError.getUserMessage()}`,
+      {
+        error: {
+          name: appError.name,
+          message: appError.message,
+          code: appError.code,
+          severity: appError.severity,
+          stack: appError.stack,
+        },
+        context: errorContext,
+      }
+    );
+
+    // 调用日志处理器
+    await this.processLog(entry);
+
+    // 上报到错误追踪服务
+    try {
+      await errorReporter.captureException(appError, errorContext);
+    } catch (reportError) {
+      // 错误上报失败，不应该影响主流程
+      console.error('错误上报失败:', reportError);
+    }
+  }
+
+  /**
+   * 添加面包屑（用于追踪用户操作路径）
+   *
+   * @param message - 面包屑消息
+   * @param category - 分类（如 'navigation', 'ui.click', 'http' 等）
+   * @param data - 额外数据
+   *
+   * @example
+   * ```typescript
+   * logger.addBreadcrumb('用户点击按钮', 'ui.click', { buttonId: 'submit' });
+   * logger.addBreadcrumb('导航到设置页', 'navigation', { route: '/settings' });
+   * ```
+   */
+  addBreadcrumb(
+    message: string,
+    category?: string,
+    data?: Record<string, unknown>
+  ): void {
+    errorReporter.addBreadcrumb({
+      message,
+      category,
+      level: 'info',
+      data,
+    });
+  }
+
+  /**
+   * 设置用户标识（用于错误追踪）
+   *
+   * @param userId - 用户 ID
+   * @param userInfo - 用户信息
+   *
+   * @example
+   * ```typescript
+   * logger.setUser('user-123', { email: 'user@example.com', plan: 'pro' });
+   * ```
+   */
+  setUser(userId: string, userInfo?: Record<string, unknown>): void {
+    errorReporter.setUser(userId, userInfo);
+  }
+
+  /**
+   * 清除用户标识
+   *
+   * @example
+   * ```typescript
+   * // 用户登出时清除用户标识
+   * logger.clearUser();
+   * ```
+   */
+  clearUser(): void {
+    errorReporter.clearUser();
   }
 }
 

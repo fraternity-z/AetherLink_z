@@ -35,7 +35,13 @@
       "Bash(npx @modelcontextprotocol/inspector:*)",
       "Bash(git mv:*)",
       "Bash(echo:*)",
-      "Bash(npm outdated:*)"
+      "Bash(npm outdated:*)",
+      "Bash(nul)",
+      "Bash(npx eslint:*)",
+      "Bash(npm run lint:*)",
+      "Bash(node -e:*)",
+      "Bash(node -c:*)",
+      "Bash(xargs rg:*)"
     ],
     "deny": [],
     "ask": []

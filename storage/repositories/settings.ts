@@ -1,5 +1,6 @@
 import { IKeyValueStore, prefixer } from '@/storage/core';
 import { AsyncKVStore } from '@/storage/adapters/async-storage';
+import { withRepositoryContext } from './error-handler';
 
 export enum SettingKey {
   Theme = 'al:settings:theme',
@@ -50,12 +51,18 @@ const p = prefixer('settings'); // For clearNamespace use if needed
 
 export const SettingsRepository = (store: IKeyValueStore = AsyncKVStore) => ({
   async get<T = any>(key: SettingKey): Promise<T | null> {
-    return store.get<T>(key);
+    return withRepositoryContext('SettingsRepository', 'get', { key, storage: 'AsyncStorage' }, async () => {
+      return store.get<T>(key);
+    });
   },
   async set<T = any>(key: SettingKey, value: T): Promise<void> {
-    await store.set<T>(key, value);
+    return withRepositoryContext('SettingsRepository', 'set', { key, storage: 'AsyncStorage' }, async () => {
+      await store.set<T>(key, value);
+    });
   },
   async clearAll(): Promise<void> {
-    await store.clearNamespace('al:settings:');
+    return withRepositoryContext('SettingsRepository', 'clearAll', { storage: 'AsyncStorage' }, async () => {
+      await store.clearNamespace('al:settings:');
+    });
   },
 });

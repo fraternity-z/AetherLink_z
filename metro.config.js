@@ -10,6 +10,10 @@ const path = require('path');
 
 const projectRoot = __dirname;
 const config = getDefaultConfig(projectRoot);
+config.resolver.assetExts = config.resolver.assetExts || [];
+if (!config.resolver.assetExts.includes('jsbundle')) {
+  config.resolver.assetExts.push('jsbundle');
+}
 
 const realSemverPath = path.join(
   projectRoot,

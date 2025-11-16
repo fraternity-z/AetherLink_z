@@ -1,5 +1,6 @@
 import { MessageBlock, MessageBlockType, MessageBlockStatus, uuid, now } from '@/storage/core';
 import { execute, queryOne, queryAll } from '@/storage/sqlite/db';
+import { withRepositoryContext } from './error-handler';
 
 /**
  * MessageBlocksRepository - 消息块数据访问层
@@ -27,45 +28,51 @@ export const MessageBlocksRepository = {
     toolArgs?: string | null;
     extra?: any;
   }): Promise<MessageBlock> {
-    const id = uuid();
-    const createdAt = now();
-
-    await execute(
-      `INSERT INTO message_blocks (
-        id, message_id, type, status, content, sort_order,
-        tool_call_id, tool_name, tool_args,
-        created_at, updated_at, extra
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        input.messageId,
-        input.type,
-        input.status,
-        input.content,
-        input.sortOrder,
-        input.toolCallId ?? null,
-        input.toolName ?? null,
-        input.toolArgs ?? null,
-        createdAt,
-        createdAt,
-        input.extra ? JSON.stringify(input.extra) : null,
-      ]
-    );
-
-    return {
-      id,
+    return withRepositoryContext('MessageBlocksRepository', 'addBlock', {
       messageId: input.messageId,
       type: input.type,
-      status: input.status,
-      content: input.content,
-      sortOrder: input.sortOrder,
-      toolCallId: input.toolCallId ?? null,
-      toolName: input.toolName ?? null,
-      toolArgs: input.toolArgs ?? null,
-      createdAt,
-      updatedAt: createdAt,
-      extra: input.extra,
-    };
+      table: 'message_blocks'
+    }, async () => {
+      const id = uuid();
+      const createdAt = now();
+
+      await execute(
+        `INSERT INTO message_blocks (
+          id, message_id, type, status, content, sort_order,
+          tool_call_id, tool_name, tool_args,
+          created_at, updated_at, extra
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          input.messageId,
+          input.type,
+          input.status,
+          input.content,
+          input.sortOrder,
+          input.toolCallId ?? null,
+          input.toolName ?? null,
+          input.toolArgs ?? null,
+          createdAt,
+          createdAt,
+          input.extra ? JSON.stringify(input.extra) : null,
+        ]
+      );
+
+      return {
+        id,
+        messageId: input.messageId,
+        type: input.type,
+        status: input.status,
+        content: input.content,
+        sortOrder: input.sortOrder,
+        toolCallId: input.toolCallId ?? null,
+        toolName: input.toolName ?? null,
+        toolArgs: input.toolArgs ?? null,
+        createdAt,
+        updatedAt: createdAt,
+        extra: input.extra,
+      };
+    });
   },
 
   /**
@@ -76,44 +83,54 @@ export const MessageBlocksRepository = {
     content?: string;
     status?: MessageBlockStatus;
   }): Promise<void> {
-    const fields: string[] = [];
-    const values: any[] = [];
+    return withRepositoryContext('MessageBlocksRepository', 'updateBlock', {
+      blockId: input.id,
+      table: 'message_blocks'
+    }, async () => {
+      const fields: string[] = [];
+      const values: any[] = [];
 
-    if (input.content !== undefined) {
-      fields.push('content = ?');
-      values.push(input.content);
-    }
+      if (input.content !== undefined) {
+        fields.push('content = ?');
+        values.push(input.content);
+      }
 
-    if (input.status !== undefined) {
-      fields.push('status = ?');
-      values.push(input.status);
-    }
+      if (input.status !== undefined) {
+        fields.push('status = ?');
+        values.push(input.status);
+      }
 
-    fields.push('updated_at = ?');
-    values.push(now());
+      fields.push('updated_at = ?');
+      values.push(now());
 
-    values.push(input.id);
+      values.push(input.id);
 
-    if (fields.length > 0) {
-      await execute(
-        `UPDATE message_blocks SET ${fields.join(', ')} WHERE id = ?`,
-        values
-      );
-    }
+      if (fields.length > 0) {
+        await execute(
+          `UPDATE message_blocks SET ${fields.join(', ')} WHERE id = ?`,
+          values
+        );
+      }
+    });
   },
 
   /**
    * 根据块 ID 获取块
    */
   async getBlockById(id: string): Promise<MessageBlock | null> {
-    const row = await queryOne<any>(
-      `SELECT * FROM message_blocks WHERE id = ?`,
-      [id]
-    );
+    return withRepositoryContext('MessageBlocksRepository', 'getBlockById', {
+      blockId: id,
+      table: 'message_blocks'
+    }, async () => {
+      const row = await queryOne<any>(
+        `SELECT * FROM message_blocks WHERE id = ?`,
+        [id]
+      );
 
-    if (!row) return null;
+      if (!row) return null;
 
-    return this._mapRowToBlock(row);
+      return this._mapRowToBlock(row);
+    });
   },
 
   /**
@@ -121,26 +138,36 @@ export const MessageBlocksRepository = {
    * （工具回调时使用）
    */
   async getBlockByToolCallId(toolCallId: string): Promise<MessageBlock | null> {
-    const row = await queryOne<any>(
-      `SELECT * FROM message_blocks WHERE tool_call_id = ?`,
-      [toolCallId]
-    );
+    return withRepositoryContext('MessageBlocksRepository', 'getBlockByToolCallId', {
+      toolCallId,
+      table: 'message_blocks'
+    }, async () => {
+      const row = await queryOne<any>(
+        `SELECT * FROM message_blocks WHERE tool_call_id = ?`,
+        [toolCallId]
+      );
 
-    if (!row) return null;
+      if (!row) return null;
 
-    return this._mapRowToBlock(row);
+      return this._mapRowToBlock(row);
+    });
   },
 
   /**
    * 获取消息的所有块（按 sortOrder 排序）
    */
   async getBlocksByMessageId(messageId: string): Promise<MessageBlock[]> {
-    const rows = await queryAll<any>(
-      `SELECT * FROM message_blocks WHERE message_id = ? ORDER BY sort_order ASC`,
-      [messageId]
-    );
+    return withRepositoryContext('MessageBlocksRepository', 'getBlocksByMessageId', {
+      messageId,
+      table: 'message_blocks'
+    }, async () => {
+      const rows = await queryAll<any>(
+        `SELECT * FROM message_blocks WHERE message_id = ? ORDER BY sort_order ASC`,
+        [messageId]
+      );
 
-    return rows.map(row => this._mapRowToBlock(row));
+      return rows.map(row => this._mapRowToBlock(row));
+    });
   },
 
   /**
@@ -148,51 +175,71 @@ export const MessageBlocksRepository = {
    * （用于消息列表加载，提升性能）
    */
   async getBlocksByMessageIds(messageIds: string[]): Promise<Map<string, MessageBlock[]>> {
-    if (messageIds.length === 0) return new Map();
+    return withRepositoryContext('MessageBlocksRepository', 'getBlocksByMessageIds', {
+      messageCount: messageIds.length,
+      table: 'message_blocks'
+    }, async () => {
+      if (messageIds.length === 0) return new Map();
 
-    const placeholders = messageIds.map(() => '?').join(',');
-    const rows = await queryAll<any>(
-      `SELECT * FROM message_blocks WHERE message_id IN (${placeholders}) ORDER BY sort_order ASC`,
-      messageIds
-    );
+      const placeholders = messageIds.map(() => '?').join(',');
+      const rows = await queryAll<any>(
+        `SELECT * FROM message_blocks WHERE message_id IN (${placeholders}) ORDER BY sort_order ASC`,
+        messageIds
+      );
 
-    const map = new Map<string, MessageBlock[]>();
-    for (const row of rows) {
-      const block = this._mapRowToBlock(row);
-      const messageId = row.message_id;
+      const map = new Map<string, MessageBlock[]>();
+      for (const row of rows) {
+        const block = this._mapRowToBlock(row);
+        const messageId = row.message_id;
 
-      if (!map.has(messageId)) {
-        map.set(messageId, []);
+        if (!map.has(messageId)) {
+          map.set(messageId, []);
+        }
+        map.get(messageId)!.push(block);
       }
-      map.get(messageId)!.push(block);
-    }
 
-    return map;
+      return map;
+    });
   },
 
   /**
    * 删除块
    */
   async deleteBlock(id: string): Promise<void> {
-    await execute(`DELETE FROM message_blocks WHERE id = ?`, [id]);
+    return withRepositoryContext('MessageBlocksRepository', 'deleteBlock', {
+      blockId: id,
+      table: 'message_blocks'
+    }, async () => {
+      await execute(`DELETE FROM message_blocks WHERE id = ?`, [id]);
+    });
   },
 
   /**
    * 删除消息的所有块
    */
   async deleteBlocksByMessageId(messageId: string): Promise<void> {
-    await execute(`DELETE FROM message_blocks WHERE message_id = ?`, [messageId]);
+    return withRepositoryContext('MessageBlocksRepository', 'deleteBlocksByMessageId', {
+      messageId,
+      table: 'message_blocks'
+    }, async () => {
+      await execute(`DELETE FROM message_blocks WHERE message_id = ?`, [messageId]);
+    });
   },
 
   /**
    * 获取消息的块数量
    */
   async getBlockCountByMessageId(messageId: string): Promise<number> {
-    const row = await queryOne<{ count: number }>(
-      `SELECT COUNT(*) as count FROM message_blocks WHERE message_id = ?`,
-      [messageId]
-    );
-    return row?.count || 0;
+    return withRepositoryContext('MessageBlocksRepository', 'getBlockCountByMessageId', {
+      messageId,
+      table: 'message_blocks'
+    }, async () => {
+      const row = await queryOne<{ count: number }>(
+        `SELECT COUNT(*) as count FROM message_blocks WHERE message_id = ?`,
+        [messageId]
+      );
+      return row?.count || 0;
+    });
   },
 
   /**
@@ -200,11 +247,16 @@ export const MessageBlocksRepository = {
    * （用于添加新块时确定排序位置）
    */
   async getNextSortOrder(messageId: string): Promise<number> {
-    const row = await queryOne<{ max_order: number | null }>(
-      `SELECT MAX(sort_order) as max_order FROM message_blocks WHERE message_id = ?`,
-      [messageId]
-    );
-    return (row?.max_order ?? -1) + 1;
+    return withRepositoryContext('MessageBlocksRepository', 'getNextSortOrder', {
+      messageId,
+      table: 'message_blocks'
+    }, async () => {
+      const row = await queryOne<{ max_order: number | null }>(
+        `SELECT MAX(sort_order) as max_order FROM message_blocks WHERE message_id = ?`,
+        [messageId]
+      );
+      return (row?.max_order ?? -1) + 1;
+    });
   },
 
   /**

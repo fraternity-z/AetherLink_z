@@ -3,6 +3,8 @@ import { Platform, Linking } from 'react-native';
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 import type { PermissionStatus } from 'expo-modules-core';
 import { logger } from '@/utils/logger';
+import { PermissionError } from '@/utils/errors';
+import { ErrorCode } from '@/utils/error-codes';
 
 /**
  * 麦克风权限管理 Hook
@@ -21,7 +23,13 @@ export function useMicrophonePermission() {
         setPermissionStatus(response.status);
         logger.debug('[MicrophonePermission] Initial status:', response.status);
       } catch (error) {
-        logger.error('[MicrophonePermission] Initial check failed:', error);
+        const permError = new PermissionError(
+          '无法检查麦克风权限状态',
+          ErrorCode.PERM_ERR_CHECK,
+          { platform: Platform.OS },
+          error instanceof Error ? error : undefined
+        );
+        logger.error('[MicrophonePermission] Initial check failed', permError, permError.getContext());
       } finally {
         setIsLoading(false);
       }
@@ -38,7 +46,13 @@ export function useMicrophonePermission() {
       setPermissionStatus(response.status);
       return response.status === 'granted';
     } catch (error) {
-      logger.error('[MicrophonePermission] Check failed:', error);
+      const permError = new PermissionError(
+        '检查麦克风权限失败',
+        ErrorCode.PERM_ERR_CHECK,
+        { platform: Platform.OS },
+        error instanceof Error ? error : undefined
+      );
+      logger.error('[MicrophonePermission] Check failed', permError, permError.getContext());
       return false;
     }
   };
@@ -53,14 +67,26 @@ export function useMicrophonePermission() {
       setPermissionStatus(response.status);
 
       if (response.status === 'granted') {
+        logger.info('[MicrophonePermission] Permission granted', {
+          platform: Platform.OS,
+        });
         return true;
       } else if (response.status === 'denied') {
-        logger.warn('[MicrophonePermission] Permission denied');
+        logger.warn('[MicrophonePermission] Permission denied by user', {
+          platform: Platform.OS,
+          status: response.status,
+        });
       }
 
       return false;
     } catch (error) {
-      logger.error('[MicrophonePermission] Request failed:', error);
+      const permError = new PermissionError(
+        '请求麦克风权限失败',
+        ErrorCode.PERM_ERR_REQUEST,
+        { platform: Platform.OS },
+        error instanceof Error ? error : undefined
+      );
+      logger.error('[MicrophonePermission] Request failed', permError, permError.getContext());
       return false;
     }
   };
@@ -75,9 +101,17 @@ export function useMicrophonePermission() {
       } else {
         await Linking.openSettings();
       }
-      logger.debug('[MicrophonePermission] Opened settings');
+      logger.info('[MicrophonePermission] Opened system settings', {
+        platform: Platform.OS,
+      });
     } catch (error) {
-      logger.error('[MicrophonePermission] Failed to open settings:', error);
+      const permError = new PermissionError(
+        '无法打开系统设置页面',
+        ErrorCode.PERM_ERR_SETTINGS,
+        { platform: Platform.OS },
+        error instanceof Error ? error : undefined
+      );
+      logger.error('[MicrophonePermission] Failed to open settings', permError, permError.getContext());
     }
   };
 

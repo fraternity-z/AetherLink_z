@@ -13,8 +13,10 @@ import React, { useState, useRef, useCallback } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { WebView } from 'react-native-webview';
+import { Asset } from 'expo-asset';
 import { mathJaxCache } from '@/utils/render-cache';
 import { logger } from '@/utils/logger';
+import mathJaxBundle from '@/assets/mathjax/tex-mml-chtml.jsbundle';
 
 export interface MathFormula {
   id: string;
@@ -28,10 +30,12 @@ export interface MathJaxRendererProps {
   onError?: (error: string) => void;
 }
 
+const mathJaxAsset = Asset.fromModule(mathJaxBundle);
+
 /**
  * MathJax HTML 模板
  */
-const MATHJAX_TEMPLATE = (theme: 'light' | 'dark', baseFontPx: number) => `
+const MATHJAX_TEMPLATE = (theme: 'light' | 'dark', baseFontPx: number, mathJaxSrc: string) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -63,7 +67,7 @@ const MATHJAX_TEMPLATE = (theme: 'light' | 'dark', baseFontPx: number) => `
       }
     };
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script src="${mathJaxSrc}"></script>
   <style>
     body {
       margin: 0;
@@ -218,6 +222,36 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [formulaHeights, setFormulaHeights] = useState<{ [key: string]: number }>({});
+  const [mathJaxUri, setMathJaxUri] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const loadMathJaxAsset = async () => {
+      try {
+        if (!mathJaxAsset.downloaded) {
+          await mathJaxAsset.downloadAsync();
+        }
+        const uri = mathJaxAsset.localUri ?? mathJaxAsset.uri;
+        if (!uri) {
+          throw new Error('MathJax asset missing URI');
+        }
+        if (isMounted) {
+          setMathJaxUri(uri);
+        }
+      } catch (assetError) {
+        logger.error('Failed to load MathJax asset:', assetError);
+        const message = 'MathJax 资源加载失败';
+        setError(message);
+        onError?.(message);
+        setIsLoading(false);
+      }
+    };
+
+    loadMathJaxAsset();
+    return () => {
+      isMounted = false;
+    };
+  }, [onError]);
 
   // 生成缓存键
   const cacheKey = React.useMemo(() => {
@@ -313,8 +347,11 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
   // 生成 HTML 内容
   const baseFontSize = (theme as any)?.fonts?.bodyMedium?.fontSize ?? 16;
   const htmlContent = React.useMemo(() => {
-    return MATHJAX_TEMPLATE(theme.dark ? 'dark' : 'light', baseFontSize);
-  }, [theme.dark, baseFontSize]);
+    if (!mathJaxUri) {
+      return null;
+    }
+    return MATHJAX_TEMPLATE(theme.dark ? 'dark' : 'light', baseFontSize, mathJaxUri);
+  }, [theme.dark, baseFontSize, mathJaxUri]);
 
   if (error) {
     return (
@@ -328,6 +365,8 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
       </View>
     );
   }
+
+  const fallbackHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body></body></html>';
 
   return (
     <View style={styles.container}>
@@ -346,7 +385,7 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
 
       <WebView
         ref={webViewRef}
-        source={{ html: htmlContent }}
+        source={{ html: htmlContent ?? fallbackHtml }}
         style={[styles.webView, { height: Object.values(formulaHeights).reduce((sum, h) => sum + h, 0) || 1 }]}
         onMessage={handleMessage}
         javaScriptEnabled={true}
@@ -356,6 +395,8 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
         scrollEnabled={false}
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
+        allowFileAccess={true}
+        allowFileAccessFromFileURLs={true}
         onError={(syntheticEvent) => {
           const { nativeEvent } = syntheticEvent;
           logger.error('WebView error:', nativeEvent);

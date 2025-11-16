@@ -6,9 +6,10 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 import { ProviderKeyManagementRepository } from '@/storage/repositories/provider-key-management';
 import { ApiKeyManager } from './ApiKeyManager';
-import { ImageGenerationError, ImageModelResolutionError } from './utils/errors';
+import { ImageGenerationError, ImageModelResolutionError } from '@/utils/errors';
 import { describeModelCapabilities } from './capabilities/ModelCapabilities';
 import { logger } from '@/utils/logger';
+import { withAiServiceContext } from './error-handler';
 
 export type Provider = ProviderId;
 
@@ -73,35 +74,37 @@ function getErrorMessage(error: unknown): string {
 async function getApiKeyWithManagement(
   provider: Provider
 ): Promise<{ key: string; keyId?: string }> {
-  // 统一使用 ProvidersRepository 获取所有提供商的 API Key
-  const normalizedProvider = provider === 'gemini' ? 'google' : provider;
+  return withAiServiceContext('AiClient', 'getApiKeyWithManagement', { provider }, async () => {
+    // 统一使用 ProvidersRepository 获取所有提供商的 API Key
+    const normalizedProvider = provider === 'gemini' ? 'google' : provider;
 
-  // 检查是否启用多 Key 模式
-  const isMultiKeyEnabled =
-    await ProviderKeyManagementRepository.isMultiKeyEnabled(normalizedProvider);
+    // 检查是否启用多 Key 模式
+    const isMultiKeyEnabled =
+      await ProviderKeyManagementRepository.isMultiKeyEnabled(normalizedProvider);
 
-  if (!isMultiKeyEnabled) {
-    // 单 Key 模式：使用传统方式
-    const key = (await ProvidersRepository.getApiKey(normalizedProvider)) ?? '';
-    logger.info('[AiClient] 使用单 Key 模式', { provider: normalizedProvider });
-    return { key };
-  }
+    if (!isMultiKeyEnabled) {
+      // 单 Key 模式：使用传统方式
+      const key = (await ProvidersRepository.getApiKey(normalizedProvider)) ?? '';
+      logger.info('[AiClient] 使用单 Key 模式', { provider: normalizedProvider });
+      return { key };
+    }
 
-  // 多 Key 模式：使用 ApiKeyManager 选择
-  const manager = ApiKeyManager.getInstance();
-  const result = await manager.selectApiKey(normalizedProvider);
+    // 多 Key 模式：使用 ApiKeyManager 选择
+    const manager = ApiKeyManager.getInstance();
+    const result = await manager.selectApiKey(normalizedProvider);
 
-  if (result.key) {
-    logger.info('[AiClient] 使用多 Key 模式', {
-      provider: normalizedProvider,
-      keyId: result.key.id,
-      keyName: result.key.name,
-      reason: result.reason,
-    });
-    return { key: result.key.key, keyId: result.key.id };
-  }
+    if (result.key) {
+      logger.info('[AiClient] 使用多 Key 模式', {
+        provider: normalizedProvider,
+        keyId: result.key.id,
+        keyName: result.key.name,
+        reason: result.reason,
+      });
+      return { key: result.key.key, keyId: result.key.id };
+    }
 
-  throw new Error(`没有可用的 API Key: ${result.reason}`);
+    throw new Error(`没有可用的 API Key: ${result.reason}`);
+  });
 }
 
 /**

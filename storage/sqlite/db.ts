@@ -1,6 +1,7 @@
 import { openDatabaseSync, SQLiteDatabase } from 'expo-sqlite';
 import { MIGRATION_0001 } from '@/storage/sqlite/migrations/0001_init';
 import { MIGRATION_0002 } from '@/storage/sqlite/migrations/0002_multi_key';
+import { withDatabaseErrorHandler, withTransactionErrorHandler } from '@/storage/sqlite/error-handler';
 
 let dbInstance: SQLiteDatabase | null = null;
 let dbOperationQueue: Promise<unknown> = Promise.resolve();
@@ -20,54 +21,79 @@ function runSerialized<T>(operation: (db: SQLiteDatabase) => Promise<T>): Promis
 }
 
 export async function initMigrations(): Promise<void> {
-  await runSerialized(async (db) => {
-    // PRAGMA 语句应该在事务外执行
-    await db.execAsync('PRAGMA foreign_keys = ON;');
+  await withTransactionErrorHandler(
+    '数据库迁移初始化',
+    () => runSerialized(async (db) => {
+      // PRAGMA 语句应该在事务外执行
+      await db.execAsync('PRAGMA foreign_keys = ON;');
 
-    // 应用 MIGRATION_0001
-    const stmts0001 = MIGRATION_0001.split(';').map(s => s.trim()).filter(Boolean);
+      // 应用 MIGRATION_0001
+      const stmts0001 = MIGRATION_0001.split(';').map(s => s.trim()).filter(Boolean);
 
-    await db.withTransactionAsync(async () => {
-      for (const sql of stmts0001) {
-        await db.execAsync(sql + ';');
-      }
-    });
+      await db.withTransactionAsync(async () => {
+        for (const sql of stmts0001) {
+          await db.execAsync(sql + ';');
+        }
+      });
 
-    // 补丁：对已存在的历史库进行列修复（避免 no such column: is_active）
-    await ensureMcpServersSchema(db);
+      // 补丁：对已存在的历史库进行列修复（避免 no such column: is_active）
+      await ensureMcpServersSchema(db);
 
-    // 应用 MIGRATION_0002（多 Key 轮询功能）
-    const stmts0002 = MIGRATION_0002.split(';').map(s => s.trim()).filter(Boolean);
+      // 应用 MIGRATION_0002（多 Key 轮询功能）
+      const stmts0002 = MIGRATION_0002.split(';').map(s => s.trim()).filter(Boolean);
 
-    await db.withTransactionAsync(async () => {
-      for (const sql of stmts0002) {
-        await db.execAsync(sql + ';');
-      }
-    });
-  });
+      await db.withTransactionAsync(async () => {
+        for (const sql of stmts0002) {
+          await db.execAsync(sql + ';');
+        }
+      });
+    })
+  );
 }
 
 export async function queryAll<T = any>(sql: string, args: any[] = []): Promise<T[]> {
-  return runSerialized(async (db) => {
-    if (args.length > 0) return db.getAllAsync<T>(sql, args as any);
-    return db.getAllAsync<T>(sql);
-  });
+  return withDatabaseErrorHandler(
+    'query',
+    () => runSerialized(async (db) => {
+      if (args.length > 0) return db.getAllAsync<T>(sql, args as any);
+      return db.getAllAsync<T>(sql);
+    }),
+    sql
+  );
 }
 
 export async function queryOne<T = any>(sql: string, args: any[] = []): Promise<T | null> {
-  return runSerialized(async (db) => {
-    const result = args.length > 0
-      ? await db.getFirstAsync<T>(sql, args as any)
-      : await db.getFirstAsync<T>(sql);
-    return result || null;
-  });
+  return withDatabaseErrorHandler(
+    'query',
+    () => runSerialized(async (db) => {
+      const result = args.length > 0
+        ? await db.getFirstAsync<T>(sql, args as any)
+        : await db.getFirstAsync<T>(sql);
+      return result || null;
+    }),
+    sql
+  );
 }
 
 export async function execute(sql: string, args: any[] = []): Promise<{ changes: number }> {
-  return runSerialized(async (db) => {
-    const result = await db.runAsync(sql, args as any);
-    return { changes: result.changes || 0 };
-  });
+  // 根据 SQL 语句判断操作类型
+  const sqlLower = sql.trim().toLowerCase();
+  const operation = sqlLower.startsWith('insert')
+    ? 'insert'
+    : sqlLower.startsWith('update')
+    ? 'update'
+    : sqlLower.startsWith('delete')
+    ? 'delete'
+    : 'execute';
+
+  return withDatabaseErrorHandler(
+    operation,
+    () => runSerialized(async (db) => {
+      const result = await db.runAsync(sql, args as any);
+      return { changes: result.changes || 0 };
+    }),
+    sql
+  );
 }
 
 /**

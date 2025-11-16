@@ -97,7 +97,7 @@ export {
 export {
   ImageGenerationError,
   ImageModelResolutionError,
-} from './utils/errors';
+} from '@/utils/errors';
 
 export {
   autoNameConversation,

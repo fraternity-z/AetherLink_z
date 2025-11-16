@@ -5,15 +5,13 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Stack, useLocalSearchParams, router } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import {
   Surface,
   Text,
   List,
   Button,
-  FAB,
   Snackbar,
-  Portal,
   useTheme,
   Chip,
   Switch,
@@ -21,12 +19,7 @@ import {
   Divider,
 } from 'react-native-paper';
 import { ProviderKeysRepository } from '@/storage/repositories/provider-keys';
-import { ProviderKeyManagementRepository } from '@/storage/repositories/provider-key-management';
-import type {
-  ApiKeyConfig,
-  KeyStats,
-  LoadBalanceStrategy,
-} from '@/storage/types/api-key-config';
+import type { ApiKeyConfig, KeyStats } from '@/storage/types/api-key-config';
 import type { ProviderId } from '@/storage/repositories/providers';
 import { maskApiKey } from '@/utils/mask-api-key';
 import { logger } from '@/utils/logger';
@@ -38,7 +31,6 @@ export default function ProviderKeysManagement() {
 
   const [keys, setKeys] = useState<ApiKeyConfig[]>([]);
   const [stats, setStats] = useState<KeyStats | null>(null);
-  const [strategy, setStrategy] = useState<LoadBalanceStrategy>('round_robin');
   const [snackbar, setSnackbar] = useState<{ visible: boolean; message: string }>({
     visible: false,
     message: '',
@@ -65,20 +57,10 @@ export default function ProviderKeysManagement() {
     }
   }, [providerId]);
 
-  const loadStrategy = useCallback(async () => {
-    try {
-      const strategyData = await ProviderKeyManagementRepository.getStrategy(providerId);
-      setStrategy(strategyData);
-    } catch (error) {
-      logger.error('[KeysManagement] 加载策略失败', error);
-    }
-  }, [providerId]);
-
   useEffect(() => {
     loadKeys();
     loadStats();
-    loadStrategy();
-  }, [loadKeys, loadStats, loadStrategy]);
+  }, [loadKeys, loadStats]);
 
   // 切换启用/禁用
   const handleToggleEnabled = async (keyId: string, isEnabled: boolean) => {
@@ -170,6 +152,8 @@ export default function ProviderKeysManagement() {
     const maskedKey = maskApiKey(key.key);
     const statusColor =
       key.status === 'active' ? '#22c55e' : key.status === 'error' ? '#ef4444' : '#94a3b8';
+    const statusLabel =
+      key.status === 'active' ? '正常' : key.status === 'error' ? '错误' : '未知';
 
     return (
       <View key={key.id}>
@@ -203,6 +187,9 @@ export default function ProviderKeysManagement() {
               <Text variant="bodySmall" style={{ opacity: 0.7 }}>
                 请求: {key.usage.totalRequests} | 成功: {key.usage.successfulRequests} | 失败:{' '}
                 {key.usage.failedRequests}
+              </Text>
+              <Text variant="bodySmall" style={{ color: statusColor, marginTop: 4 }}>
+                状态: {statusLabel}
               </Text>
             </View>
           </View>
@@ -267,7 +254,7 @@ export default function ProviderKeysManagement() {
                 暂无 API Key
               </Text>
               <Text variant="bodySmall" style={{ opacity: 0.5, marginTop: 4 }}>
-                点击右上角"添加 Key"按钮添加
+                点击右上角 &quot;添加 Key&quot; 按钮添加
               </Text>
             </View>
           ) : (
