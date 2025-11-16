@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, StyleSheet } from 'react-native';
+import { ScrollView, View, StyleSheet } from 'react-native';
 import { Avatar, Button, HelperText, List, SegmentedButtons, Surface, Switch, Text, TextInput, useTheme, Snackbar, Portal } from 'react-native-paper';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 import { ProviderKeyManagementRepository } from '@/storage/repositories/provider-key-management';
@@ -141,7 +141,7 @@ export default function ProviderConfig() {
   // 取消右上角保存按钮：改为实时保存
 
   return (
-    <View style={{ flex: 1 }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
       <Stack.Screen options={{ title: meta.name }} />
 
       {/* 顶部名片 */}
@@ -378,7 +378,7 @@ export default function ProviderConfig() {
       >
         {saveStatus.message}
       </Snackbar>
-    </View>
+    </ScrollView>
   );
 }
 

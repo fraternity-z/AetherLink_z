@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { View, StyleSheet } from 'react-native';
+import { ScrollView, View, StyleSheet } from 'react-native';
 import { Avatar, Button, HelperText, List, SegmentedButtons, Surface, Switch, Text, TextInput, useTheme, Snackbar, Portal } from 'react-native-paper';
 import { CustomProvidersRepository, type CustomProvider } from '@/storage/repositories/custom-providers';
 import { ProviderModelsRepository } from '@/storage/repositories/provider-models';
@@ -52,7 +52,7 @@ export default function CustomProviderConfig() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
       <Stack.Screen options={{ title: cp?.name || '自定义提供商' }} />
 
       {/* 顶部名片 */}
@@ -181,7 +181,7 @@ export default function CustomProviderConfig() {
 
       {/* 保存状态提示 */}
       <Snackbar visible={saveStatus.visible} onDismiss={() => setSaveStatus({ visible: false, message: '' })} duration={2000} style={{ marginBottom: 20 }}>{saveStatus.message}</Snackbar>
-    </View>
+    </ScrollView>
   );
 }
 

@@ -33,7 +33,9 @@
       "Bash(find:*)",
       "Bash(tree:*)",
       "Bash(npx @modelcontextprotocol/inspector:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(echo:*)",
+      "Bash(npm outdated:*)"
     ],
     "deny": [],
     "ask": []

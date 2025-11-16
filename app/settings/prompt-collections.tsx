@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Alert } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Text, Button, Searchbar, Chip, Card, useTheme, Divider, IconButton } from 'react-native-paper';
 import { SettingScreen } from '@/components/settings/SettingScreen';
 import { SYSTEM_ASSISTANTS } from '@/constants/assistants';
 import type { Assistant } from '@/types/assistant';
+import * as Clipboard from 'expo-clipboard';
+import { logger } from '@/utils/logger';
 
 /**
  * 智能体提示词集合页面
@@ -156,8 +158,14 @@ export default function PromptCollections() {
                 <Button
                   mode="contained"
                   icon="content-copy"
-                  onPress={() => {
-                    // TODO: 复制提示词到剪贴板
+                  onPress={async () => {
+                    try {
+                      await Clipboard.setStringAsync(assistant.systemPrompt!);
+                      Alert.alert('已复制', '系统提示词已复制到剪贴板');
+                    } catch (error) {
+                      logger.error('[PromptCollections] Copy prompt failed', error);
+                      Alert.alert('复制失败', '请稍后再试');
+                    }
                   }}
                   style={styles.actionButton}
                 >
