@@ -48,7 +48,7 @@ export default function ChatScreen() {
       }
     }, {
       showDialog: false, // 静默失败，不打扰用户
-      shouldLog: true,
+      logError: true,
     })();
   }, [settingsRepo, withErrorHandler]);
 
@@ -96,7 +96,7 @@ export default function ChatScreen() {
         keyboardVerticalOffset={keyboardVerticalOffset}
       >
         <ChatBackground>
-          <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+          <View style={[styles.container, { backgroundColor: 'transparent' }]}>
             {/* 顶部导航栏 */}
             <ChatHeader
               onMenuPress={handleMenuPress}

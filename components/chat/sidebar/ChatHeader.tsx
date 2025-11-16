@@ -51,7 +51,7 @@ export function ChatHeader({ onMenuPress, onTopicsPress, onModelPickerPress }: C
   }, []);
 
   return (
-    <Appbar.Header style={{ backgroundColor: theme.colors.background }}>
+    <Appbar.Header style={{ backgroundColor: 'transparent' }}>
       <Appbar.Action
         icon="menu"
         onPress={() => {

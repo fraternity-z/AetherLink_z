@@ -62,8 +62,8 @@ function MessageListComponent({ conversationId }: MessageListProps) {
   // 列表数据：按时间顺序（最新在底部）
   const data = useMemo(() => items, [items]);
   const listStyle = useMemo(
-    () => StyleSheet.flatten([styles.container, { backgroundColor: theme.colors.background }]),
-    [theme.colors.background]
+    () => StyleSheet.flatten([styles.container, { backgroundColor: 'transparent' }]),
+    []
   );
 
   // 🚀 性能优化：缓存消息 ID 列表的字符串，避免每次重新计算

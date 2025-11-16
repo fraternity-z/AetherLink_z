@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ImageBackground, StyleSheet, View, Alert } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
+import { ActivityIndicator, useTheme } from 'react-native-paper';
 import { useBackgroundSettings } from '@/hooks/use-background-settings';
 import { logger } from '@/utils/logger';
 
@@ -13,8 +13,16 @@ interface ChatBackgroundProps {
  * 根据用户设置渲染自定义背景图片
  */
 export function ChatBackground({ children }: ChatBackgroundProps) {
+  const theme = useTheme();
   const { settings, updateImagePath } = useBackgroundSettings();
   const [isLoading, setIsLoading] = useState(false);
+
+  // 调试信息：打印背景设置状态
+  logger.debug('ChatBackground render', {
+    enabled: settings.enabled,
+    imagePath: settings.imagePath,
+    opacity: settings.opacity,
+  });
 
   /**
    * 处理图片加载失败
@@ -57,9 +65,13 @@ export function ChatBackground({ children }: ChatBackgroundProps) {
     setIsLoading(false);
   };
 
-  // 未启用或无图片路径时，直接渲染子组件
+  // 未启用或无图片路径时，显示默认主题背景色
   if (!settings.enabled || !settings.imagePath) {
-    return <>{children}</>;
+    return (
+      <View style={[styles.background, { backgroundColor: theme.colors.background }]}>
+        {children}
+      </View>
+    );
   }
 
   return (
