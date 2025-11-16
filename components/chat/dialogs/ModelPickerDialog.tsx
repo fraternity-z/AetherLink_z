@@ -2,17 +2,19 @@
  * 🤖 AI模型选择器对话框（基于 UnifiedDialog）
  */
 
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
-import { useTheme, Text, ActivityIndicator } from 'react-native-paper';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { useTheme, Text, ActivityIndicator, Divider } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { ProviderModelsRepository } from '@/storage/repositories/provider-models';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
+import { CustomProvidersRepository } from '@/storage/repositories/custom-providers';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import { UnifiedDialog } from '@/components/common/UnifiedDialog';
 
 type Props = { visible: boolean; onDismiss: () => void };
 
+// 提供商元数据（预设提供商）
 const PROVIDER_META: Record<ProviderId, { name: string; icon: string; color: string }> = {
   openai: { name: 'OpenAI', icon: 'robot', color: '#10A37F' },
   anthropic: { name: 'Anthropic', icon: 'account-voice', color: '#CC785C' },
@@ -23,58 +25,130 @@ const PROVIDER_META: Record<ProviderId, { name: string; icon: string; color: str
   zhipu: { name: '智谱AI', icon: 'alpha-z-circle', color: '#6366F1' },
 };
 
+// 自定义提供商类型对应的图标
+const CUSTOM_TYPE_META: Record<string, { icon: string; color: string }> = {
+  'openai-compatible': { icon: 'api', color: '#8B5CF6' },
+  'anthropic': { icon: 'account-voice', color: '#CC785C' },
+  'google': { icon: 'google', color: '#4285F4' },
+};
+
+// 统一的提供商信息类型
+interface ProviderInfo {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  isCustom: boolean;
+  enabled: boolean;
+  models: { id: string; label: string }[];
+}
+
 export function ModelPickerDialog({ visible, onDismiss }: Props) {
   const theme = useTheme();
 
-  const [selected, setSelected] = useState<{ provider: ProviderId; model: string } | null>(null);
-  const [models, setModels] = useState<Record<ProviderId, { id: string; label: string }[]>>({} as any);
-  const [enabledProviders, setEnabledProviders] = useState<ProviderId[]>([]);
+  const [selected, setSelected] = useState<{ provider: string; model: string } | null>(null);
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [selectedTab, setSelectedTab] = useState<string>('all'); // 'all' 或提供商ID
   const [isLoading, setIsLoading] = useState(true);
+
+  const loadModels = useCallback(async () => {
+    const presetProviderIds: ProviderId[] = ['openai', 'anthropic', 'gemini', 'google', 'deepseek', 'volc', 'zhipu'];
+    const allProviders: ProviderInfo[] = [];
+
+    // 1. 加载预设提供商
+    for (const p of presetProviderIds) {
+      const cfg = await ProvidersRepository.getConfig(p);
+      if (!cfg.enabled) continue;
+
+      const models = await ProviderModelsRepository.listOrDefaults(p);
+      const meta = PROVIDER_META[p] || { name: p, icon: 'help', color: theme.colors.primary };
+
+      allProviders.push({
+        id: p,
+        name: meta.name,
+        icon: meta.icon,
+        color: meta.color,
+        isCustom: false,
+        enabled: true,
+        models: models.map((m) => ({ id: m.modelId, label: m.label || m.modelId })),
+      });
+    }
+
+    // 2. 加载自定义提供商
+    const customProviders = await CustomProvidersRepository.list();
+    for (const cp of customProviders) {
+      if (!cp.enabled) continue;
+
+      const models = await ProviderModelsRepository.listOrDefaults(cp.id);
+      const typeMeta = CUSTOM_TYPE_META[cp.type] || { icon: 'api', color: '#8B5CF6' };
+
+      allProviders.push({
+        id: cp.id,
+        name: cp.name,
+        icon: typeMeta.icon,
+        color: typeMeta.color,
+        isCustom: true,
+        enabled: true,
+        models: models.map((m) => ({ id: m.modelId, label: m.label || m.modelId })),
+      });
+    }
+
+    // 3. 如果没有启用的提供商，默认添加 OpenAI
+    if (allProviders.length === 0) {
+      const models = await ProviderModelsRepository.listOrDefaults('openai');
+      const meta = PROVIDER_META['openai'];
+      allProviders.push({
+        id: 'openai',
+        name: meta.name,
+        icon: meta.icon,
+        color: meta.color,
+        isCustom: false,
+        enabled: true,
+        models: models.map((m) => ({ id: m.modelId, label: m.label || m.modelId })),
+      });
+    }
+
+    setProviders(allProviders);
+
+    // 4. 恢复当前选中的提供商和模型
+    const sr = SettingsRepository();
+    const curProvider = (await sr.get<string>(SettingKey.DefaultProvider)) || allProviders[0].id;
+    const curModel = (await sr.get<string>(SettingKey.DefaultModel)) || allProviders[0].models[0]?.id || 'gpt-4o-mini';
+    setSelected({ provider: curProvider, model: curModel });
+
+    // 5. 设置默认选中的标签为当前提供商
+    setSelectedTab(curProvider);
+
+    setIsLoading(false);
+  }, [theme.colors.primary]);
 
   useEffect(() => {
     if (visible) {
       setIsLoading(true);
       void loadModels();
     }
-  }, [visible]);
+  }, [visible, loadModels]);
 
-  const loadModels = async () => {
-    const providers: ProviderId[] = ['openai', 'anthropic', 'gemini', 'google', 'deepseek', 'volc', 'zhipu'];
-    const enabled: ProviderId[] = [];
-
-    for (const p of providers) {
-      const cfg = await ProvidersRepository.getConfig(p);
-      if (cfg.enabled) enabled.push(p);
-    }
-
-    if (enabled.length === 0) enabled.push('openai');
-    setEnabledProviders(enabled);
-
-    // 构建扁平的模型列表
-    const map: Record<ProviderId, { id: string; label: string; provider: ProviderId }[]> = {} as any;
-    for (const p of enabled) {
-      const list = await ProviderModelsRepository.listOrDefaults(p);
-      map[p] = list.map((m) => ({
-        id: m.modelId,
-        label: m.label || m.modelId,
-        provider: p,
-      }));
-    }
-    setModels(map);
-
-    const sr = SettingsRepository();
-    const curProvider = ((await sr.get<string>(SettingKey.DefaultProvider)) as ProviderId) || enabled[0];
-    const curModel = (await sr.get<string>(SettingKey.DefaultModel)) || (map[curProvider]?.[0]?.id ?? 'gpt-4o-mini');
-    setSelected({ provider: curProvider, model: curModel });
-    setIsLoading(false);
-  };
-
-  const selectAndSave = async (provider: ProviderId, model: string) => {
+  const selectAndSave = async (provider: string, model: string) => {
     setSelected({ provider, model });
     const sr = SettingsRepository();
     await sr.set(SettingKey.DefaultProvider, provider);
     await sr.set(SettingKey.DefaultModel, model);
   };
+
+  // 根据选中的标签筛选模型
+  const displayedModels = React.useMemo(() => {
+    if (selectedTab === 'all') {
+      // 显示所有提供商的所有模型
+      return providers.flatMap((p) =>
+        p.models.map((m) => ({ ...m, provider: p }))
+      );
+    } else {
+      // 显示选中提供商的模型
+      const provider = providers.find((p) => p.id === selectedTab);
+      return provider ? provider.models.map((m) => ({ ...m, provider })) : [];
+    }
+  }, [selectedTab, providers]);
 
   return (
     <UnifiedDialog
@@ -91,16 +165,74 @@ export function ModelPickerDialog({ visible, onDismiss }: Props) {
             <Text style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>加载模型列表...</Text>
           </View>
         ) : (
-          <View style={styles.listContainer}>
-            {/* 扁平化的模型列表 */}
-            {enabledProviders.flatMap((p) =>
-              (models[p] || []).map((m) => {
-                const isSelected = selected?.provider === p && selected?.model === m.id;
-                const providerMeta = PROVIDER_META[p] || { name: p, icon: 'help', color: theme.colors.primary };
+          <>
+            {/* 顶部横向滚动的标签栏 */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.tabsContainer}
+              contentContainerStyle={styles.tabsContent}
+            >
+              {/* "全部" 标签 */}
+              <Pressable
+                onPress={() => setSelectedTab('all')}
+                style={({ pressed }) => [
+                  styles.tab,
+                  selectedTab === 'all' && styles.tabActive,
+                  { backgroundColor: selectedTab === 'all' ? theme.colors.primaryContainer : 'transparent' },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    {
+                      color: selectedTab === 'all' ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant,
+                      fontWeight: selectedTab === 'all' ? '600' : '500',
+                    },
+                  ]}
+                >
+                  全部
+                </Text>
+              </Pressable>
+
+              {/* 提供商标签 */}
+              {providers.map((provider) => (
+                <Pressable
+                  key={provider.id}
+                  onPress={() => setSelectedTab(provider.id)}
+                  style={({ pressed }) => [
+                    styles.tab,
+                    selectedTab === provider.id && styles.tabActive,
+                    { backgroundColor: selectedTab === provider.id ? theme.colors.primaryContainer : 'transparent' },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.tabText,
+                      {
+                        color: selectedTab === provider.id ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant,
+                        fontWeight: selectedTab === provider.id ? '600' : '500',
+                      },
+                    ]}
+                  >
+                    {provider.name.toUpperCase()}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            <Divider />
+
+            {/* 模型列表 */}
+            <ScrollView style={styles.modelsContainer}>
+              {displayedModels.map((item) => {
+                const isSelected = selected?.provider === item.provider.id && selected?.model === item.id;
 
                 return (
                   <Pressable
-                    key={`${p}:${m.id}`}
+                    key={`${item.provider.id}:${item.id}`}
                     style={({ pressed }) => [
                       styles.modelItem,
                       {
@@ -111,20 +243,10 @@ export function ModelPickerDialog({ visible, onDismiss }: Props) {
                           : 'transparent',
                       },
                     ]}
-                    onPress={() => selectAndSave(p, m.id)}
+                    onPress={() => selectAndSave(item.provider.id, item.id)}
                     android_ripple={{ color: theme.colors.surfaceVariant }}
                   >
                     <View style={styles.modelContent}>
-                      {/* 提供商图标 */}
-                      <View
-                        style={[
-                          styles.providerIconSmall,
-                          { backgroundColor: providerMeta.color },
-                        ]}
-                      >
-                        <Icon name={(providerMeta.icon) as any} size={16} color="#FFFFFF" />
-                      </View>
-
                       {/* 模型信息 */}
                       <View style={styles.modelInfo}>
                         <Text
@@ -138,31 +260,30 @@ export function ModelPickerDialog({ visible, onDismiss }: Props) {
                           ]}
                           numberOfLines={1}
                         >
-                          {m.label}
+                          {item.label}
                         </Text>
-                        <Text
-                          variant="bodySmall"
-                          style={[
-                            styles.providerLabel,
-                            { color: theme.colors.onSurfaceVariant },
-                          ]}
-                        >
-                          {providerMeta.name}
-                        </Text>
+                        {selectedTab === 'all' && (
+                          <Text
+                            variant="bodySmall"
+                            style={[styles.modelProviderLabel, { color: theme.colors.onSurfaceVariant }]}
+                          >
+                            {item.provider.name}
+                          </Text>
+                        )}
                       </View>
 
                       {/* 选中图标 */}
                       <Icon
-                        name={isSelected ? 'radiobox-marked' : 'radiobox-blank'}
+                        name={isSelected ? 'check-circle' : 'checkbox-blank-circle-outline'}
                         size={22}
                         color={isSelected ? theme.colors.primary : theme.colors.onSurfaceVariant}
                       />
                     </View>
                   </Pressable>
                 );
-              })
-            )}
-          </View>
+              })}
+            </ScrollView>
+          </>
         )}
       </View>
     </UnifiedDialog>
@@ -170,7 +291,9 @@ export function ModelPickerDialog({ visible, onDismiss }: Props) {
 }
 
 const styles = StyleSheet.create({
-  content: {},
+  content: {
+    flex: 1,
+  },
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -181,28 +304,44 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 14,
   },
-  listContainer: {
+  tabsContainer: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  tabsContent: {
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  tab: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  tabActive: {
+    // 激活状态样式由动态背景色控制
+  },
+  tabText: {
+    fontSize: 14,
+    letterSpacing: 0.5,
+  },
+  modelsContainer: {
+    flex: 1,
+    paddingTop: 8,
   },
   modelItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 4,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    marginHorizontal: 16,
+    marginBottom: 6,
     borderRadius: 12,
   },
   modelContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 12,
-  },
-  providerIconSmall: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
   },
   modelInfo: {
     flex: 1,
@@ -212,7 +351,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
   },
-  providerLabel: {
+  modelProviderLabel: {
     fontSize: 13,
     lineHeight: 18,
     marginTop: 2,

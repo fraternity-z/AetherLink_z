@@ -20,6 +20,54 @@ function runSerialized<T>(operation: (db: SQLiteDatabase) => Promise<T>): Promis
   return result;
 }
 
+/**
+ * 带重试机制的序列化数据库操作
+ *
+ * 专门处理数据库锁定错误，使用指数退避重试
+ *
+ * @param operation - 数据库操作函数
+ * @param maxRetries - 最大重试次数（默认 3 次）
+ * @param baseDelay - 基础延迟时间（毫秒，默认 50ms）
+ * @returns 操作结果
+ */
+function runSerializedWithRetry<T>(
+  operation: (db: SQLiteDatabase) => Promise<T>,
+  maxRetries = 3,
+  baseDelay = 50
+): Promise<T> {
+  const runWithRetry = async (attemptNumber: number): Promise<T> => {
+    try {
+      return await operation(getDB());
+    } catch (error: any) {
+      // 检查是否是数据库锁定错误
+      const message = error?.message || String(error);
+      const isLockError = message.toLowerCase().includes('database is locked') ||
+                          message.toLowerCase().includes('sqlite_locked') ||
+                          message.toLowerCase().includes('sqlite_busy');
+
+      // 如果不是锁定错误，或者已达到最大重试次数，直接抛出错误
+      if (!isLockError || attemptNumber >= maxRetries) {
+        throw error;
+      }
+
+      // 计算延迟时间（指数退避）
+      const delay = baseDelay * Math.pow(2, attemptNumber);
+
+      // 记录重试日志
+      console.warn(`[数据库锁定] 第 ${attemptNumber + 1}/${maxRetries} 次重试，延迟 ${delay}ms`);
+
+      // 等待后重试
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return runWithRetry(attemptNumber + 1);
+    }
+  };
+
+  const run = () => runWithRetry(0);
+  const result = dbOperationQueue.then(run, run);
+  dbOperationQueue = result.finally(() => undefined);
+  return result;
+}
+
 export async function initMigrations(): Promise<void> {
   await withTransactionErrorHandler(
     '数据库迁移初始化',
@@ -88,7 +136,7 @@ export async function execute(sql: string, args: any[] = []): Promise<{ changes:
 
   return withDatabaseErrorHandler(
     operation,
-    () => runSerialized(async (db) => {
+    () => runSerializedWithRetry(async (db) => {
       const result = await db.runAsync(sql, args as any);
       return { changes: result.changes || 0 };
     }),
