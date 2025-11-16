@@ -34,7 +34,6 @@ jobs:
         id: config_changes
         uses: dorny/paths-filter@v3
         with:
-          base: origin/main
           filters: |
             requires-prebuild:
               - 'app.json'
