@@ -32,7 +32,8 @@
       "mcp__mcp-router__read_file",
       "Bash(find:*)",
       "Bash(tree:*)",
-      "Bash(npx @modelcontextprotocol/inspector:*)"
+      "Bash(npx @modelcontextprotocol/inspector:*)",
+      "Bash(git mv:*)"
     ],
     "deny": [],
     "ask": []

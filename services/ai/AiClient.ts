@@ -1,4 +1,4 @@
-import { streamText, experimental_generateImage as generateImage, type ModelMessage } from 'ai';
+import { streamText, stepCountIs, experimental_generateImage as generateImage, type ModelMessage } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createAnthropic } from '@ai-sdk/anthropic';
@@ -19,6 +19,12 @@ export type ToolCallArgs = Record<string, unknown>;
  * MCP 工具调用结果类型
  */
 export type ToolCallResult = unknown;
+
+/**
+ * 官方实现推荐限制工具调用的最大迭代次数，避免模型重复调用工具导致死循环。
+ * 这里与 Cherry Studio/AI SDK 的默认建议保持一致，允许至多 5 轮。
+ */
+const MAX_TOOL_CALL_STEPS = 5;
 
 export interface StreamOptions {
   provider: Provider;
@@ -202,6 +208,7 @@ export async function streamCompletion(opts: StreamOptions) {
     temperature: opts.temperature,
     maxOutputTokens: opts.maxTokens,
     tools: mcpTools, // ✨ 使用 AI SDK 原生 tools 参数
+    stopWhen: [stepCountIs(MAX_TOOL_CALL_STEPS)], // 遵循官方多步工具调用实现
     // @ts-expect-error - maxSteps is valid but not in SDK type definitions
     maxSteps: 5, // 允许最多 5 轮工具调用（防止无限循环）
     ...(hasReasoningSupport ? reasoningOptions : {}),

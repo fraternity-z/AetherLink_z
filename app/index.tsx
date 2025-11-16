@@ -8,13 +8,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from 'react-native-paper';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
-import { ChatHeader } from '@/components/chat/ChatHeader';
-import { MessageList } from '@/components/chat/MessageList';
-import { ChatInput, ChatInputRef } from '@/components/chat/ChatInput';
-import { ChatSidebar } from '@/components/chat/ChatSidebar';
+import {
+  ChatHeader,
+  MessageList,
+  ChatInput,
+  ChatInputRef,
+  ChatSidebar,
+  TopicsSidebar,
+  ModelPickerDialog,
+} from '@/components/chat';
 import { useLocalSearchParams } from 'expo-router';
-import { TopicsSidebar } from '@/components/chat/TopicsSidebar';
-import { ModelPickerDialog } from '@/components/chat/ModelPickerDialog';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import { appEvents, AppEvents } from '@/utils/events';
 

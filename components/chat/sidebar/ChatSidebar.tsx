@@ -3,12 +3,12 @@ import { Animated, Pressable, StyleSheet, useWindowDimensions, View, ScrollView 
 import { Surface, Text, List, TouchableRipple, useTheme, Avatar, IconButton, Menu } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChatSettings } from './ChatSettings';
+import { ChatSettings } from '../dialogs/ChatSettings';
 import { AssistantsRepository } from '@/storage/repositories/assistants';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import type { Assistant } from '@/types/assistant';
 import { appEvents, AppEvents } from '@/utils/events';
-import { AssistantPickerDialog } from './AssistantPickerDialog';
+import { AssistantPickerDialog } from '../dialogs/AssistantPickerDialog';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { useUserProfile } from '@/hooks/use-user-profile';

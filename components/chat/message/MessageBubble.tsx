@@ -17,8 +17,8 @@ import type { Attachment, ThinkingChain, Message, MessageBlock } from '@/storage
 import { MixedRenderer } from './MixedRenderer';
 import { ThinkingBlock } from './ThinkingBlock';
 import { ToolBlock } from './ToolBlock';
-import { GeneratedImageCard } from './GeneratedImageCard';
-import { ImageViewer } from './ImageViewer';
+import { GeneratedImageCard } from '../misc/GeneratedImageCard';
+import { ImageViewer } from '../misc/ImageViewer';
 import { TypingIndicator } from './TypingIndicator';
 import { cn } from '@/utils/classnames';
 import { useModelLogo } from '@/utils/model-logo';
@@ -514,3 +514,4 @@ function arePropsEqual(prev: MessageBubbleProps, next: MessageBubbleProps): bool
 }
 
 export const MessageBubble = React.memo(MessageBubbleComponent, arePropsEqual);
+export default MessageBubble;
