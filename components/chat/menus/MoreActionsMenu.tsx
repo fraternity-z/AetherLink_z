@@ -334,34 +334,6 @@ export function MoreActionsMenu({
                 ))}
               </View>
 
-              {/* 取消按钮 */}
-              <View style={styles.cancelContainer}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.cancelButton,
-                    {
-                      backgroundColor: pressed
-                        ? theme.colors.surfaceVariant
-                        : 'transparent',
-                      borderColor: theme.colors.outlineVariant,
-                    },
-                  ]}
-                  onPress={onClose}
-                  android_ripple={{
-                    color: theme.colors.surfaceVariant,
-                  }}
-                >
-                  <Text
-                    variant="bodyLarge"
-                    style={[
-                      styles.cancelText,
-                      { color: theme.colors.primary }
-                    ]}
-                  >
-                    取消
-                  </Text>
-                </Pressable>
-              </View>
             </Animated.View>
           </TouchableWithoutFeedback>
         </Animated.View>
@@ -452,20 +424,5 @@ const styles = StyleSheet.create({
   },
   chevron: {
     flexShrink: 0,
-  },
-  cancelContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  cancelButton: {
-    paddingVertical: 18,
-    borderRadius: 16,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelText: {
-    fontWeight: '600',
-    fontSize: 17,
   },
 });

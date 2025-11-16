@@ -38,6 +38,10 @@ export function QuickPhrasePickerDialog({
   onDismiss,
   onSelect,
 }: QuickPhrasePickerDialogProps) {
+  if (!visible) {
+    return null;
+  }
+
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
