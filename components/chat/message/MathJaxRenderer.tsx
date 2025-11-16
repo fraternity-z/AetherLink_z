@@ -162,14 +162,14 @@ const MATHJAX_TEMPLATE = (theme: 'light' | 'dark', baseFontPx: number, mathJaxSr
         MathJax.typesetPromise([root]).then(() => {
           calculateHeights();
         }).catch((error) => {
-          logger.error('MathJax rendering error:', error);
+          console.error('MathJax rendering error:', error);
           window.ReactNativeWebView.postMessage(JSON.stringify({
             type: 'error',
             error: 'MathJax rendering failed: ' + error.message
           }));
         });
       } else {
-        logger.error('MathJax not available');
+        console.error('MathJax not available');
         window.ReactNativeWebView.postMessage(JSON.stringify({
           type: 'error',
           error: 'MathJax not available'
@@ -208,6 +208,34 @@ const MATHJAX_TEMPLATE = (theme: 'light' | 'dark', baseFontPx: number, mathJaxSr
       }
     };
 
+    // 监听来自 React Native 的消息
+    window.addEventListener('message', function(event) {
+      try {
+        const message = JSON.parse(event.data);
+        console.log('收到消息:', message);
+
+        if (message.type === 'setFormulas' && message.formulas) {
+          window.setFormulas(message.formulas);
+        }
+      } catch (error) {
+        console.error('解析消息失败:', error);
+      }
+    });
+
+    // 同时监听 document 的 message 事件（兼容性）
+    document.addEventListener('message', function(event) {
+      try {
+        const message = JSON.parse(event.data);
+        console.log('收到文档消息:', message);
+
+        if (message.type === 'setFormulas' && message.formulas) {
+          window.setFormulas(message.formulas);
+        }
+      } catch (error) {
+        console.error('解析文档消息失败:', error);
+      }
+    });
+
   </script>
 </body>
 </html>
@@ -228,18 +256,30 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
     let isMounted = true;
     const loadMathJaxAsset = async () => {
       try {
+        logger.debug('[MathJax] 开始加载 MathJax 资源');
+        logger.debug('[MathJax] Asset downloaded:', mathJaxAsset.downloaded);
+        logger.debug('[MathJax] Asset localUri:', mathJaxAsset.localUri);
+        logger.debug('[MathJax] Asset uri:', mathJaxAsset.uri);
+
         if (!mathJaxAsset.downloaded) {
+          logger.debug('[MathJax] 资源未下载，开始下载...');
           await mathJaxAsset.downloadAsync();
+          logger.debug('[MathJax] 资源下载完成');
         }
+
         const uri = mathJaxAsset.localUri ?? mathJaxAsset.uri;
         if (!uri) {
           throw new Error('MathJax asset missing URI');
         }
+
+        logger.debug('[MathJax] 使用 URI:', uri);
+
         if (isMounted) {
           setMathJaxUri(uri);
+          logger.debug('[MathJax] MathJax URI 设置完成');
         }
       } catch (assetError) {
-        logger.error('Failed to load MathJax asset:', assetError);
+        logger.error('[MathJax] 资源加载失败:', assetError);
         const message = 'MathJax 资源加载失败';
         setError(message);
         onError?.(message);
@@ -290,9 +330,11 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
   const handleMessage = useCallback((event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
+      logger.debug('[MathJax] WebView 消息:', data);
 
       switch (data.type) {
         case 'ready':
+          logger.debug('[MathJax] MathJax 准备就绪');
           setIsLoading(false);
           // 发送公式数据到 WebView
           webViewRef.current?.postMessage(
@@ -301,9 +343,11 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
               formulas: formulas
             })
           );
+          logger.debug('[MathJax] 已发送公式数据到 WebView, 公式数量:', formulas.length);
           break;
 
         case 'heights':
+          logger.debug('[MathJax] 收到高度数据:', data.heights);
           setFormulaHeights(data.heights);
 
           // 缓存高度数据
@@ -319,16 +363,17 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
           break;
 
         case 'error':
-          logger.error('MathJax error:', data.error);
+          logger.error('[MathJax] 渲染错误:', data.error);
           setError(data.error);
           onError?.(data.error);
           setIsLoading(false);
           break;
 
         default:
+          logger.debug('[MathJax] 未知消息类型:', data.type);
       }
     } catch (err) {
-      logger.error('Failed to parse WebView message:', err);
+      logger.error('[MathJax] 解析 WebView 消息失败:', err);
     }
   }, [formulas, onComplete, onError, cacheKey]);
 
@@ -386,7 +431,7 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
       <WebView
         ref={webViewRef}
         source={{ html: htmlContent ?? fallbackHtml }}
-        style={[styles.webView, { height: Object.values(formulaHeights).reduce((sum, h) => sum + h, 0) || 1 }]}
+        style={[styles.webView, { height: Math.max(Object.values(formulaHeights).reduce((sum, h) => sum + h, 0), 80) }]}
         onMessage={handleMessage}
         javaScriptEnabled={true}
         domStorageEnabled={true}
@@ -397,13 +442,20 @@ export function MathJaxRenderer({ formulas, onComplete, onError }: MathJaxRender
         showsVerticalScrollIndicator={false}
         allowFileAccess={true}
         allowFileAccessFromFileURLs={true}
+        onLoadStart={() => {
+          logger.debug('[MathJax] WebView 开始加载');
+        }}
+        onLoadEnd={() => {
+          logger.debug('[MathJax] WebView 加载完成');
+        }}
         onError={(syntheticEvent) => {
           const { nativeEvent } = syntheticEvent;
-          logger.error('WebView error:', nativeEvent);
+          logger.error('[MathJax] WebView 加载错误:', nativeEvent);
           setError(`WebView 加载失败: ${nativeEvent.description}`);
           setIsLoading(false);
         }}
         onLoad={() => {
+          logger.debug('[MathJax] WebView onLoad 触发');
         }}
       />
     </View>

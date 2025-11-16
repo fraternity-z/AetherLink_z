@@ -202,6 +202,8 @@ export interface MCPServer {
   id: string; // internal id
   name: string; // mcp name, generally as unique key
   type?: McpServerType | 'inMemory';
+  createdAt?: number;
+  updatedAt?: number;
   description?: string;
   baseUrl?: string;
   command?: string;
