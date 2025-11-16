@@ -13,9 +13,10 @@ import { Text, useTheme, Avatar, Menu } from 'react-native-paper';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
-import type { Attachment, ThinkingChain, Message } from '@/storage/core';
+import type { Attachment, ThinkingChain, Message, MessageBlock } from '@/storage/core';
 import { MixedRenderer } from './MixedRenderer';
 import { ThinkingBlock } from './ThinkingBlock';
+import { ToolBlock } from './ToolBlock';
 import { GeneratedImageCard } from './GeneratedImageCard';
 import { ImageViewer } from './ImageViewer';
 import { TypingIndicator } from './TypingIndicator';
@@ -36,16 +37,22 @@ interface MessageBubbleProps {
   modelId?: string; // AI 模型 ID（用于显示对应的 logo）
   extra?: Message['extra']; // 消息额外数据（用于图片生成等特殊消息类型）
   userAvatarUri?: string | null; // 用户头像 URI（仅用户消息）
+  blocks?: MessageBlock[]; // ✨ 消息块数据（包括 TEXT, TOOL 等类型）
 
   // 功能扩展回调
   onResend?: () => void;      // TODO: 重新发送(用户消息)
   onRegenerate?: () => void;  // TODO: 重新生成(助手消息)
 }
 
-function MessageBubbleComponent({ content, isUser, timestamp, status, attachments = [], thinkingChain, modelId, extra, userAvatarUri, onResend, onRegenerate }: MessageBubbleProps) {
+function MessageBubbleComponent({ content, isUser, timestamp, status, attachments = [], thinkingChain, modelId, extra, userAvatarUri, blocks = [], onResend, onRegenerate }: MessageBubbleProps) {
   const theme = useTheme();
   const modelLogo = useModelLogo(modelId); // 获取模型 logo
   const [logoError, setLogoError] = React.useState(false);
+
+  // ✨ 筛选工具块（按 sortOrder 排序）
+  const toolBlocks = blocks
+    .filter(b => b.type === 'TOOL')
+    .sort((a, b) => a.sortOrder - b.sortOrder);
 
   // 图片查看器状态
   const [viewerVisible, setViewerVisible] = React.useState(false);
@@ -232,6 +239,15 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
             durationMs={thinkingChain.durationMs}
             isStreaming={status === 'pending'}
           />
+        )}
+
+        {/* ✨ 工具块(仅AI消息且有工具调用时显示,位于思考链和气泡之间) */}
+        {!isUser && toolBlocks.length > 0 && (
+          <View className="mb-2">
+            {toolBlocks.map((block) => (
+              <ToolBlock key={block.id} block={block} />
+            ))}
+          </View>
         )}
 
         {/* 气泡主体 */}
