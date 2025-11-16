@@ -11,4 +11,3 @@ export { TypingIndicator } from './TypingIndicator';
 export { MathJaxRenderer } from './MathJaxRenderer';
 export { MarkdownRenderer } from './MarkdownRenderer';
 export { MixedRenderer } from './MixedRenderer';
-export { MathJaxDebugger } from './MathJaxDebugger';
