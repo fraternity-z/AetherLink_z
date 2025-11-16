@@ -1,4 +1,4 @@
-import { IKeyValueStore, prefixer } from '@/storage/core';
+import { IKeyValueStore, prefixer, BackgroundSettings } from '@/storage/core';
 import { AsyncKVStore } from '@/storage/adapters/async-storage';
 import { withRepositoryContext } from './error-handler';
 
@@ -44,6 +44,10 @@ export enum SettingKey {
   UserAvatarUri = 'al:settings:user_avatar_uri',
   // 快捷短语
   QuickPhrasesEnabled = 'al:settings:quick_phrases_enabled',
+  // 自定义背景设置
+  BackgroundImagePath = 'al:settings:background_image_path',
+  BackgroundOpacity = 'al:settings:background_opacity',
+  BackgroundEnabled = 'al:settings:background_enabled',
 }
 
 
@@ -63,6 +67,48 @@ export const SettingsRepository = (store: IKeyValueStore = AsyncKVStore) => ({
   async clearAll(): Promise<void> {
     return withRepositoryContext('SettingsRepository', 'clearAll', { storage: 'AsyncStorage' }, async () => {
       await store.clearNamespace('al:settings:');
+    });
+  },
+
+  /**
+   * 获取背景设置
+   * @returns BackgroundSettings 对象，如果未设置则返回默认值
+   */
+  async getBackgroundSettings(): Promise<BackgroundSettings> {
+    return withRepositoryContext('SettingsRepository', 'getBackgroundSettings', { storage: 'AsyncStorage' }, async () => {
+      const [imagePath, opacity, enabled] = await Promise.all([
+        store.get<string>(SettingKey.BackgroundImagePath),
+        store.get<number>(SettingKey.BackgroundOpacity),
+        store.get<boolean>(SettingKey.BackgroundEnabled),
+      ]);
+
+      return {
+        imagePath: imagePath ?? null,
+        opacity: opacity ?? 0.3,
+        enabled: enabled ?? false,
+      };
+    });
+  },
+
+  /**
+   * 更新背景设置
+   * @param settings 部分或完整的 BackgroundSettings 对象
+   */
+  async updateBackgroundSettings(settings: Partial<BackgroundSettings>): Promise<void> {
+    return withRepositoryContext('SettingsRepository', 'updateBackgroundSettings', { storage: 'AsyncStorage' }, async () => {
+      const promises: Promise<void>[] = [];
+
+      if (settings.imagePath !== undefined) {
+        promises.push(store.set(SettingKey.BackgroundImagePath, settings.imagePath));
+      }
+      if (settings.opacity !== undefined) {
+        promises.push(store.set(SettingKey.BackgroundOpacity, settings.opacity));
+      }
+      if (settings.enabled !== undefined) {
+        promises.push(store.set(SettingKey.BackgroundEnabled, settings.enabled));
+      }
+
+      await Promise.all(promises);
     });
   },
 });

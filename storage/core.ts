@@ -142,6 +142,16 @@ export interface MessageBlock {
   extra?: any;             // 扩展字段
 }
 
+/**
+ * 背景设置(Background Settings)数据结构
+ * 用于存储聊天页面的自定义背景配置
+ */
+export interface BackgroundSettings {
+  imagePath: string | null;      // 本地文件路径
+  opacity: number;                // 不透明度 (0.0-1.0)
+  enabled: boolean;               // 是否启用
+}
+
 export function uuid(): string {
   // RFC4122 v4-like uuid (non-crypto)
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {

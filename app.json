@@ -48,7 +48,13 @@
         }
       ],
       "expo-sqlite",
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "允许 AetherLink 访问您的相册以选择聊天背景图片"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -64,3 +64,6 @@ export {
   ImageViewer,
   SearchLoadingIndicator,
 } from './misc';
+
+// Background Component - 背景组件
+export { ChatBackground } from './ChatBackground';

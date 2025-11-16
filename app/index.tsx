@@ -16,6 +16,7 @@ import {
   ChatSidebar,
   TopicsSidebar,
   ModelPickerDialog,
+  ChatBackground,
 } from '@/components/chat';
 import { useLocalSearchParams } from 'expo-router';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
@@ -94,42 +95,44 @@ export default function ChatScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={keyboardVerticalOffset}
       >
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-          {/* 顶部导航栏 */}
-          <ChatHeader
-            onMenuPress={handleMenuPress}
-            onTopicsPress={() => setTopicsOpen(true)}
-            onModelPickerPress={() => setModelPickerOpen(true)}
-          />
-
-          {/* 消息列表 - 占满整个屏幕，支持双击打开快捷短语 */}
-          <GestureDetector gesture={doubleTapGesture}>
-            <View style={styles.messagesContainer}>
-              <MessageList conversationId={conversationId} />
-            </View>
-          </GestureDetector>
-
-          {/* 悬浮输入框 - 直接绝对定位在底部 */}
-          <View style={styles.inputWrapper}>
-            <ChatInput
-              ref={chatInputRef}
-              conversationId={conversationId}
-              onConversationChange={setConversationId}
+        <ChatBackground>
+          <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+            {/* 顶部导航栏 */}
+            <ChatHeader
+              onMenuPress={handleMenuPress}
+              onTopicsPress={() => setTopicsOpen(true)}
+              onModelPickerPress={() => setModelPickerOpen(true)}
             />
-          </View>
 
-          {/* 侧边栏 */}
-          <ChatSidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
-          <TopicsSidebar
-            visible={topicsOpen}
-            onClose={() => setTopicsOpen(false)}
-            onSelectTopic={(id) => setConversationId(id)}
-            currentTopicId={conversationId || undefined}
-          />
-          <ModelPickerDialog visible={modelPickerOpen} onDismiss={() => setModelPickerOpen(false)} />
-          {/* TODO: 实现消息上下文菜单（长按操作） */}
-          {/* TODO: 实现消息加载更多功能 */}
-        </View>
+            {/* 消息列表 - 占满整个屏幕，支持双击打开快捷短语 */}
+            <GestureDetector gesture={doubleTapGesture}>
+              <View style={styles.messagesContainer}>
+                <MessageList conversationId={conversationId} />
+              </View>
+            </GestureDetector>
+
+            {/* 悬浮输入框 - 直接绝对定位在底部 */}
+            <View style={styles.inputWrapper}>
+              <ChatInput
+                ref={chatInputRef}
+                conversationId={conversationId}
+                onConversationChange={setConversationId}
+              />
+            </View>
+
+            {/* 侧边栏 */}
+            <ChatSidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
+            <TopicsSidebar
+              visible={topicsOpen}
+              onClose={() => setTopicsOpen(false)}
+              onSelectTopic={(id) => setConversationId(id)}
+              currentTopicId={conversationId || undefined}
+            />
+            <ModelPickerDialog visible={modelPickerOpen} onDismiss={() => setModelPickerOpen(false)} />
+            {/* TODO: 实现消息上下文菜单（长按操作） */}
+            {/* TODO: 实现消息加载更多功能 */}
+          </View>
+        </ChatBackground>
       </KeyboardAvoidingView>
     </ErrorBoundary>
   );

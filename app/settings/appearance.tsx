@@ -1,11 +1,20 @@
 
 import React, { useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, Pressable, Modal, TouchableWithoutFeedback } from 'react-native';
-import { List, Text, useTheme, Chip, Divider, Surface } from 'react-native-paper';
+import { View, StyleSheet, Pressable, Modal, TouchableWithoutFeedback, Alert } from 'react-native';
+import { List, Text, useTheme, Chip, Divider, Surface, Switch, Button, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { SettingScreen } from '@/components/settings/SettingScreen';
 import { useAppSettings } from '@/components/providers/SettingsProvider';
+import { useBackgroundSettings } from '@/hooks/use-background-settings';
+import { selectBackgroundImage } from '@/services/media/ImagePicker';
+import {
+  saveBackgroundImage,
+  deleteBackgroundImage,
+  checkStorageSpace,
+} from '@/services/media/ImageStorage';
+import { BackgroundPreview } from '@/components/settings/BackgroundPreview';
+import { logger } from '@/utils/logger';
 
 
 
@@ -14,6 +23,17 @@ export default function AppearanceSettings() {
 
   // 状态：主题模式与字体大小
   const { fontScale, setFontScale, themeMode, setThemeMode } = useAppSettings();
+
+  // 状态：背景设置
+  const {
+    settings: backgroundSettings,
+    updateImagePath,
+    updateOpacity,
+    toggleEnabled,
+    reset: resetBackground,
+    isLoading: isBackgroundLoading,
+  } = useBackgroundSettings();
+  const [isSavingBackground, setIsSavingBackground] = useState(false);
 
   // 下拉菜单：显示状态与定位
   const [menuVisible, setMenuVisible] = useState(false);
@@ -49,6 +69,90 @@ export default function AppearanceSettings() {
     };
     return labels[themeMode] || '跟随系统';
   }, [themeMode]);
+
+  /**
+   * 处理图片选择
+   */
+  const handleSelectImage = async () => {
+    try {
+      // 1. 检查存储空间
+      const hasSpace = await checkStorageSpace(10);
+      if (!hasSpace) {
+        Alert.alert('存储空间不足', '请清理设备存储后重试（建议保留至少 50MB 空间）');
+        return;
+      }
+
+      // 2. 打开图片选择器
+      const uri = await selectBackgroundImage();
+      if (!uri) {
+        return;
+      }
+
+      // 3. 保存图片
+      setIsSavingBackground(true);
+      const newPath = await saveBackgroundImage(uri);
+      await updateImagePath(newPath);
+
+      // 4. 自动启用背景
+      if (!backgroundSettings.enabled) {
+        await toggleEnabled(true);
+      }
+
+      Alert.alert('成功', '背景图片已更新');
+
+    } catch (error) {
+      logger.error('Failed to save background image', { error });
+      Alert.alert('保存失败', '无法保存背景图片，请稍后重试');
+    } finally {
+      setIsSavingBackground(false);
+    }
+  };
+
+  /**
+   * 处理不透明度变化
+   */
+  const handleOpacityChange = async (value: number) => {
+    try {
+      await updateOpacity(value);
+    } catch (error) {
+      logger.error('Failed to update opacity', { error });
+    }
+  };
+
+  /**
+   * 处理重置背景
+   */
+  const handleResetBackground = async () => {
+    Alert.alert(
+      '重置背景',
+      '确定要恢复默认背景吗？此操作将删除当前背景图片。',
+      [
+        {
+          text: '取消',
+          style: 'cancel',
+        },
+        {
+          text: '确定',
+          onPress: async () => {
+            try {
+              // 删除图片文件
+              if (backgroundSettings.imagePath) {
+                await deleteBackgroundImage(backgroundSettings.imagePath);
+              }
+
+              // 重置设置
+              await resetBackground();
+
+              Alert.alert('成功', '已恢复默认背景');
+            } catch (error) {
+              logger.error('Failed to reset background', { error });
+              Alert.alert('重置失败', '无法重置背景，请稍后重试');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SettingScreen title="外观设置" description="自定义应用的外观主题和全局字体大小设置">
@@ -180,7 +284,7 @@ export default function AppearanceSettings() {
 
       {/* 全局字体大小 */}
       <List.Section style={styles.section}>
-        <View style={[styles.rowBetween, { paddingHorizontal: 4, marginBottom: 6 }]}> 
+        <View style={[styles.rowBetween, { paddingHorizontal: 4, marginBottom: 6 }]}>
           <Text variant="titleSmall" style={styles.sectionTitle}>全局字体大小</Text>
           <Chip compact selected>{fontScaleLabel}</Chip>
         </View>
@@ -193,13 +297,104 @@ export default function AppearanceSettings() {
           style={{ width: '100%', height: 40 }}
           minimumTrackTintColor={theme.colors.primary}
         />
-        <View style={[styles.rowBetween, { paddingHorizontal: 4 }]}> 
+        <View style={[styles.rowBetween, { paddingHorizontal: 4 }]}>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>极小</Text>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>小</Text>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>标准</Text>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>大</Text>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>极大</Text>
         </View>
+      </List.Section>
+
+      {/* 聊天背景 */}
+      <List.Section style={styles.section}>
+        <Text variant="titleSmall" style={styles.sectionTitle}>聊天背景</Text>
+
+        {isBackgroundLoading ? (
+          <View style={{ padding: 24, alignItems: 'center' }}>
+            <ActivityIndicator size="large" />
+          </View>
+        ) : (
+          <>
+            {/* 启用开关 */}
+            <View style={[styles.rowBetween, { marginBottom: 12 }]}>
+              <View style={{ flex: 1 }}>
+                <Text variant="bodyLarge">自定义背景</Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  为聊天页面设置个性化背景图片
+                </Text>
+              </View>
+              <Switch
+                value={backgroundSettings.enabled}
+                onValueChange={toggleEnabled}
+                disabled={!backgroundSettings.imagePath}
+              />
+            </View>
+
+            {/* 图片选择按钮 */}
+            <Button
+              mode="outlined"
+              icon="image-plus"
+              onPress={handleSelectImage}
+              loading={isSavingBackground}
+              disabled={isSavingBackground}
+              style={{ marginBottom: 12 }}
+            >
+              {backgroundSettings.imagePath ? '更换背景图片' : '选择背景图片'}
+            </Button>
+
+            {/* 背景预览 */}
+            {backgroundSettings.imagePath && (
+              <BackgroundPreview
+                imagePath={backgroundSettings.imagePath}
+                opacity={backgroundSettings.opacity}
+              />
+            )}
+
+            {/* 不透明度滑块 */}
+            {backgroundSettings.imagePath && (
+              <>
+                <View style={[styles.rowBetween, { paddingHorizontal: 4, marginTop: 12, marginBottom: 6 }]}>
+                  <Text variant="titleSmall">不透明度</Text>
+                  <Chip compact selected>
+                    {Math.round(backgroundSettings.opacity * 100)}%
+                  </Chip>
+                </View>
+                <Slider
+                  value={backgroundSettings.opacity}
+                  onValueChange={handleOpacityChange}
+                  minimumValue={0.1}
+                  maximumValue={1.0}
+                  step={0.05}
+                  style={{ width: '100%', height: 40 }}
+                  minimumTrackTintColor={theme.colors.primary}
+                  maximumTrackTintColor={theme.colors.surfaceVariant}
+                  thumbTintColor={theme.colors.primary}
+                />
+                <View style={[styles.rowBetween, { paddingHorizontal: 4, marginBottom: 12 }]}>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>透明</Text>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>不透明</Text>
+                </View>
+
+                {/* 重置按钮 */}
+                <Button
+                  mode="text"
+                  icon="restore"
+                  onPress={handleResetBackground}
+                >
+                  恢复默认背景
+                </Button>
+              </>
+            )}
+
+            {/* 使用提示 */}
+            <View style={[styles.tip, { backgroundColor: theme.colors.surfaceVariant, marginTop: 12 }]}>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                💡 建议选择色彩柔和的图片，避免影响聊天内容的可读性
+              </Text>
+            </View>
+          </>
+        )}
       </List.Section>
     </SettingScreen>
   );
