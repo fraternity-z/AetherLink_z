@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useLocalSearchParams, Stack } from 'expo-router';
+import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { View, StyleSheet } from 'react-native';
 import { Avatar, Button, HelperText, List, SegmentedButtons, Surface, Switch, Text, TextInput, useTheme, Snackbar, Portal } from 'react-native-paper';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
+import { ProviderKeyManagementRepository } from '@/storage/repositories/provider-key-management';
 import { ProviderModelsRepository } from '@/storage/repositories/provider-models';
 import { fetchProviderModels, type DiscoveredModel, validateProviderModel } from '@/services/ai';
 import { ModelDiscoveryDialog } from '@/components/settings/ModelDiscoveryDialog';
@@ -34,7 +35,7 @@ export default function ProviderConfig() {
   const meta = VENDORS[String(vendor)] ?? VENDORS.openai;
 
   const [enabled, setEnabled] = useState(true);
-  const [singleKey, setSingleKey] = useState(true);
+  const [multiKeyEnabled, setMultiKeyEnabled] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [tab, setTab] = useState<'key' | 'base'>('key');
@@ -55,6 +56,11 @@ export default function ProviderConfig() {
       setBaseUrl(cfg.baseURL ?? '');
       const key = await ProvidersRepository.getApiKey(id);
       setApiKey(key ?? '');
+
+      // 加载多 Key 模式状态
+      const isMultiKey = await ProviderKeyManagementRepository.isMultiKeyEnabled(id);
+      setMultiKeyEnabled(isMultiKey);
+
       loadedRef.current = true;
     })();
   }, [meta.id]);
@@ -156,63 +162,93 @@ export default function ProviderConfig() {
         <List.Subheader>API 配置</List.Subheader>
         <List.Item title="启用状态" right={() => <Switch value={enabled} onValueChange={async (v) => { setEnabled(v); await ProvidersRepository.setEnabled(meta.id as ProviderId, v); }} />} />
         <List.Item
-          title="API Key 管理模式"
-          description={singleKey ? '单 Key 模式（传统）' : '多 Key 模式（占位）'}
-          right={() => <Switch value={singleKey} onValueChange={setSingleKey} />}
-        />
-
-        <SegmentedButtons
-          value={tab}
-          onValueChange={(v) => setTab(v as 'key' | 'base')}
-          buttons={[{ value: 'key', label: 'API 密钥' }, { value: 'base', label: '基础配置' }]}
-          style={{ marginTop: 8 }}
-        />
-
-        {tab === 'key' ? (
-          <>
-            <TextInput
-              label="API 密钥"
-              value={apiKey}
-              onChangeText={setApiKey}
-              secureTextEntry={!showKey}
-              right={<TextInput.Icon icon={showKey ? 'eye-off' : 'eye'} onPress={() => setShowKey((v) => !v)} />}
-              style={{ marginTop: 8 }}
-              onBlur={async () => {
-                // onBlur 时立即保存，不等待去抖延迟
-                if (apiKey && apiKey.trim()) {
-                  try {
-                    await ProvidersRepository.setApiKey(meta.id as ProviderId, apiKey.trim());
-                    setSaveStatus({ visible: true, message: '✓ API Key 已保存' });
-                  } catch (err) {
-                    logger.error('[API Key Save Error]', err);
-                    setSaveStatus({ visible: true, message: '✗ API Key 保存失败' });
-                  }
-                }
+          title="多 Key 负载均衡模式"
+          description={multiKeyEnabled ? '已启用（支持多个 API Key 轮询）' : '未启用（单 Key 模式）'}
+          right={() => (
+            <Switch
+              value={multiKeyEnabled}
+              onValueChange={async (v) => {
+                setMultiKeyEnabled(v);
+                await ProviderKeyManagementRepository.setMultiKeyEnabled(meta.id as ProviderId, v);
+                setSaveStatus({ visible: true, message: v ? '✓ 多 Key 模式已启用' : '✓ 已切换到单 Key 模式' });
               }}
             />
-            <HelperText type="info">已写入本地存储（设备本地 AsyncStorage）</HelperText>
+          )}
+        />
+
+        {/* 多 Key 模式：显示管理入口 */}
+        {multiKeyEnabled ? (
+          <>
+            <Button
+              mode="contained"
+              onPress={() => {
+                router.push(`/settings/providers/${meta.id}/keys` as any);
+              }}
+              style={{ marginTop: 12 }}
+            >
+              管理多个 API 密钥
+            </Button>
+            <HelperText type="info">
+              在多 Key 模式下，系统会自动轮询使用多个 API Key，实现负载均衡和故障转移
+            </HelperText>
           </>
         ) : (
           <>
-            <TextInput
-              label="Base URL"
-              placeholder="例如：https://api.openai.com/v1"
-              value={baseUrl}
-              onChangeText={setBaseUrl}
-              autoCapitalize="none"
+            {/* 单 Key 模式：显示传统输入框 */}
+            <SegmentedButtons
+              value={tab}
+              onValueChange={(v) => setTab(v as 'key' | 'base')}
+              buttons={[{ value: 'key', label: 'API 密钥' }, { value: 'base', label: '基础配置' }]}
               style={{ marginTop: 8 }}
-              onBlur={async () => {
-                // onBlur 时立即保存，不等待去抖延迟
-                try {
-                  await ProvidersRepository.setBaseURL(meta.id as ProviderId, baseUrl);
-                  setSaveStatus({ visible: true, message: '✓ Base URL 已保存' });
-                } catch (err) {
-                  logger.error('[Base URL Save Error]', err);
-                  setSaveStatus({ visible: true, message: '✗ Base URL 保存失败' });
-                }
-              }}
             />
-            <HelperText type="info">为该提供商设置自定义 Base URL（OpenAI 兼容厂商如 DeepSeek/火山/智谱 可填其兼容地址）</HelperText>
+
+            {tab === 'key' ? (
+              <>
+                <TextInput
+                  label="API 密钥"
+                  value={apiKey}
+                  onChangeText={setApiKey}
+                  secureTextEntry={!showKey}
+                  right={<TextInput.Icon icon={showKey ? 'eye-off' : 'eye'} onPress={() => setShowKey((v) => !v)} />}
+                  style={{ marginTop: 8 }}
+                  onBlur={async () => {
+                    // onBlur 时立即保存，不等待去抖延迟
+                    if (apiKey && apiKey.trim()) {
+                      try {
+                        await ProvidersRepository.setApiKey(meta.id as ProviderId, apiKey.trim());
+                        setSaveStatus({ visible: true, message: '✓ API Key 已保存' });
+                      } catch (err) {
+                        logger.error('[API Key Save Error]', err);
+                        setSaveStatus({ visible: true, message: '✗ API Key 保存失败' });
+                      }
+                    }
+                  }}
+                />
+                <HelperText type="info">已写入本地存储（设备本地 AsyncStorage）</HelperText>
+              </>
+            ) : (
+              <>
+                <TextInput
+                  label="Base URL"
+                  placeholder="例如：https://api.openai.com/v1"
+                  value={baseUrl}
+                  onChangeText={setBaseUrl}
+                  autoCapitalize="none"
+                  style={{ marginTop: 8 }}
+                  onBlur={async () => {
+                    // onBlur 时立即保存，不等待去抖延迟
+                    try {
+                      await ProvidersRepository.setBaseURL(meta.id as ProviderId, baseUrl);
+                      setSaveStatus({ visible: true, message: '✓ Base URL 已保存' });
+                    } catch (err) {
+                      logger.error('[Base URL Save Error]', err);
+                      setSaveStatus({ visible: true, message: '✗ Base URL 保存失败' });
+                    }
+                  }}
+                />
+                <HelperText type="info">为该提供商设置自定义 Base URL（OpenAI 兼容厂商如 DeepSeek/火山/智谱 可填其兼容地址）</HelperText>
+              </>
+            )}
           </>
         )}
       </Surface>

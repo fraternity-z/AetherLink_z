@@ -4,6 +4,8 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
+import { ProviderKeyManagementRepository } from '@/storage/repositories/provider-key-management';
+import { ApiKeyManager } from './ApiKeyManager';
 import { ImageGenerationError, ImageModelResolutionError } from './utils/errors';
 import { describeModelCapabilities } from './capabilities/ModelCapabilities';
 import { logger } from '@/utils/logger';
@@ -64,10 +66,50 @@ function getErrorMessage(error: unknown): string {
   return '未知错误';
 }
 
-async function getApiKey(provider: Provider): Promise<string> {
+/**
+ * 获取 API Key（支持单 Key 和多 Key 模式）
+ * @returns { key: string, keyId?: string }
+ */
+async function getApiKeyWithManagement(
+  provider: Provider
+): Promise<{ key: string; keyId?: string }> {
   // 统一使用 ProvidersRepository 获取所有提供商的 API Key
   const normalizedProvider = provider === 'gemini' ? 'google' : provider;
-  return (await ProvidersRepository.getApiKey(normalizedProvider)) ?? '';
+
+  // 检查是否启用多 Key 模式
+  const isMultiKeyEnabled =
+    await ProviderKeyManagementRepository.isMultiKeyEnabled(normalizedProvider);
+
+  if (!isMultiKeyEnabled) {
+    // 单 Key 模式：使用传统方式
+    const key = (await ProvidersRepository.getApiKey(normalizedProvider)) ?? '';
+    logger.info('[AiClient] 使用单 Key 模式', { provider: normalizedProvider });
+    return { key };
+  }
+
+  // 多 Key 模式：使用 ApiKeyManager 选择
+  const manager = ApiKeyManager.getInstance();
+  const result = await manager.selectApiKey(normalizedProvider);
+
+  if (result.key) {
+    logger.info('[AiClient] 使用多 Key 模式', {
+      provider: normalizedProvider,
+      keyId: result.key.id,
+      keyName: result.key.name,
+      reason: result.reason,
+    });
+    return { key: result.key.key, keyId: result.key.id };
+  }
+
+  throw new Error(`没有可用的 API Key: ${result.reason}`);
+}
+
+/**
+ * 向后兼容：getApiKey 函数（返回字符串）
+ */
+async function getApiKey(provider: Provider): Promise<string> {
+  const result = await getApiKeyWithManagement(provider);
+  return result.key;
 }
 
 export async function streamCompletion(opts: StreamOptions) {
@@ -131,7 +173,8 @@ export async function streamCompletion(opts: StreamOptions) {
   // 兼容别名
   if (provider === 'gemini') provider = 'google';
 
-  const apiKey = await getApiKey(provider);
+  // 获取 API Key（支持单 Key 和多 Key 模式）
+  const { key: apiKey, keyId } = await getApiKeyWithManagement(provider);
   if (!apiKey) throw new Error('Missing API key for ' + provider);
 
   // resolve baseURL for openai-compatible vendors
@@ -379,11 +422,29 @@ export async function streamCompletion(opts: StreamOptions) {
 
       logger.info('[AiClient] 💤 fullStream 循环结束');
     }
+
+    // ✅ 记录 Key 使用成功（多 Key 模式）
+    if (keyId) {
+      const manager = ApiKeyManager.getInstance();
+      await manager.updateKeyStatus(keyId, true);
+      logger.info('[AiClient] ✅ Key 使用成功已记录', { provider, keyId });
+    }
   } catch (e: unknown) {
     const errorName = e && typeof e === 'object' && 'name' in e ? String(e.name) : '';
     const errorMessage = getErrorMessage(e);
     const errorCause = e && typeof e === 'object' && 'cause' in e ? e.cause : undefined;
     const errorStack = e instanceof Error ? e.stack : undefined;
+
+    // ❌ 记录 Key 使用失败（多 Key 模式）
+    if (keyId) {
+      const manager = ApiKeyManager.getInstance();
+      await manager.updateKeyStatus(keyId, false, errorMessage);
+      logger.warn('[AiClient] ❌ Key 使用失败已记录', {
+        provider,
+        keyId,
+        error: errorMessage,
+      });
+    }
 
     if (didFinish && (errorName === 'APICallError' || /abort|cancel|closed|stream/i.test(errorMessage))) {
       logger.warn('[AiClient] finish 之后的晚到异常已忽略', { name: errorName, message: errorMessage });

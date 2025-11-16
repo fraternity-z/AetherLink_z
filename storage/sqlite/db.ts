@@ -1,5 +1,6 @@
 import { openDatabaseSync, SQLiteDatabase } from 'expo-sqlite';
 import { MIGRATION_0001 } from '@/storage/sqlite/migrations/0001_init';
+import { MIGRATION_0002 } from '@/storage/sqlite/migrations/0002_multi_key';
 
 let dbInstance: SQLiteDatabase | null = null;
 let dbOperationQueue: Promise<unknown> = Promise.resolve();
@@ -23,16 +24,26 @@ export async function initMigrations(): Promise<void> {
     // PRAGMA 语句应该在事务外执行
     await db.execAsync('PRAGMA foreign_keys = ON;');
 
-    const stmts = MIGRATION_0001.split(';').map(s => s.trim()).filter(Boolean);
+    // 应用 MIGRATION_0001
+    const stmts0001 = MIGRATION_0001.split(';').map(s => s.trim()).filter(Boolean);
 
     await db.withTransactionAsync(async () => {
-      for (const sql of stmts) {
+      for (const sql of stmts0001) {
         await db.execAsync(sql + ';');
       }
     });
 
     // 补丁：对已存在的历史库进行列修复（避免 no such column: is_active）
     await ensureMcpServersSchema(db);
+
+    // 应用 MIGRATION_0002（多 Key 轮询功能）
+    const stmts0002 = MIGRATION_0002.split(';').map(s => s.trim()).filter(Boolean);
+
+    await db.withTransactionAsync(async () => {
+      for (const sql of stmts0002) {
+        await db.execAsync(sql + ';');
+      }
+    });
   });
 }
 
