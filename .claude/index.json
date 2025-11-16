@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "timestamp": "2025-11-15T15:24:49.000Z",
+  "version": "1.1.0",
+  "timestamp": "2025-11-16T05:48:51.000Z",
   "project": {
     "name": "AetherLink_z",
     "description": "跨平台 AI 聊天助手应用",
@@ -19,11 +19,66 @@
   },
   "statistics": {
     "total_files": 150,
-    "typescript_files": 120,
+    "source_files": 134,
+    "total_lines": 25596,
     "total_modules": 16,
     "documented_modules": 16,
     "coverage": "100%",
-    "test_coverage": "0%"
+    "test_coverage": "0%",
+    "breakdown": {
+      "app": {
+        "files": 18,
+        "lines": 3620,
+        "description": "应用页面和路由 (Expo Router)"
+      },
+      "components": {
+        "files": 40,
+        "lines": 9260,
+        "description": "UI 组件 (聊天、设置、通用、Provider)"
+      },
+      "services": {
+        "files": 35,
+        "lines": 5671,
+        "description": "业务服务 (AI、搜索、MCP、语音、数据)"
+      },
+      "storage": {
+        "files": 16,
+        "lines": 2178,
+        "description": "数据持久化 (SQLite、Repository)"
+      },
+      "hooks": {
+        "files": 13,
+        "lines": 2455,
+        "description": "React Hooks 业务逻辑"
+      },
+      "utils": {
+        "files": 8,
+        "lines": 1748,
+        "description": "通用工具函数"
+      },
+      "constants": {
+        "files": 4,
+        "lines": 664,
+        "description": "应用常量和配置"
+      }
+    },
+    "exports": {
+      "services_ai": {
+        "count": 66,
+        "files": 11,
+        "description": "AI 服务导出 (流式补全、模型发现、能力识别等)"
+      },
+      "hooks": {
+        "count": 22,
+        "files": 12,
+        "description": "Hooks 导出 (对话、消息、设置、语音等)"
+      },
+      "storage_repositories": {
+        "count": 17,
+        "files": 12,
+        "description": "数据仓库导出 (CRUD 操作)"
+      }
+    }
   },
   "modules": [
     {
@@ -63,16 +118,15 @@
       "role": "聊天界面相关组件",
       "entry_files": ["ChatInput.tsx", "MessageList.tsx", "MessageBubble.tsx"],
       "key_files": [
-        "ChatHeader.tsx",
-        "ChatSidebar.tsx",
-        "TopicsSidebar.tsx",
-        "ModelPickerDialog.tsx",
-        "ThinkingBlock.tsx",
-        "MarkdownRenderer.tsx",
-        "MathJaxRenderer.tsx",
-        "McpToolsDialog.tsx",
-        "VoiceInputButton.tsx",
-        "ImageGenerationDialog.tsx"
+        "message/ThinkingBlock.tsx",
+        "message/ToolBlock.tsx",
+        "message/MarkdownRenderer.tsx",
+        "input/VoiceInputButton.tsx",
+        "dialogs/ModelPickerDialog.tsx",
+        "dialogs/McpToolsDialog.tsx",
+        "dialogs/ImageGenerationDialog.tsx",
+        "sidebar/ChatHeader.tsx",
+        "sidebar/TopicsSidebar.tsx"
       ],
       "dependencies": [
         "react-native-paper",
@@ -158,14 +212,13 @@
       "path": "services/ai/",
       "type": "业务服务",
       "role": "AI提供商集成和流式响应",
-      "entry_files": ["AiClient.ts", "ModelDiscovery.ts"],
+      "entry_files": ["AiClient.ts", "discovery/ModelDiscovery.ts"],
       "key_files": [
-        "CustomModelDiscovery.ts",
-        "ModelValidation.ts",
-        "CustomModelValidation.ts",
-        "ModelCapabilities.ts",
-        "TopicNaming.ts",
-        "errors.ts"
+        "capabilities/ModelCapabilities.ts",
+        "integration/mcpIntegration.ts",
+        "validation/ModelValidation.ts",
+        "utils/TopicNaming.ts",
+        "utils/errors.ts"
       ],
       "dependencies": [
         "ai",
@@ -179,7 +232,8 @@
         "流式响应",
         "模型发现",
         "模型能力检测",
-        "思考链支持"
+        "思考链支持",
+        "MCP 工具集成"
       ],
       "documentation": "services/ai/CLAUDE.md",
       "test_status": "无测试"
@@ -233,7 +287,7 @@
       "path": "services/mcp/",
       "type": "业务服务",
       "role": "MCP 工具集成服务",
-      "entry_files": ["McpClient.ts", "ToolConverter.ts"],
+      "entry_files": ["McpClient.ts"],
       "key_files": [
         "CacheManager.ts"
       ],
@@ -324,12 +378,6 @@
         "repositories/settings.ts",
         "repositories/message-blocks.ts",
         "sqlite/migrations/0001_init.ts",
-        "sqlite/migrations/0002_provider_models.ts",
-        "sqlite/migrations/0003_thinking_chains.ts",
-        "sqlite/migrations/0004_add_mcp_tables.ts",
-        "sqlite/migrations/0005_quick_phrases.ts",
-        "sqlite/migrations/0006_performance_indexes.ts",
-        "sqlite/migrations/0007_message_blocks.ts",
         "adapters/async-storage.ts"
       ],
       "dependencies": [
@@ -396,6 +444,9 @@
       "type": "配置",
       "role": "应用常量和主题配置",
       "entry_files": ["theme.ts", "prompts.ts", "assistants.ts"],
+      "key_files": [
+        "mcp.ts"
+      ],
       "dependencies": [
         "react-native-paper"
       ],
@@ -403,7 +454,8 @@
         "Material Design 3 主题",
         "明暗模式切换",
         "AI 提示词模板",
-        "AI 助手预设"
+        "AI 助手预设",
+        "MCP 配置"
       ],
       "documentation": "constants/CLAUDE.md",
       "test_status": "无测试"
@@ -415,7 +467,9 @@
       "entry_files": ["logger.ts", "render-cache.ts", "events.ts", "http.ts"],
       "key_files": [
         "classnames.ts",
-        "model-logo.ts"
+        "model-logo.ts",
+        "mcpSchema.ts",
+        "mcpTool.ts"
       ],
       "dependencies": [],
       "features": [
@@ -423,7 +477,8 @@
         "渲染缓存",
         "事件总线",
         "HTTP 工具",
-        "模型 Logo 映射"
+        "模型 Logo 映射",
+        "MCP Schema 工具"
       ],
       "documentation": "utils/CLAUDE.md",
       "test_status": "无测试"
@@ -450,7 +505,9 @@
       "hooks/",
       "constants/",
       "utils/"
-    ]
+    ],
+    "documentation_coverage": "100%",
+    "test_coverage": "0%"
   },
   "next_steps": [
     "添加自动化测试（单元测试、集成测试、E2E 测试）",
@@ -460,7 +517,11 @@
     "实现消息搜索功能",
     "添加数据同步功能（云端备份）",
     "完善错误处理和用户反馈",
-    "添加使用分析和崩溃报告"
+    "添加使用分析和崩溃报告",
+    "优化 Markdown 渲染性能",
+    "添加消息编辑和删除功能",
+    "实现对话导出（Markdown、PDF）",
+    "支持更多附件类型（视频、音频）"
   ],
   "ignore_rules": [
     "node_modules/**",
@@ -500,13 +561,20 @@
     "/ios"
   ],
   "scan_metadata": {
-    "scanned_at": "2025-11-15T15:24:49.000Z",
+    "scanned_at": "2025-11-16T05:48:51.000Z",
     "scan_duration_ms": 0,
     "truncated": false,
     "truncation_reason": null,
-    "scan_strategy": "模块优先扫描（中等强度）",
+    "scan_strategy": "增量更新扫描（验证模式）",
     "files_scanned": 150,
     "files_ignored": 0,
-    "total_size_bytes": 0
+    "total_size_bytes": 0,
+    "scan_mode": "validation",
+    "changes_detected": [
+      "更新代码行数统计",
+      "验证文档完整性",
+      "确认接口导出数量",
+      "更新元数据时间戳"
+    ]
   }
 }
