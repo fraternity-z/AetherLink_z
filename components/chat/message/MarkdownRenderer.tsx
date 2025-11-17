@@ -9,11 +9,11 @@
  */
 
 import React, { useMemo } from 'react';
-import { View, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useTheme } from 'react-native-paper';
-import RenderHtml, { HTMLContentModel, HTMLElementModel } from 'react-native-render-html';
-import { marked } from 'marked';
+import Markdown from 'react-native-marked';
 import { logger } from '@/utils/logger';
+import { useMarkdownRenderer } from './useMarkdownRenderer';
 
 // 内容解析结果类型
 interface ParsedContent {
@@ -77,13 +77,15 @@ export function parseContentWithMath(content: string): ParsedContent {
   };
 }
 
+
 /**
  * Markdown 渲染组件
  */
 export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererProps) {
   const theme = useTheme();
-  const { width } = useWindowDimensions();
+  const isDark = theme.dark;
 
+  // 解析数学公式
   const parsedContent = useMemo(() => {
     return parseContentWithMath(content);
   }, [content]);
@@ -95,149 +97,47 @@ export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererPr
     }
   }, [onMathDetected, parsedContent.hasMath, parsedContent.mathFragments]);
 
-  // 将 Markdown 转换为 HTML
-  const htmlContent = useMemo(() => {
-    try {
-      const result = marked.parse(parsedContent.hasMath ? parsedContent.markdownContent : content);
-      // marked.parse 可能返回 Promise，但在同步模式下返回字符串
-      return typeof result === 'string' ? result : content;
-    } catch (error) {
-      logger.error('Markdown parsing error:', error);
-      return content;
-    }
-  }, [content, parsedContent.hasMath, parsedContent.markdownContent]);
+  // 获取自定义渲染器
+  const { renderer } = useMarkdownRenderer(isDark);
 
-  // 定义 HTML 标签样式
-  const baseFontSize = (theme as any)?.fonts?.bodyMedium?.fontSize ?? 14;
-  const lineHeight = Math.round(baseFontSize * 1.5);
-
-  // 🚀 缓存自定义 HTML 元素模型，避免频繁重建
-  const customHTMLElementModels = useMemo(() => ({
-    think: HTMLElementModel.fromCustomModel({
-      tagName: 'think',
-      contentModel: HTMLContentModel.mixed,
-    }),
-  }), []);
-
-  // 忽略非标准的 MCP 协议标签，避免警告与错误渲染
-  // 这些标签只作为模型与工具的通信信号，不应在 UI 中显示
-  const ignoredDomTags = useMemo(() => [
-    'tool_use',
-    'name',
-    'arguments',
-    'tool_result',
-  ], []);
-
-  const tagsStyles = useMemo(() => ({
-    body: {
-      color: theme.colors.onSurface,
-      fontSize: baseFontSize,
-      lineHeight,
-    },
-    think: {
-      // 自定义 <think> 标签的样式：作为块级容器渲染
-      color: theme.colors.onSurface,
-      backgroundColor: theme.dark ? '#242424' : '#fafafa',
-      borderRadius: 6,
-      paddingVertical: 6,
-      paddingHorizontal: 8,
-      marginVertical: 6,
-    },
-    p: {
-      color: theme.colors.onSurface,
-      marginBottom: 8,
-      fontSize: baseFontSize,
-      lineHeight,
-    },
-    h1: {
-      color: theme.colors.onSurface,
-      fontWeight: 'bold' as const,
-      marginBottom: 8,
-      marginTop: 16,
-      fontSize: Math.round(baseFontSize * 1.6),
-      lineHeight: Math.round(baseFontSize * 1.9),
-    },
-    h2: {
-      color: theme.colors.onSurface,
-      fontWeight: 'bold' as const,
-      marginBottom: 6,
-      marginTop: 12,
-      fontSize: Math.round(baseFontSize * 1.4),
-      lineHeight: Math.round(baseFontSize * 1.7),
-    },
-    h3: {
-      color: theme.colors.onSurface,
-      fontWeight: 'bold' as const,
-      marginBottom: 4,
-      marginTop: 8,
-      fontSize: Math.round(baseFontSize * 1.2),
-      lineHeight: Math.round(baseFontSize * 1.6),
-    },
-    code: {
-      backgroundColor: theme.colors.surfaceVariant,
-      color: theme.colors.onSurfaceVariant,
-      fontFamily: 'monospace',
-      fontSize: Math.round(baseFontSize * 0.9),
-      paddingHorizontal: 4,
-      paddingVertical: 2,
-      borderRadius: 4,
-    },
-    pre: {
-      backgroundColor: theme.colors.surfaceVariant,
-      color: theme.colors.onSurfaceVariant,
-      padding: 12,
-      borderRadius: 8,
-      marginVertical: 8,
-    },
-    blockquote: {
-      backgroundColor: theme.colors.surface,
-      borderLeftColor: theme.colors.primary,
-      borderLeftWidth: 4,
-      paddingLeft: 12,
-      paddingVertical: 8,
-      marginVertical: 8,
-    },
-    a: {
-      color: theme.colors.primary,
-      textDecorationLine: 'underline' as const,
-    },
-    li: {
-      color: theme.colors.onSurface,
-      marginBottom: 4,
-      fontSize: baseFontSize,
-      lineHeight,
-    },
-    strong: {
-      fontWeight: 'bold' as const,
-    },
-    em: {
-      fontStyle: 'italic' as const,
-    },
-  }), [theme.colors, theme.dark, baseFontSize, lineHeight]);
-
-  // 🚀 缓存 baseStyle，避免频繁重建
-  const baseStyle = useMemo(() => ({
-    color: theme.colors.onSurface,
-    fontSize: baseFontSize,
-    lineHeight,
-  }), [theme.colors.onSurface, baseFontSize, lineHeight]);
+  // 最终要渲染的内容
+  const markdownContent = parsedContent.hasMath ? parsedContent.markdownContent : content;
 
   // 如果没有内容，返回空
-  if (!htmlContent || htmlContent.trim() === '') {
+  if (!markdownContent || markdownContent.trim() === '') {
     return null;
   }
 
-  // 渲染 HTML 内容
+  // 主题颜色配置（使用更柔和的颜色）
+  const colors = useMemo(() => ({
+    code: theme.colors.surfaceVariant,
+    link: theme.colors.primary,
+    // 使用柔和的文字颜色，避免过于刺眼
+    text: isDark ? '#f9f9f9' : '#202020',
+    border: theme.colors.outline,
+  }), [theme.colors, isDark]);
+
+  logger.info('[MarkdownRenderer] Rendering', {
+    contentLength: markdownContent.length,
+    hasMath: parsedContent.hasMath,
+    isDark
+  });
+
+  // 使用 react-native-marked 渲染
   return (
     <View style={styles.container}>
-      <RenderHtml
-        contentWidth={width}
-        source={{ html: htmlContent }}
-        tagsStyles={tagsStyles}
-        // 🚀 使用缓存的配置，避免频繁重建导致性能问题
-        customHTMLElementModels={customHTMLElementModels}
-        ignoredDomTags={ignoredDomTags}
-        baseStyle={baseStyle}
+      <Markdown
+        theme={{ colors }}
+        value={markdownContent}
+        renderer={renderer}
+        flatListProps={{
+          scrollEnabled: false,
+          nestedScrollEnabled: false,
+          showsVerticalScrollIndicator: false,
+          style: {
+            backgroundColor: 'transparent',
+          },
+        }}
       />
     </View>
   );
