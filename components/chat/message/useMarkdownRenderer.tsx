@@ -53,7 +53,7 @@ class CustomRenderer extends Renderer implements RendererInterface {
     const backgroundColor = this.isDark
       ? 'rgba(255, 255, 255, 0.05)'
       : 'rgba(0, 0, 0, 0.03)';
-    const color = this.isDark ? '#00b96b' : '#00b96b'; // 使用绿色突出显示
+    const color = this.isDark ? '#5900ffff' : '#c45ae7ff'; // 使用绿色突出显示
 
     return (
       <Text
