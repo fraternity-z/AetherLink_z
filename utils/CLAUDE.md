@@ -259,7 +259,8 @@ hasModelLogo(modelId: string | undefined): boolean
 **使用示例**：
 
 ```typescript
-import { getModelLogo, useModelLogo } from '@/utils/model-logo';
+import { getModelLogo } from '@/utils/model-logo';
+import { useModelLogo } from '@/hooks/use-model-logo';
 
 // 在组件中使用（自动适配主题）
 function ModelBadge({ modelId }: { modelId: string }) {

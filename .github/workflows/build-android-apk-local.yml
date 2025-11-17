@@ -143,19 +143,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          release_tag=""
+          release_name=""
           if [ -n "${VERSION_NAME}" ]; then
-            echo "RELEASE_TAG=v${VERSION_NAME}" >> "$GITHUB_ENV"
+            release_tag="v${VERSION_NAME}"
             if [ -n "${VERSION_CODE}" ]; then
-              echo "RELEASE_NAME=AetherLink_z v${VERSION_NAME} (code ${VERSION_CODE})" >> "$GITHUB_ENV"
+              release_name="AetherLink_z v${VERSION_NAME} (code ${VERSION_CODE})"
             else
-              echo "RELEASE_NAME=AetherLink_z v${VERSION_NAME}" >> "$GITHUB_ENV"
+              release_name="AetherLink_z v${VERSION_NAME}"
             fi
           else
             short_sha="${GITHUB_SHA::7}"
-            echo "RELEASE_TAG=apk-${short_sha}" >> "$GITHUB_ENV"
-            echo "RELEASE_NAME=AetherLink_z APK ${short_sha}" >> "$GITHUB_ENV"
+            release_tag="apk-${short_sha}"
+            release_name="AetherLink_z APK ${short_sha}"
           fi
-          echo "Computed: tag=$RELEASE_TAG, name=$RELEASE_NAME"
+          echo "RELEASE_TAG=${release_tag}" >> "$GITHUB_ENV"
+          echo "RELEASE_NAME=${release_name}" >> "$GITHUB_ENV"
+          echo "Computed: tag=${release_tag}, name=${release_name}"
 
       - name: Create GitHub Release and upload APK
         uses: softprops/action-gh-release@v2
