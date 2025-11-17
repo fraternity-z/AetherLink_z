@@ -48,13 +48,19 @@ export function ToolBlock({ block }: ToolBlockProps) {
     }
   };
 
+  const cardBackground = theme.dark ? 'rgba(32, 32, 36, 0.65)' : 'rgba(255, 255, 255, 0.82)';
+  const codeBackground = theme.dark ? 'rgba(18, 18, 20, 0.65)' : 'rgba(255, 255, 255, 0.9)';
+  const codeBorderColor = theme.dark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)';
+  const shadowColor = theme.colors?.shadow ?? 'rgba(0, 0, 0, 0.45)';
+
   return (
     <Card
       style={[
         styles.container,
         {
-          backgroundColor: theme.dark ? theme.colors.surfaceVariant : '#F5F5F5',
+          backgroundColor: cardBackground,
           borderColor: isError ? theme.colors.error : theme.colors.outline,
+          shadowColor,
         }
       ]}
       mode="outlined"
@@ -86,7 +92,10 @@ export function ToolBlock({ block }: ToolBlockProps) {
               </Text>
               <Text
                 variant="bodySmall"
-                style={[styles.codeText, { color: theme.colors.onSurface, backgroundColor: theme.dark ? '#1E1E1E' : '#FAFAFA' }]}
+                style={[
+                  styles.codeText,
+                  { color: theme.colors.onSurface, backgroundColor: codeBackground, borderColor: codeBorderColor },
+                ]}
               >
                 {formatArgs()}
               </Text>
@@ -101,7 +110,10 @@ export function ToolBlock({ block }: ToolBlockProps) {
               </Text>
               <Text
                 variant="bodySmall"
-                style={[styles.codeText, { color: theme.colors.onSurface, backgroundColor: theme.dark ? '#1E1E1E' : '#FAFAFA' }]}
+                style={[
+                  styles.codeText,
+                  { color: theme.colors.onSurface, backgroundColor: codeBackground, borderColor: codeBorderColor },
+                ]}
               >
                 {block.content}
               </Text>
@@ -122,16 +134,22 @@ export function ToolBlock({ block }: ToolBlockProps) {
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 4,
-    borderRadius: 12,
+    marginVertical: 3,
+    borderRadius: 14,
     borderWidth: 1,
+    overflow: 'hidden',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
   },
   titleContainer: {
-    paddingVertical: 8,
+    paddingVertical: 4,
+    minHeight: 40,
   },
   title: {
     fontSize: 14,
     fontWeight: '600',
+    lineHeight: 18,
   },
   statusIcon: {
     marginLeft: 8,
@@ -142,10 +160,10 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingTop: 0,
-    paddingBottom: 12,
+    paddingBottom: 10,
   },
   section: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   sectionLabel: {
     marginBottom: 4,
@@ -154,13 +172,16 @@ const styles = StyleSheet.create({
   codeText: {
     fontFamily: 'monospace',
     fontSize: 12,
+    lineHeight: 18,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'transparent',
   },
   statusRow: {
-    marginTop: 8,
-    paddingTop: 8,
+    marginTop: 6,
+    paddingTop: 6,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(0,0,0,0.1)',
   },
