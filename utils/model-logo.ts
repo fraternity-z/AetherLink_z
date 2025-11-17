@@ -1,9 +1,10 @@
 /**
  * 模型 Logo 工具
  * 根据模型 ID 或名称自动匹配对应的官方 Logo
+ *
+ * 注意：这是一个纯工具模块，不依赖任何业务层代码
+ * React Hook 版本请使用 hooks/use-model-logo.ts
  */
-
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 // Logo 文件映射表
 const MODEL_LOGOS = {
@@ -127,14 +128,10 @@ export function getModelLogo(modelId: string | undefined, isDark?: boolean): any
 
 /**
  * React Hook: 获取模型 Logo，自动适配当前主题
- * @param modelId 模型 ID 或名称
- * @returns Logo 图片资源
+ *
+ * ⚠️ 已移至 hooks/use-model-logo.ts，请从那里导入
+ * @deprecated 使用 import { useModelLogo } from '@/hooks/use-model-logo'
  */
-export function useModelLogo(modelId: string | undefined): any {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  return getModelLogo(modelId, isDark);
-}
 
 /**
  * 检查模型是否有对应的 Logo

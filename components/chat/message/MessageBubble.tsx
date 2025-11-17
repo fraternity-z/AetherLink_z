@@ -21,7 +21,7 @@ import { GeneratedImageCard } from '../misc/GeneratedImageCard';
 import { ImageViewer } from '../misc/ImageViewer';
 import { TypingIndicator } from './TypingIndicator';
 import { cn } from '@/utils/classnames';
-import { useModelLogo } from '@/utils/model-logo';
+import { useModelLogo } from '@/hooks/use-model-logo';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { logger } from '@/utils/logger';
@@ -100,7 +100,6 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
       const filename = `aetherlink_image_${timestamp}.png`;
       const file = new File(Paths.document, filename);
 
-
       // 使用 fetch 下载图片
       const response = await fetch(imageUri);
       if (!response.ok) {
@@ -115,7 +114,6 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
 
       // 写入文件
       await file.write(base64, { encoding: 'base64' });
-
 
       // 分享/保存图片
       const isAvailable = await Sharing.isAvailableAsync();

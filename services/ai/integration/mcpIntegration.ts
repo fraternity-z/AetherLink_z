@@ -12,7 +12,7 @@ import type { JSONSchema7 } from 'json-schema';
 import { logger } from '@/utils/logger';
 import type { MCPToolResponse, MCPToolResult, MCPServer } from '@/types/mcp';
 import type { MCPTool } from '@/types/tool';
-import { callMCPTool, callBuiltInTool, isToolAutoApproved } from '@/utils/mcpTool';
+import { callMCPTool, callBuiltInTool, isToolAutoApproved } from '@/services/mcp/ToolCaller';
 import { mcpClient } from '@/services/mcp/McpClient';
 import { McpServersRepository } from '@/storage/repositories/mcp';
 
