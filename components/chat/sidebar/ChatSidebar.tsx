@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, useWindowDimensions, View, ScrollView } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Surface, Text, List, TouchableRipple, useTheme, Avatar, IconButton, Menu } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import { ChatSettings } from '../dialogs/ChatSettings';
 import { AssistantsRepository } from '@/storage/repositories/assistants';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
@@ -12,6 +13,8 @@ import { AssistantPickerDialog } from '../dialogs/AssistantPickerDialog';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { useUserProfile } from '@/hooks/use-user-profile';
+
+const ASSISTANTS_EVENT_SOURCE = 'chat-sidebar';
 
 type TabKey = 'assistants' | 'settings';
 
@@ -28,6 +31,8 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
   // 半透明背景：浅色提高不透明度以便在白底可见，深色保持低透明
   const translucentBg = theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)';
 
+  const assistantsRepo = useMemo(() => AssistantsRepository(), []);
+  const settingsRepo = useMemo(() => SettingsRepository(), []);
   const translateX = useRef(new Animated.Value(-drawerWidth)).current;
   const [tab, setTab] = useState<TabKey>('assistants');
   const [assistants, setAssistants] = useState<Assistant[]>([]);
@@ -37,20 +42,36 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
   const { avatarUri, pickImage, removeAvatar } = useUserProfile();
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
 
-  // 加载助手列表和当前选中的助手
-  useEffect(() => {
-    const loadAssistants = async () => {
-      const repo = AssistantsRepository();
-      const allAssistants = await repo.getAll();
-      setAssistants(allAssistants);
+  // 加载助手列表和当前选中的助手（单次加载 + 事件触发时显式刷新）
+  const loadAssistants = useCallback(async () => {
+    const allAssistants = await assistantsRepo.getAll();
+    setAssistants(allAssistants);
 
-      const settings = SettingsRepository();
-      const currentId = await settings.get<string>(SettingKey.CurrentAssistantId);
-      setCurrentAssistantId(currentId || 'default');
+    const currentId = await settingsRepo.get<string>(SettingKey.CurrentAssistantId);
+    setCurrentAssistantId(currentId || 'default');
+  }, [assistantsRepo, settingsRepo]);
+
+  useEffect(() => {
+    loadAssistants();
+  }, [loadAssistants]);
+
+  useEffect(() => {
+    const handleAssistantsUpdated = (source?: string) => {
+      if (source === ASSISTANTS_EVENT_SOURCE) {
+        return;
+      }
+      loadAssistants();
     };
 
-    loadAssistants();
-  }, [visible]); // 每次打开侧边栏时重新加载
+    appEvents.on(AppEvents.ASSISTANTS_UPDATED, handleAssistantsUpdated);
+    return () => {
+      appEvents.off(AppEvents.ASSISTANTS_UPDATED, handleAssistantsUpdated);
+    };
+  }, [loadAssistants]);
+
+  const notifyAssistantsUpdated = useCallback(() => {
+    appEvents.emit(AppEvents.ASSISTANTS_UPDATED, ASSISTANTS_EVENT_SOURCE);
+  }, []);
 
   useEffect(() => {
     Animated.timing(translateX, {
@@ -61,27 +82,25 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
   }, [visible, drawerWidth, translateX]);
 
   // 切换助手
-  const handleSelectAssistant = async (assistantId: string) => {
-    const settings = SettingsRepository();
-    await settings.set(SettingKey.CurrentAssistantId, assistantId);
+  const handleSelectAssistant = useCallback(async (assistantId: string) => {
+    await settingsRepo.set(SettingKey.CurrentAssistantId, assistantId);
     setCurrentAssistantId(assistantId);
 
     // 发送助手切换事件
     appEvents.emit(AppEvents.ASSISTANT_CHANGED, assistantId);
-
-  };
+  }, [settingsRepo]);
 
   // 添加助手
-  const handleAddAssistant = async (assistant: Assistant) => {
-    const repo = AssistantsRepository();
-    await repo.enableAssistant(assistant.id);
+  const handleAddAssistant = useCallback(async (assistant: Assistant) => {
+    await assistantsRepo.enableAssistant(assistant.id);
     // 重新加载助手列表
-    const allAssistants = await repo.getAll();
+    const allAssistants = await assistantsRepo.getAll();
     setAssistants(allAssistants);
-  };
+    notifyAssistantsUpdated();
+  }, [assistantsRepo, notifyAssistantsUpdated]);
 
   // 移除助手
-  const handleRemoveAssistant = async (assistant: Assistant) => {
+  const handleRemoveAssistant = useCallback((assistant: Assistant) => {
     if (assistant.id === 'default') {
       return; // 不能删除默认助手
     }
@@ -95,8 +114,7 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
           text: '移除',
           style: 'destructive',
           onPress: async () => {
-            const repo = AssistantsRepository();
-            await repo.disableAssistant(assistant.id);
+            await assistantsRepo.disableAssistant(assistant.id);
 
             // 如果移除的是当前助手，切换到默认助手
             if (assistant.id === currentAssistantId) {
@@ -104,13 +122,62 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
             }
 
             // 重新加载助手列表
-            const allAssistants = await repo.getAll();
+            const allAssistants = await assistantsRepo.getAll();
             setAssistants(allAssistants);
+            notifyAssistantsUpdated();
           },
         },
       ],
     });
-  };
+  }, [assistantsRepo, confirm, currentAssistantId, handleSelectAssistant, notifyAssistantsUpdated]);
+
+  const assistantListContentStyle = useMemo(() => ({ paddingBottom: 80 }), []);
+  const assistantKeyExtractor = useCallback((item: Assistant) => item.id, []);
+
+  const renderAssistantItem: ListRenderItem<Assistant> = useCallback(
+    ({ item: assistant }) => {
+      const isSelected = assistant.id === currentAssistantId;
+      const canRemove = assistant.id !== 'default';
+
+      return (
+        <TouchableRipple
+          onPress={() => handleSelectAssistant(assistant.id)}
+          onLongPress={() => canRemove && handleRemoveAssistant(assistant)}
+        >
+          <List.Item
+            title={assistant.name}
+            description={assistant.description}
+            left={() => (
+              <View style={{ paddingLeft: 8, paddingTop: 6 }}>
+                <Text style={{ fontSize: 24 }}>
+                  {assistant.emoji || '🤖'}
+                </Text>
+              </View>
+            )}
+            right={(props) =>
+              isSelected ? (
+                <List.Icon {...props} icon="check" color={theme.colors.primary} />
+              ) : canRemove ? (
+                <IconButton
+                  icon="close"
+                  size={16}
+                  onPress={() => handleRemoveAssistant(assistant)}
+                />
+              ) : null
+            }
+            style={[
+              styles.assistantItem,
+              isSelected && [
+                styles.assistantItemSelected,
+                { backgroundColor: theme.colors.primaryContainer, borderColor: theme.colors.primary },
+              ],
+            ]}
+          />
+        </TouchableRipple>
+      );
+    },
+    [currentAssistantId, handleRemoveAssistant, handleSelectAssistant, theme.colors.primary, theme.colors.primaryContainer],
+  );
   
 
   return (
@@ -171,53 +238,15 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
             {tab === 'assistants' ? (
               <View style={{ flex: 1 }}>
                 {/* 助手列表 */}
-                <ScrollView
-                  showsVerticalScrollIndicator={true}
-                  contentContainerStyle={{ paddingBottom: 80 }}
-                >
-                  {assistants.map((assistant) => {
-                    const isSelected = assistant.id === currentAssistantId;
-                    const canRemove = assistant.id !== 'default';
-
-                    return (
-                      <TouchableRipple
-                        key={assistant.id}
-                        onPress={() => handleSelectAssistant(assistant.id)}
-                        onLongPress={() => canRemove && handleRemoveAssistant(assistant)}
-                      >
-                        <List.Item
-                          title={assistant.name}
-                          description={assistant.description}
-                          left={(props) => (
-                            <View style={{ paddingLeft: 8, paddingTop: 6 }}>
-                              <Text style={{ fontSize: 24 }}>
-                                {assistant.emoji || '🤖'}
-                              </Text>
-                            </View>
-                          )}
-                          right={(props) =>
-                            isSelected ? (
-                              <List.Icon {...props} icon="check" color={theme.colors.primary} />
-                            ) : canRemove ? (
-                              <IconButton
-                                icon="close"
-                                size={16}
-                                onPress={() => handleRemoveAssistant(assistant)}
-                              />
-                            ) : null
-                          }
-                          style={[
-                            styles.assistantItem,
-                            isSelected && [
-                              styles.assistantItemSelected,
-                              { backgroundColor: theme.colors.primaryContainer, borderColor: theme.colors.primary }
-                            ],
-                          ]}
-                        />
-                      </TouchableRipple>
-                    );
-                  })}
-                </ScrollView>
+                <FlashList
+                  data={assistants}
+                  renderItem={renderAssistantItem}
+                  keyExtractor={assistantKeyExtractor}
+                  contentContainerStyle={assistantListContentStyle}
+                  showsVerticalScrollIndicator
+                  // @ts-expect-error FlashList 类型定义未包含 estimatedItemSize，但运行时需要配置
+                  estimatedItemSize={72}
+                />
 
                 {/* 底部添加助手按钮 */}
                 <View
