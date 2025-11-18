@@ -82,9 +82,9 @@ export const ChatInputField = React.memo(function ChatInputField({
       multiline
       maxLength={maxLength}
       editable={!disabled}
-      className="text-[15px] leading-5 px-4 pt-3 pb-2 min-h-11 max-h-[120px]"
+      className="text-[15px] leading-6 px-4 pt-4 pb-3 min-h-[52px] max-h-[120px]"
       style={{
-        textAlignVertical: 'top',
+        textAlignVertical: 'center',
         color: theme.colors.onSurface,
       }}
       // 键盘优化
