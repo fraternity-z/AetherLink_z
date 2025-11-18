@@ -9,8 +9,7 @@
 
 import React from 'react';
 import { View, Alert, Pressable } from 'react-native';
-import { Text, useTheme, Avatar, Menu } from 'react-native-paper';
-import * as Clipboard from 'expo-clipboard';
+import { Text, useTheme, Avatar } from 'react-native-paper';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import type { Attachment, ThinkingChain, Message, MessageBlock } from '@/storage/core';
@@ -20,8 +19,10 @@ import { ToolBlock } from './ToolBlock';
 import { GeneratedImageCard } from '../misc/GeneratedImageCard';
 import { ImageViewer } from '../misc/ImageViewer';
 import { TypingIndicator } from './TypingIndicator';
+import { MessageFooter } from './MessageFooter';
 import { cn } from '@/utils/classnames';
 import { useModelLogo } from '@/hooks/use-model-logo';
+import { useMessageActions } from '@/hooks/use-message-actions';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { logger } from '@/utils/logger';
@@ -38,16 +39,22 @@ interface MessageBubbleProps {
   extra?: Message['extra']; // 消息额外数据（用于图片生成等特殊消息类型）
   userAvatarUri?: string | null; // 用户头像 URI（仅用户消息）
   blocks?: MessageBlock[]; // ✨ 消息块数据（包括 TEXT, TOOL 等类型）
+  message?: Message; // ✨ 完整的消息对象（用于工具栏功能）
 
   // 功能扩展回调
   onResend?: () => void;      // TODO: 重新发送(用户消息)
-  onRegenerate?: () => void;  // TODO: 重新生成(助手消息)
+  onRegenerate?: () => void;  // ✨ 重新生成(助手消息) - 已启用
 }
 
-function MessageBubbleComponent({ content, isUser, timestamp, status, attachments = [], thinkingChain, modelId, extra, userAvatarUri, blocks = [], onResend, onRegenerate }: MessageBubbleProps) {
+function MessageBubbleComponent({ content, isUser, timestamp, status, attachments = [], thinkingChain, modelId, extra, userAvatarUri, blocks = [], message, onResend, onRegenerate }: MessageBubbleProps) {
   const theme = useTheme();
   const modelLogo = useModelLogo(modelId); // 获取模型 logo
   const [logoError, setLogoError] = React.useState(false);
+
+  // ✨ 消息操作 Hook（用于工具栏功能）
+  const messageActions = message
+    ? useMessageActions({ message, content, onRegenerate })
+    : null;
 
   // ✨ 筛选工具块（按 sortOrder 排序）
   const toolBlocks = blocks
@@ -58,10 +65,6 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
   const [viewerVisible, setViewerVisible] = React.useState(false);
   const [currentImageUri, setCurrentImageUri] = React.useState<string>('');
   const [currentImagePrompt, setCurrentImagePrompt] = React.useState<string | undefined>(undefined);
-
-  // 长按菜单状态
-  const [menuVisible, setMenuVisible] = React.useState(false);
-  const [menuAnchor, setMenuAnchor] = React.useState({ x: 0, y: 0 });
 
   // 调试：如需检查思考链数据可在此处添加日志
 
@@ -130,45 +133,6 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
       Alert.alert('错误', error.message || '下载图片失败');
     }
   }, []);
-
-  // 打开长按菜单
-  const openMenu = React.useCallback((event: any) => {
-    // 触觉反馈
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    // 设置菜单锚点位置
-    setMenuAnchor({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
-    setMenuVisible(true);
-  }, []);
-
-  // 关闭菜单
-  const closeMenu = React.useCallback(() => {
-    setMenuVisible(false);
-  }, []);
-
-  // 复制消息内容
-  const handleCopyMessage = React.useCallback(async () => {
-    try {
-      await Clipboard.setStringAsync(content);
-      closeMenu();
-      Alert.alert('已复制', '消息内容已复制到剪贴板');
-    } catch (error: any) {
-      logger.error('[MessageBubble] 复制失败:', error);
-      Alert.alert('错误', '复制失败，请重试');
-    }
-  }, [content, closeMenu]);
-
-  // TODO: 重新发送消息（用户消息）
-  // const handleResend = React.useCallback(() => {
-  //   closeMenu();
-  //   onResend?.();
-  // }, [onResend]);
-
-  // TODO: 重新生成消息（助手消息）
-  // const handleRegenerate = React.useCallback(() => {
-  //   closeMenu();
-  //   onRegenerate?.();
-  // }, [onRegenerate]);
 
   const getStatusIndicator = () => {
     if (!status || status === 'sent' || status === 'pending') return null;
@@ -250,8 +214,6 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
 
         {/* 气泡主体 */}
         <Pressable
-          onLongPress={content && content.trim().length > 0 && status !== 'pending' ? openMenu : undefined}
-          delayLongPress={500}
           style={({ pressed }) => ({
             borderRadius: 16,
             paddingHorizontal: 14,
@@ -393,6 +355,19 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
           )}
         </Pressable>
 
+        {/* ✨ 消息底部工具栏（仅助手消息且已完成时显示） */}
+        {!isUser && status !== 'pending' && message && messageActions && (
+          <MessageFooter
+            message={message}
+            isUser={isUser}
+            onCopy={messageActions.handleCopy}
+            onRegenerate={onRegenerate ? messageActions.handleRegenerate : undefined}
+            onShare={messageActions.handleShare}
+            copyState={messageActions.copyState}
+            shareState={messageActions.shareState}
+          />
+        )}
+
         {/* 时间戳和状态指示器 */}
         <View className={cn(
           'flex-row items-center mt-1 px-0.5',
@@ -410,47 +385,6 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
           {getStatusIndicator()}
         </View>
       </View>
-
-      {/* 长按菜单 */}
-      <Menu
-        visible={menuVisible}
-        onDismiss={closeMenu}
-        anchor={menuAnchor}
-        anchorPosition="top"
-        contentStyle={{
-          backgroundColor: theme.colors.surface,
-          borderRadius: 12,
-          minWidth: 160,
-        }}
-      >
-        <Menu.Item
-          onPress={handleCopyMessage}
-          title="复制"
-          leadingIcon="content-copy"
-          titleStyle={{ fontSize: 15 }}
-          disabled={!content || content.trim().length === 0 || status === 'pending'}
-        />
-
-        {/* TODO: 未来功能 - 重新发送(仅用户消息) */}
-        {/* {isUser && (
-          <Menu.Item
-            onPress={handleResend}
-            title="重新发送"
-            leadingIcon="send"
-            titleStyle={{ fontSize: 15 }}
-          />
-        )} */}
-
-        {/* TODO: 未来功能 - 重新生成(仅助手消息) */}
-        {/* {!isUser && (
-          <Menu.Item
-            onPress={handleRegenerate}
-            title="重新生成"
-            leadingIcon="refresh"
-            titleStyle={{ fontSize: 15 }}
-          />
-        )} */}
-      </Menu>
 
       {/* 图片查看器 */}
       <ImageViewer

@@ -22,6 +22,7 @@ import { SettingsRepository, SettingKey } from '@/storage/repositories/settings'
 import { appEvents, AppEvents } from '@/utils/events';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useErrorHandler } from '@/hooks/use-error-handler';
+import { useMessageSender } from '@/hooks/use-message-sender';
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
@@ -35,6 +36,9 @@ export default function ChatScreen() {
   const params = useLocalSearchParams<{ cid?: string }>();
   const settingsRepo = useMemo(() => SettingsRepository(), []);
   const { withErrorHandler } = useErrorHandler();
+
+  // ✨ 消息发送 Hook（用于重新生成功能）
+  const { sendMessage } = useMessageSender(conversationId, setConversationId);
 
   useEffect(() => {
     withErrorHandler(async () => {
@@ -59,6 +63,28 @@ export default function ChatScreen() {
       appEvents.off(AppEvents.QUICK_PHRASES_SETTING_CHANGED, handleSettingChange);
     };
   }, []);
+
+  // ✨ 监听重新生成消息请求
+  useEffect(() => {
+    const handleRegenerateRequest = (payload: {
+      conversationId: string;
+      userMessageText: string;
+      userMessageAttachments: any[];
+    }) => {
+      // 调用 sendMessage 重新发送用户消息
+      sendMessage({
+        text: payload.userMessageText,
+        attachments: payload.userMessageAttachments,
+        searchResults: null,
+        enableMcpTools: false,
+      });
+    };
+
+    appEvents.on(AppEvents.MESSAGE_REGENERATE_REQUESTED, handleRegenerateRequest);
+    return () => {
+      appEvents.off(AppEvents.MESSAGE_REGENERATE_REQUESTED, handleRegenerateRequest);
+    };
+  }, [sendMessage]);
 
   const handleMenuPress = () => {
     setDrawerOpen((v) => !v);

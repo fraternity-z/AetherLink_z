@@ -18,6 +18,7 @@ import { useUserProfile } from '@/hooks/use-user-profile';
 import { AttachmentRepository } from '@/storage/repositories/attachments';
 import { ThinkingChainRepository } from '@/storage/repositories/thinking-chains';
 import { MessageBlocksRepository } from '@/storage/repositories/message-blocks';
+import { MessageRepository } from '@/storage/repositories/messages';
 import type { Attachment, Message, ThinkingChain, MessageBlock } from '@/storage/core';
 import { appEvents, AppEvents } from '@/utils/events';
 import { logger } from '@/utils/logger';
@@ -123,6 +124,56 @@ function MessageListComponent({ conversationId }: MessageListProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messageIdsKey, thinkingChainKey, thinkingRefreshTick]);
 
+  // ✨ 处理重新生成功能
+  const handleRegenerate = useCallback(
+    async (messageId: string) => {
+      try {
+        if (!conversationId) return;
+
+        // 找到当前消息的索引
+        const currentIndex = items.findIndex((m) => m.id === messageId);
+        if (currentIndex === -1) {
+          logger.error('[MessageList] 未找到要重新生成的消息', { messageId });
+          return;
+        }
+
+        // 找到上一条用户消息
+        let userMessageIndex = currentIndex - 1;
+        while (userMessageIndex >= 0 && items[userMessageIndex].role !== 'user') {
+          userMessageIndex--;
+        }
+
+        if (userMessageIndex < 0) {
+          logger.error('[MessageList] 未找到上一条用户消息');
+          return;
+        }
+
+        const userMessage = items[userMessageIndex];
+
+        // 删除当前助手消息及之后的所有消息
+        const messagesToDelete = items.slice(currentIndex);
+        for (const msg of messagesToDelete) {
+          await MessageRepository.deleteMessage(msg.id);
+        }
+
+        // 触发重新生成事件，让主界面重新发送用户消息
+        appEvents.emit(AppEvents.MESSAGE_REGENERATE_REQUESTED, {
+          conversationId,
+          userMessageText: userMessage.text || '',
+          userMessageAttachments: attachmentsMap[userMessage.id] || [],
+        });
+
+        logger.info('[MessageList] 重新生成请求已发送', {
+          conversationId,
+          userMessageId: userMessage.id,
+        });
+      } catch (error) {
+        logger.error('[MessageList] 重新生成失败', error);
+      }
+    },
+    [conversationId, items, attachmentsMap]
+  );
+
   // 🚀 性能优化：使用 useCallback 缓存 renderItem，避免 FlatList 不必要的重渲染
   const renderItem: ListRenderItem<Message> = useCallback(
     ({ item }) => {
@@ -149,14 +200,15 @@ function MessageListComponent({ conversationId }: MessageListProps) {
           extra={item.extra} // 传递完整的 extra 数据（用于图片生成等特殊消息）
           userAvatarUri={item.role === 'user' ? avatarUri : undefined} // 用户消息传递头像 URI
           blocks={blocks} // ✨ 传递所有块数据（包括 TOOL 块）
+          message={item} // ✨ 传递完整的消息对象（用于工具栏功能）
           // TODO: 未来实现 - 重新发送消息（用户消息）
           // onResend={() => handleResendMessage(item.id)}
-          // TODO: 未来实现 - 重新生成消息（助手消息）
-          // onRegenerate={() => handleRegenerateMessage(item.id)}
+          // ✨ 重新生成消息（助手消息）
+          onRegenerate={() => handleRegenerate(item.id)}
         />
       );
     },
-    [attachmentsMap, thinkingChainsMap, blocksMap, avatarUri] // 添加 blocksMap 到依赖数组
+    [attachmentsMap, thinkingChainsMap, blocksMap, avatarUri, handleRegenerate] // 添加 blocksMap 和 handleRegenerate 到依赖数组
   );
 
   // 🚀 性能优化：根据消息类型返回不同的类型标识，提升回收效率
