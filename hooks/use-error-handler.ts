@@ -106,7 +106,7 @@ export function useErrorHandler() {
             text: action.title,
             onPress: () => {
               // TODO: 执行恢复操作
-              console.log('执行恢复操作:', action.type, action.payload);
+              logger.debug('执行恢复操作:', { type: action.type, payload: action.payload });
             },
           })),
           {

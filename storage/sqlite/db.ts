@@ -2,6 +2,7 @@ import { openDatabaseSync, SQLiteDatabase } from 'expo-sqlite';
 import { MIGRATION_0001 } from '@/storage/sqlite/migrations/0001_init';
 import { MIGRATION_0002 } from '@/storage/sqlite/migrations/0002_multi_key';
 import { withDatabaseErrorHandler, withTransactionErrorHandler } from '@/storage/sqlite/error-handler';
+import { logger } from '@/utils/logger';
 
 let dbInstance: SQLiteDatabase | null = null;
 let dbOperationQueue: Promise<unknown> = Promise.resolve();
@@ -54,7 +55,7 @@ function runSerializedWithRetry<T>(
       const delay = baseDelay * Math.pow(2, attemptNumber);
 
       // 记录重试日志
-      console.warn(`[数据库锁定] 第 ${attemptNumber + 1}/${maxRetries} 次重试，延迟 ${delay}ms`);
+      logger.warn(`[数据库锁定] 第 ${attemptNumber + 1}/${maxRetries} 次重试，延迟 ${delay}ms`);
 
       // 等待后重试
       await new Promise(resolve => setTimeout(resolve, delay));

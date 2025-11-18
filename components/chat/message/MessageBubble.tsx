@@ -507,6 +507,19 @@ function arePropsEqual(prev: MessageBubbleProps, next: MessageBubbleProps): bool
     return false;
   }
 
+  // 比较消息块数组（处理可选值）
+  const prevBlocks = prev.blocks ?? [];
+  const nextBlocks = next.blocks ?? [];
+  if (prevBlocks.length !== nextBlocks.length) {
+    return false;
+  }
+  for (let i = 0; i < prevBlocks.length; i++) {
+    // 比较块 ID 和类型（ID 变化或类型变化都需要重新渲染）
+    if (prevBlocks[i].id !== nextBlocks[i].id || prevBlocks[i].type !== nextBlocks[i].type) {
+      return false;
+    }
+  }
+
   // 所有关键属性相同，不需要重新渲染
   return true;
 }

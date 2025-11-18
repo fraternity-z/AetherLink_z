@@ -74,7 +74,7 @@ interface HeartbeatInfo {
  *   pingInterval: 12000,
  *   pingTimeout: 6000,
  *   onStatusChange: (id, status) => {
- *     console.log(`Server ${id} status: ${status}`);
+ *     logger.debug(`Server ${id} status: ${status}`);
  *   },
  *   onHealthCheckFailed: async (id, error) => {
  *     await reconnect(id);

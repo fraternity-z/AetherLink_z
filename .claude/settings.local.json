@@ -42,7 +42,8 @@
       "Bash(node -e:*)",
       "Bash(node -c:*)",
       "Bash(xargs rg:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(xargs ls:*)"
     ],
     "deny": [],
     "ask": []
