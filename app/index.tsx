@@ -5,7 +5,6 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from 'react-native-paper';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import {
@@ -27,7 +26,6 @@ import { useErrorHandler } from '@/hooks/use-error-handler';
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const keyboardVerticalOffset = Platform.OS === 'ios' ? insets.bottom : 0;
-  const theme = useTheme();
   const chatInputRef = useRef<ChatInputRef>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [topicsOpen, setTopicsOpen] = useState(false);

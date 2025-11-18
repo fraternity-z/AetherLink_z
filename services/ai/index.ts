@@ -52,14 +52,14 @@ export {
   type ModelWithCapabilities,
   type ModelCapabilityDescriptor,
   type ProviderOptions,
-} from './capabilities';
+} from './capabilities/ModelCapabilities';
 
 // ============================================
 // MCP Integration - MCP 工具集成
 // ============================================
 export {
   getAllActiveTools,
-} from './integration';
+} from './integration/mcpIntegration';
 
 // ============================================
 // Model Discovery - 模型发现

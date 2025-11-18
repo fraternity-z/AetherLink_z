@@ -9,7 +9,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Appbar, useTheme, Text } from 'react-native-paper';
+import { Appbar, Text } from 'react-native-paper';
 import { AssistantsRepository } from '@/storage/repositories/assistants';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import type { Assistant } from '@/types/assistant';
@@ -22,7 +22,6 @@ interface ChatHeaderProps {
 }
 
 export function ChatHeader({ onMenuPress, onTopicsPress, onModelPickerPress }: ChatHeaderProps) {
-  const theme = useTheme();
   const [currentAssistant, setCurrentAssistant] = useState<Assistant | null>(null);
 
   // 加载当前助手信息

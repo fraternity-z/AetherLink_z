@@ -100,14 +100,6 @@ export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererPr
   // 获取自定义渲染器
   const { renderer } = useMarkdownRenderer(isDark);
 
-  // 最终要渲染的内容
-  const markdownContent = parsedContent.hasMath ? parsedContent.markdownContent : content;
-
-  // 如果没有内容，返回空
-  if (!markdownContent || markdownContent.trim() === '') {
-    return null;
-  }
-
   // 主题颜色配置（使用更柔和的颜色）
   const colors = useMemo(() => ({
     code: theme.colors.surfaceVariant,
@@ -116,6 +108,14 @@ export function MarkdownRenderer({ content, onMathDetected }: MarkdownRendererPr
     text: isDark ? '#f9f9f9' : '#202020',
     border: theme.colors.outline,
   }), [theme.colors, isDark]);
+
+  // 最终要渲染的内容
+  const markdownContent = parsedContent.hasMath ? parsedContent.markdownContent : content;
+
+  // 如果没有内容，返回空
+  if (!markdownContent || markdownContent.trim() === '') {
+    return null;
+  }
 
   logger.info('[MarkdownRenderer] Rendering', {
     contentLength: markdownContent.length,
