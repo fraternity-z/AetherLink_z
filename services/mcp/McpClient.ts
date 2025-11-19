@@ -55,6 +55,8 @@ interface ClientConnection {
   status: ConnectionStatus;
 }
 
+type MCPResourceExtras = Partial<Pick<MCPResource, 'size' | 'text' | 'blob'>>;
+
 /**
  * McpClient 类（完全重构版）
  *
@@ -612,17 +614,42 @@ export class McpClient {
     try {
       const result = await conn.client.listResources();
 
-      const resources: MCPResource[] = result.resources.map((resource) => ({
-        uri: resource.uri,
-        name: resource.name,
-        description: resource.description,
-        mimeType: resource.mimeType,
-        serverId: server.id,
-        serverName: server.name ?? server.id,
-        size: typeof resource.size === 'number' ? resource.size : undefined,
-        text: typeof resource.text === 'string' ? resource.text : undefined,
-        blob: typeof resource.blob === 'string' ? resource.blob : undefined,
-      }));
+      const resources: MCPResource[] = result.resources.map((resource) => {
+        const extras = resource as MCPResourceExtras;
+        const meta = resource._meta as MCPResourceExtras | undefined;
+
+        // 兼容部分服务器通过扩展字段或 _meta 返回的资源信息
+        const size =
+          typeof extras.size === 'number'
+            ? extras.size
+            : typeof meta?.size === 'number'
+              ? meta.size
+              : undefined;
+        const text =
+          typeof extras.text === 'string'
+            ? extras.text
+            : typeof meta?.text === 'string'
+              ? meta.text
+              : undefined;
+        const blob =
+          typeof extras.blob === 'string'
+            ? extras.blob
+            : typeof meta?.blob === 'string'
+              ? meta.blob
+              : undefined;
+
+        return {
+          uri: resource.uri,
+          name: resource.name,
+          description: resource.description,
+          mimeType: resource.mimeType,
+          serverId: server.id,
+          serverName: server.name ?? server.id,
+          size,
+          text,
+          blob,
+        };
+      });
 
       cacheManager.set(cacheKey, resources, 60 * 60 * 1000);
 
