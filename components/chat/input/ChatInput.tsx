@@ -34,14 +34,10 @@ import { ImageGenerationDialog } from '../dialogs/ImageGenerationDialog';
 import { SearchLoadingIndicator } from '../misc/SearchLoadingIndicator';
 import { McpToolsDialog } from '../dialogs/McpToolsDialog';
 import { QuickPhrasePickerDialog } from '../dialogs/QuickPhrasePickerDialog';
-import { ChatRepository } from '@/storage/repositories/chat';
-import { MessageRepository } from '@/storage/repositories/messages';
-import { AttachmentRepository } from '@/storage/repositories/attachments';
-import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
-import type { Attachment } from '@/storage/core';
-import type { Provider } from '@/services/ai/AiClient';
-import * as DocumentPicker from 'expo-document-picker';
-import { appEvents, AppEvents } from '@/utils/events';
+import { useAttachmentPicker } from './hooks/useAttachmentPicker';
+import { useChatInputSettings } from './hooks/useChatInputSettings';
+import { useChatDialogs } from './hooks/useChatDialogs';
+import { useConversationActions } from './hooks/useConversationActions';
 import { logger } from '@/utils/logger';
 
 /**
@@ -71,17 +67,38 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
 
   // ========== 状态管理 ==========
   const [message, setMessage] = useState('');
-  const [selectedAttachments, setSelectedAttachments] = useState<Attachment[]>([]);
-  const [enterToSend, setEnterToSend] = useState(false);
-  const [attachmentMenuVisible, setAttachmentMenuVisible] = useState(false);
-  const [moreActionsMenuVisible, setMoreActionsMenuVisible] = useState(false);
-  const [imageDialogVisible, setImageDialogVisible] = useState(false);
-  const [mcpDialogVisible, setMcpDialogVisible] = useState(false);
-  const [phrasePickerVisible, setPhrasePickerVisible] = useState(false);
+  const {
+    selectedAttachments,
+    pickImage,
+    pickFile,
+    removeAttachment,
+    resetAttachments,
+  } = useAttachmentPicker();
+  const { enterToSend, currentProvider, currentModel } = useChatInputSettings();
+  const {
+    attachmentMenuVisible,
+    openAttachmentMenu,
+    closeAttachmentMenu,
+    moreActionsMenuVisible,
+    openMoreActionsMenu,
+    closeMoreActionsMenu,
+    imageDialogVisible,
+    openImageDialog,
+    closeImageDialog,
+    mcpDialogVisible,
+    openMcpDialog,
+    closeMcpDialog,
+    phrasePickerVisible,
+    openPhrasePicker,
+    closePhrasePicker,
+  } = useChatDialogs();
   const [mcpEnabled, setMcpEnabled] = useState(false);
-  const [hasContextReset, setHasContextReset] = useState(false);
-  const [currentProvider, setCurrentProvider] = useState<Provider>('openai');
-  const [currentModel, setCurrentModel] = useState<string>('gpt-4o-mini');
+  const {
+    hasContextReset,
+    syncContextResetState,
+    clearConversation,
+    clearContext,
+  } = useConversationActions(conversationId, alert);
 
   // ========== Hooks 集成 ==========
   // 消息发送 Hook
@@ -100,25 +117,6 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
     setSearchEnabled,
     performWebSearch,
   } = useWebSearch();
-
-  // ========== 初始化设置 ==========
-  React.useEffect(() => {
-    (async () => {
-      const sr = SettingsRepository();
-      const ets = await sr.get<boolean>(SettingKey.EnterToSend);
-      if (ets !== null) setEnterToSend(ets);
-
-      // 加载当前 provider 和 model（用于图片生成）
-      const provider = ((await sr.get<string>(SettingKey.DefaultProvider)) ?? 'openai') as Provider;
-      const model = (await sr.get<string>(SettingKey.DefaultModel)) ?? (
-        provider === 'openai' ? 'gpt-4o-mini' :
-        provider === 'anthropic' ? 'claude-3-5-haiku-latest' :
-        'gemini-1.5-flash'
-      );
-      setCurrentProvider(provider);
-      setCurrentModel(model);
-    })();
-  }, []);
 
   // ========== 错误处理 ==========
   React.useEffect(() => {
@@ -156,7 +154,7 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
 
     // 立即清空输入框和附件
     setMessage('');
-    setSelectedAttachments([]);
+    resetAttachments();
 
     try {
       // 执行网络搜索（如果启用）
@@ -188,44 +186,7 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
       // 错误已在 useEffect 中处理
       logger.error('[ChatInput] 发送消息失败', error);
     }
-  }, [message, selectedAttachments, isGenerating, searchEnabled, performWebSearch, sendMessage, mcpEnabled]);
-
-  // ========== 附件处理 ==========
-  const pickImage = React.useCallback(async () => {
-    try {
-      const res = await DocumentPicker.getDocumentAsync({ type: 'image/*', multiple: false }) as any;
-      const file = 'assets' in res ? res.assets?.[0] : res;
-      if (!file || res.canceled || file.type === 'cancel') return;
-
-      const att = await AttachmentRepository.saveAttachmentFromUri(file.uri, {
-        kind: 'image',
-        mime: file.mimeType || file.mime || null,
-        name: file.name || 'image',
-        size: file.size || null,
-      });
-      setSelectedAttachments(prev => [...prev, att]);
-    } catch (e) {
-      logger.warn('[ChatInput] 选择图片失败', e);
-    }
-  }, []);
-
-  const pickFile = React.useCallback(async () => {
-    try {
-      const res = await DocumentPicker.getDocumentAsync({ type: '*/*', multiple: false }) as any;
-      const file = 'assets' in res ? res.assets?.[0] : res;
-      if (!file || res.canceled || file.type === 'cancel') return;
-
-      const att = await AttachmentRepository.saveAttachmentFromUri(file.uri, {
-        kind: 'file',
-        mime: file.mimeType || file.mime || null,
-        name: file.name || 'file',
-        size: file.size || null,
-      });
-      setSelectedAttachments(prev => [...prev, att]);
-    } catch (e) {
-      logger.warn('[ChatInput] 选择文件失败', e);
-    }
-  }, []);
+  }, [message, selectedAttachments, isGenerating, searchEnabled, performWebSearch, sendMessage, mcpEnabled, resetAttachments]);
 
   // ========== 语音输入处理 ==========
   const handleVoiceTextRecognized = React.useCallback((text: string) => {
@@ -237,41 +198,9 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
 
   // ========== 更多操作处理 ==========
   const handleMoreActions = React.useCallback(() => {
-    (async () => {
-      if (conversationId) {
-        const ts = await ChatRepository.getContextResetAt(conversationId);
-        setHasContextReset(!!ts);
-      } else {
-        setHasContextReset(false);
-      }
-      setMoreActionsMenuVisible(true);
-    })();
-  }, [conversationId]);
-
-  // ========== MCP 开关对话框 ==========
-  const handleOpenMcpDialog = React.useCallback(() => {
-    setMcpDialogVisible(true);
-  }, []);
-
-  const handleClearConversation = React.useCallback(async () => {
-    if (!conversationId) return;
-
-    try {
-      await MessageRepository.clearConversationMessages(conversationId);
-      appEvents.emit(AppEvents.MESSAGES_CLEARED, conversationId);
-      alert('成功', '对话已清空');
-    } catch (error) {
-      logger.error('[ChatInput] 清除对话失败', error);
-      alert('错误', '清除对话失败，请重试');
-    }
-  }, [conversationId, alert]);
-
-  const handleClearContext = React.useCallback(async () => {
-    if (!conversationId) return;
-    await ChatRepository.setContextResetAt(conversationId, Date.now());
-    setHasContextReset(true);
-    alert('已清除上下文', '从下次提问起不再引用之前上文');
-  }, [conversationId, alert]);
+    void syncContextResetState();
+    openMoreActionsMenu();
+  }, [syncContextResetState, openMoreActionsMenu]);
 
   // ========== 快捷短语处理 ==========
   const handlePhraseSelect = React.useCallback((phrase: any) => {
@@ -280,13 +209,15 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
     logger.debug('[ChatInput] Quick phrase selected:', phrase.title);
   }, []);
 
+  const openPhrasePickerFromRef = React.useCallback(() => {
+    openPhrasePicker();
+    logger.debug('[ChatInput] Quick phrase picker opened via ref');
+  }, [openPhrasePicker]);
+
   // 暴露方法给父组件
   React.useImperativeHandle(ref, () => ({
-    openPhrasePicker: () => {
-      setPhrasePickerVisible(true);
-      logger.debug('[ChatInput] Quick phrase picker opened via ref');
-    },
-  }), []);
+    openPhrasePicker: openPhrasePickerFromRef,
+  }), [openPhrasePickerFromRef]);
 
   // ========== 渲染 ==========
   return (
@@ -294,7 +225,7 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
       {/* 附件选择底部菜单 */}
       <AttachmentMenu
         visible={attachmentMenuVisible}
-        onClose={() => setAttachmentMenuVisible(false)}
+        onClose={closeAttachmentMenu}
         onSelectImage={pickImage}
         onSelectFile={pickFile}
       />
@@ -302,12 +233,12 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
       {/* 更多功能底部菜单 */}
       <MoreActionsMenu
         visible={moreActionsMenuVisible}
-        onClose={() => setMoreActionsMenuVisible(false)}
-        onClearConversation={handleClearConversation}
+        onClose={closeMoreActionsMenu}
+        onClearConversation={clearConversation}
         conversationId={conversationId}
-        onClearContext={handleClearContext}
+        onClearContext={clearContext}
         hasContextReset={hasContextReset}
-        onOpenImageGeneration={() => setImageDialogVisible(true)}
+        onOpenImageGeneration={openImageDialog}
         provider={currentProvider}
         model={currentModel}
       />
@@ -315,7 +246,7 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
       {/* 图片生成对话框 */}
       <ImageGenerationDialog
         visible={imageDialogVisible}
-        onDismiss={() => setImageDialogVisible(false)}
+        onDismiss={closeImageDialog}
         conversationId={conversationId}
         provider={currentProvider}
         model={currentModel}
@@ -324,7 +255,7 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
       {/* MCP 工具开关对话框 */}
       <McpToolsDialog
         visible={mcpDialogVisible}
-        onDismiss={() => setMcpDialogVisible(false)}
+        onDismiss={closeMcpDialog}
         enabled={mcpEnabled}
         onChangeEnabled={setMcpEnabled}
       />
@@ -332,7 +263,7 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
       {/* 快捷短语选择弹窗 */}
       <QuickPhrasePickerDialog
         visible={phrasePickerVisible}
-        onDismiss={() => setPhrasePickerVisible(false)}
+        onDismiss={closePhrasePicker}
         onSelect={handlePhraseSelect}
       />
 
@@ -348,7 +279,7 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
         {/* 附件预览 Chips */}
         <AttachmentChips
           attachments={selectedAttachments}
-          onRemove={(id) => setSelectedAttachments(prev => prev.filter(a => a.id !== id))}
+          onRemove={removeAttachment}
         />
 
         {/* 圆角悬浮方框容器 */}
@@ -386,10 +317,10 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
             searchEnabled={searchEnabled}
             isSearching={isSearching}
             onToggleSearch={() => setSearchEnabled(!searchEnabled)}
-            onAttachment={() => setAttachmentMenuVisible(true)}
+            onAttachment={openAttachmentMenu}
             onMoreActions={handleMoreActions}
             mcpEnabled={mcpEnabled}
-            onOpenMcpDialog={handleOpenMcpDialog}
+            onOpenMcpDialog={openMcpDialog}
             onVoiceTextRecognized={handleVoiceTextRecognized}
             isGenerating={isGenerating}
             canSend={!!message.trim() || selectedAttachments.length > 0}

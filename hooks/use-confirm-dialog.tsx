@@ -171,11 +171,7 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
 export function useConfirmDialog() {
   const context = useContext(ConfirmDialogContext);
 
-  if (!context) {
-    return fallbackContext;
-  }
-
-  const { showDialog, showInputDialog, hideDialog } = context;
+  const { showDialog, showInputDialog, hideDialog } = context ?? fallbackContext;
 
   /**
    * 显示确认对话框
