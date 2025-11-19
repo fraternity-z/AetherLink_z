@@ -72,21 +72,25 @@ export class BlockManager {
 
     if (input.type === 'TOOL' && input.toolCallId) {
       this.toolCallMap.set(input.toolCallId, block.id);
-      log.debug('工具块映射已建立', {
+      // ⚡ 性能优化：工具块创建时使用 info 级别日志（更重要的事件）
+      log.info('工具块已创建', {
         toolCallId: input.toolCallId,
-        blockId: block.id,
         toolName: input.toolName,
+        status: block.status,
       });
     }
 
     this.emitStreamingUpdate();
 
-    log.debug('块已添加', {
-      blockId: block.id,
-      type: block.type,
-      status: block.status,
-      sortOrder,
-    });
+    // ⚡ 性能优化：仅在非 TEXT 块时打印日志（TEXT 块是正文，会频繁创建）
+    if (block.type !== 'TEXT') {
+      log.debug('块已添加', {
+        blockId: block.id,
+        type: block.type,
+        status: block.status,
+        sortOrder,
+      });
+    }
 
     return block;
   }
@@ -124,13 +128,17 @@ export class BlockManager {
 
     this.emitStreamingUpdate();
 
-    log.debug('块已更新', {
-      blockId,
-      type: block.type,
-      oldStatus,
-      newStatus: block.status,
-      contentLength: block.content.length,
-    });
+    // ⚡ 性能优化：移除频繁的块更新日志（流式响应时每个 token 都会触发）
+    // 仅在状态改变时打印日志
+    if (oldStatus !== block.status) {
+      log.debug('块状态已变更', {
+        blockId,
+        type: block.type,
+        oldStatus,
+        newStatus: block.status,
+        contentLength: block.content.length,
+      });
+    }
   }
 
   /** 将当前内存块写入数据库（仅在流式结束时调用） */

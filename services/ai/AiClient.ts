@@ -278,7 +278,8 @@ export async function streamCompletion(opts: StreamOptions) {
       });
 
       for await (const part of result.fullStream) {
-        logger.debug('[AiClient] 🔍 fullStream part.type:', part.type);
+        // ⚡ 性能优化：移除频繁的 debug 日志，仅在关键事件时打印
+        // logger.debug('[AiClient] 🔍 fullStream part.type:', part.type);
 
         if (part.type === 'reasoning-start') {
           isThinking = true;
@@ -299,7 +300,7 @@ export async function streamCompletion(opts: StreamOptions) {
           logger.info('[AiClient] 🔧 工具调用开始', { toolName, args: toolArgs, toolCallId });
           try {
             opts.onToolCall?.(toolName, toolArgs, toolCallId);
-            logger.debug('[AiClient] onToolCall 回调已执行', { toolName, toolCallId });
+            // ⚡ 性能优化：移除回调成功的 debug 日志
           } catch (cbErr) {
             logger.warn('[AiClient] onToolCall 回调异常', { toolName, toolCallId, error: getErrorMessage(cbErr) });
           }
@@ -311,7 +312,7 @@ export async function streamCompletion(opts: StreamOptions) {
           logger.info('[AiClient] ✅ 工具执行完成', { toolName, result: toolResult, toolCallId });
           try {
             opts.onToolResult?.(toolName, toolResult, toolCallId);
-            logger.debug('[AiClient] onToolResult 回调已执行', { toolName, toolCallId });
+            // ⚡ 性能优化：移除回调成功的 debug 日志
           } catch (cbErr) {
             logger.warn('[AiClient] onToolResult 回调异常', { toolName, toolCallId, error: getErrorMessage(cbErr) });
           }
@@ -324,11 +325,11 @@ export async function streamCompletion(opts: StreamOptions) {
           continue;
         } else if (part.type === 'start') {
           // AI SDK 流开始事件，正常情况，静默处理
-          logger.debug('[AiClient] 🚀 流式响应开始', { type: part.type });
+          // ⚡ 性能优化：移除频繁的 debug 日志
           continue;
         } else if (part.type === 'text-end') {
           // SDK 会在文本输出完成后发送 text-end 事件，不需要额外处理
-          logger.debug('[AiClient] 📄 文本输出结束', { type: part.type });
+          // ⚡ 性能优化：移除频繁的 debug 日志
           continue;
         } else if (part.type === 'finish') {
           // 整个流程完成
@@ -364,7 +365,8 @@ export async function streamCompletion(opts: StreamOptions) {
       });
 
       for await (const part of result.fullStream) {
-        logger.debug('[AiClient] 🔍 fullStream part.type:', part.type);
+        // ⚡ 性能优化：移除频繁的 debug 日志，仅在关键事件时打印
+        // logger.debug('[AiClient] 🔍 fullStream part.type:', part.type);
 
         if (part.type === 'text-delta') {
           opts.onToken?.(part.text);
@@ -375,7 +377,7 @@ export async function streamCompletion(opts: StreamOptions) {
           logger.info('[AiClient] 🔧 工具调用开始', { toolName, args: toolArgs, toolCallId });
           try {
             opts.onToolCall?.(toolName, toolArgs, toolCallId);
-            logger.debug('[AiClient] onToolCall 回调已执行', { toolName, toolCallId });
+            // ⚡ 性能优化：移除回调成功的 debug 日志
           } catch (cbErr) {
             logger.warn('[AiClient] onToolCall 回调异常', { toolName, toolCallId, error: getErrorMessage(cbErr) });
           }
@@ -386,7 +388,7 @@ export async function streamCompletion(opts: StreamOptions) {
           logger.info('[AiClient] ✅ 工具执行完成', { toolName, result: toolResult, toolCallId });
           try {
             opts.onToolResult?.(toolName, toolResult, toolCallId);
-            logger.debug('[AiClient] onToolResult 回调已执行', { toolName, toolCallId });
+            // ⚡ 性能优化：移除回调成功的 debug 日志
           } catch (cbErr) {
             logger.warn('[AiClient] onToolResult 回调异常', { toolName, toolCallId, error: getErrorMessage(cbErr) });
           }
@@ -397,12 +399,12 @@ export async function streamCompletion(opts: StreamOptions) {
           });
         } else if (part.type === 'reasoning-start' || part.type === 'reasoning-delta' || part.type === 'reasoning-end') {
           // 某些模型即便未启用 reasoning callback 也会发送事件，这里静默忽略以避免警告
-          logger.debug('[AiClient] 💡 忽略 reasoning chunk', { type: part.type });
+          // ⚡ 性能优化：移除频繁的 debug 日志
         } else if (part.type === 'start') {
           // AI SDK 流开始事件，正常情况，静默处理
-          logger.debug('[AiClient] 🚀 流式响应开始', { type: part.type });
+          // ⚡ 性能优化：移除频繁的 debug 日志
         } else if (part.type === 'text-end') {
-          logger.debug('[AiClient] 📄 文本输出结束', { type: part.type });
+          // ⚡ 性能优化：移除频繁的 debug 日志
         } else if (part.type === 'finish') {
           logger.info('[AiClient] 🎉 整个流程完成', {
             finishReason: part.finishReason,
