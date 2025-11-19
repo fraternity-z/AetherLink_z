@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useCallback, createContext, useContext } from 'react';
+import { Alert, type AlertButton } from 'react-native';
 import { ConfirmDialog, ConfirmDialogButton } from '@/components/common/ConfirmDialog';
 import { InputDialog } from '@/components/common/InputDialog';
 
@@ -44,6 +45,28 @@ interface ConfirmDialogContextType {
 }
 
 const ConfirmDialogContext = createContext<ConfirmDialogContextType | null>(null);
+
+const FALLBACK_WARNING = '[useConfirmDialog] ConfirmDialogProvider is missing - falling back to native Alert';
+
+const fallbackContext: ConfirmDialogContextType = {
+  showDialog: (options: ConfirmDialogOptions) => {
+    console.warn(FALLBACK_WARNING);
+    const buttons: AlertButton[] = (
+      options.buttons && options.buttons.length > 0
+        ? options.buttons
+        : [{ text: '确定', style: 'default' as const }]
+    ).map<AlertButton>(button => ({
+      text: button.text,
+      style: button.style === 'destructive' ? 'destructive' : button.style === 'cancel' ? 'cancel' : 'default',
+      onPress: button.onPress,
+    }));
+    Alert.alert(options.title, options.message, buttons);
+  },
+  showInputDialog: () => {
+    console.warn(`${FALLBACK_WARNING}: prompt dialog is unavailable without provider context.`);
+  },
+  hideDialog: () => {},
+};
 
 export function ConfirmDialogProvider({ children }: { children: React.ReactNode }) {
   const [dialogState, setDialogState] = useState<{
@@ -149,7 +172,7 @@ export function useConfirmDialog() {
   const context = useContext(ConfirmDialogContext);
 
   if (!context) {
-    throw new Error('useConfirmDialog must be used within ConfirmDialogProvider');
+    return fallbackContext;
   }
 
   const { showDialog, showInputDialog, hideDialog } = context;

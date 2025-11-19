@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { Animated, Pressable, StyleSheet, useWindowDimensions, View, ScrollView } from 'react-native';
+import { Animated, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Surface, Text, List, TouchableRipple, useTheme, Button, IconButton, Searchbar, Checkbox } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import { useConversations } from '@/hooks/use-conversations';
 import { ChatRepository } from '@/storage/repositories/chat';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
@@ -34,7 +35,11 @@ interface TopicItemProps {
   };
 }
 
-/**
+type TopicListEntry =
+  | { key: string; type: 'header'; title: string }
+  | { key: string; type: 'item'; conversation: Conversation };
+
+/** 
  * 🚀 TopicItem 独立组件 - 使用 React.memo 优化渲染性能
  *
  * 性能优化说明：
@@ -183,6 +188,23 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
   // 时间分类
   const categorized = useMemo(() => categorizeByTime(filteredItems), [filteredItems]);
 
+  const topicListData = useMemo(() => {
+    const sections: TopicListEntry[] = [];
+    const pushSection = (title: string, data: Conversation[]) => {
+      if (data.length === 0) return;
+      sections.push({ key: `header-${title}`, type: 'header', title });
+      data.forEach((conversation) => {
+        sections.push({ key: conversation.id, type: 'item', conversation });
+      });
+    };
+
+    pushSection('今日', categorized.today);
+    pushSection('七天内', categorized.sevenDays);
+    pushSection('更早', categorized.earlier);
+
+    return sections;
+  }, [categorized]);
+
   // 🚀 性能优化：缓存主题颜色对象，避免每次渲染都创建新对象
   const themeColors = useMemo(() => ({
     primary: theme.colors.primary,
@@ -291,37 +313,65 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
     );
   };
 
+  const renderTopicListItem = useCallback<ListRenderItem<TopicListEntry>>(({ item }) => {
+    if (item.type === 'header') {
+      return (
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
+            {item.title}
+          </Text>
+        </View>
+      );
+    }
+
+    const conversation = item.conversation;
+    return (
+      <TopicItem
+        conversation={conversation}
+        isCurrentTopic={conversation.id === currentTopicId}
+        batchMode={batchMode}
+        selectedIds={selectedIds}
+        onPress={handleTopicPress}
+        onLongPress={handleTopicLongPress}
+        onRename={handleRenameTopicPress}
+        onDelete={handleDeleteTopicPress}
+        onToggleSelection={toggleSelection}
+        themeColors={themeColors}
+      />
+    );
+  }, [
+    batchMode,
+    currentTopicId,
+    handleDeleteTopicPress,
+    handleRenameTopicPress,
+    handleTopicLongPress,
+    handleTopicPress,
+    selectedIds,
+    theme.colors.onSurfaceVariant,
+    themeColors,
+    toggleSelection,
+  ]);
+
+  const topicKeyExtractor = useCallback((item: TopicListEntry) => item.key, []);
+  const topicListContentStyle = useMemo(() => ({ paddingBottom: 16 }), []);
+  const topicListExtraData = useMemo(() => ({
+    batchMode,
+    selectedIds,
+    currentTopicId,
+    themeColors,
+  }), [batchMode, selectedIds, currentTopicId, themeColors]);
+
+  const renderEmptyTopics = useCallback(() => (
+    <View style={{ padding: 24, alignItems: 'center' }}>
+      <Text style={{ opacity: 0.6, textAlign: 'center' }}>
+        {searchQuery ? '未找到匹配的话题' : '暂无话题'}
+      </Text>
+    </View>
+  ), [searchQuery]);
+
   /**
    * 🚀 渲染分类区块 - 使用优化后的 TopicItem 组件
    */
-  const renderSection = (title: string, data: Conversation[]) => {
-    if (data.length === 0) return null;
-    return (
-      <View key={title}>
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
-            {title}
-          </Text>
-        </View>
-        {data.map((item) => (
-          <TopicItem
-            key={item.id}
-            conversation={item}
-            isCurrentTopic={item.id === currentTopicId}
-            batchMode={batchMode}
-            selectedIds={selectedIds}
-            onPress={handleTopicPress}
-            onLongPress={handleTopicLongPress}
-            onRename={handleRenameTopicPress}
-            onDelete={handleDeleteTopicPress}
-            onToggleSelection={toggleSelection}
-            themeColors={themeColors}
-          />
-        ))}
-      </View>
-    );
-  };
-
   return (
     <View
       pointerEvents={visible ? 'auto' : 'none'}
@@ -415,21 +465,18 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
             </View>
 
             {/* 话题列表 */}
-            <ScrollView style={{ flex: 1 }}>
-              {filteredItems.length === 0 ? (
-                <View style={{ padding: 24, alignItems: 'center' }}>
-                  <Text style={{ opacity: 0.6, textAlign: 'center' }}>
-                    {searchQuery ? '未找到匹配的话题' : '暂无话题'}
-                  </Text>
-                </View>
-              ) : (
-                <>
-                  {renderSection('今日', categorized.today)}
-                  {renderSection('七天内', categorized.sevenDays)}
-                  {renderSection('更早', categorized.earlier)}
-                </>
-              )}
-            </ScrollView>
+            <FlashList
+              data={topicListData}
+              renderItem={renderTopicListItem}
+              keyExtractor={topicKeyExtractor}
+              // @ts-expect-error FlashList 类型定义未包含 estimatedItemSize，但运行时需要配置
+              estimatedItemSize={84}
+              contentContainerStyle={topicListContentStyle}
+              style={{ flex: 1 }}
+              ListEmptyComponent={renderEmptyTopics}
+              showsVerticalScrollIndicator={false}
+              extraData={topicListExtraData}
+            />
 
             {/* 底部新建按钮 */}
             <View style={styles.footer}>

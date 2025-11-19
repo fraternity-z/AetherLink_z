@@ -19,6 +19,7 @@ module.exports = function (api) {  // 判断是否为生产环境
             ],
           ]
         : []),
+      'react-native-reanimated/plugin',
     ],
   };
 };

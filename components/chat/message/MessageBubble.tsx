@@ -7,26 +7,25 @@
  * - 现代聊天应用风格的气泡设计
  */
 
-import React from 'react';
-import { View, Alert, Pressable } from 'react-native';
-import { Text, useTheme, Avatar } from 'react-native-paper';
-import * as Haptics from 'expo-haptics';
+import { UserAvatar } from '@/components/common/UserAvatar';
+import { useMessageActions } from '@/hooks/use-message-actions';
+import { useModelLogo } from '@/hooks/use-model-logo';
+import type { Attachment, Message, MessageBlock, ThinkingChain } from '@/storage/core';
+import { cn } from '@/utils/classnames';
+import { logger } from '@/utils/logger';
+import { File, Paths } from 'expo-file-system';
 import { Image } from 'expo-image';
-import type { Attachment, ThinkingChain, Message, MessageBlock } from '@/storage/core';
-import { MixedRenderer } from './MixedRenderer';
-import { ThinkingBlock } from './ThinkingBlock';
-import { ToolBlock } from './ToolBlock';
+import * as Sharing from 'expo-sharing';
+import React from 'react';
+import { Alert, Pressable, View } from 'react-native';
+import { Avatar, Text, useTheme } from 'react-native-paper';
 import { GeneratedImageCard } from '../misc/GeneratedImageCard';
 import { ImageViewer } from '../misc/ImageViewer';
-import { TypingIndicator } from './TypingIndicator';
+import { MarkdownRenderer } from './MarkdownRenderer';
 import { MessageFooter } from './MessageFooter';
-import { cn } from '@/utils/classnames';
-import { useModelLogo } from '@/hooks/use-model-logo';
-import { useMessageActions } from '@/hooks/use-message-actions';
-import { File, Paths } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
-import { logger } from '@/utils/logger';
-import { UserAvatar } from '@/components/common/UserAvatar';
+import { ThinkingBlock } from './ThinkingBlock';
+import { ToolBlock } from './ToolBlock';
+import { TypingIndicator } from './TypingIndicator';
 
 interface MessageBubbleProps {
   content: string;
@@ -51,10 +50,7 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
   const modelLogo = useModelLogo(modelId); // 获取模型 logo
   const [logoError, setLogoError] = React.useState(false);
 
-  // ✨ 消息操作 Hook（用于工具栏功能）
-  const messageActions = message
-    ? useMessageActions({ message, content, onRegenerate })
-    : null;
+  const messageActions = useMessageActions({ message, content, onRegenerate });
 
   // ✨ 筛选工具块（按 sortOrder 排序）
   const toolBlocks = blocks
@@ -349,14 +345,14 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
               {status === 'pending' && !content ? (
                 <TypingIndicator />
               ) : (
-                <MixedRenderer content={content || ''} />
+                <MarkdownRenderer content={content || ''} />
               )}
             </View>
           )}
         </Pressable>
 
         {/* ✨ 消息底部工具栏（仅助手消息且已完成时显示） */}
-        {!isUser && status !== 'pending' && message && messageActions && (
+        {!isUser && status !== 'pending' && message && (
           <MessageFooter
             message={message}
             isUser={isUser}

@@ -16,7 +16,7 @@ import type { Message } from '@/storage/core';
 import { logger } from '@/utils/logger';
 
 interface UseMessageActionsProps {
-  message: Message;
+  message?: Message;
   content: string; // ✨ 实际显示的内容（从 blocks 组合而来）
   onRegenerate?: () => void;
 }
@@ -26,6 +26,8 @@ export function useMessageActions({
   content,
   onRegenerate,
 }: UseMessageActionsProps) {
+  const hasMessage = !!message;
+
   // ✨ 图标状态管理
   const [copyState, setCopyState] = useState<'idle' | 'success'>('idle');
   const [shareState, setShareState] = useState<'idle' | 'success'>('idle');
@@ -83,6 +85,8 @@ export function useMessageActions({
    * 重新生成 AI 回答
    */
   const handleRegenerateAction = useCallback(async () => {
+    if (!hasMessage) return;
+
     try {
       // 触觉反馈
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -94,7 +98,7 @@ export function useMessageActions({
     } catch (error: any) {
       logger.error('[useMessageActions] 重新生成失败:', error);
     }
-  }, [onRegenerate]);
+  }, [hasMessage, onRegenerate]);
 
   return {
     handleCopy,

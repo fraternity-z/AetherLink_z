@@ -14,10 +14,10 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
-import Animated, { LinearTransition, FadeIn, FadeOut } from 'react-native-reanimated';
-import { MixedRenderer } from './MixedRenderer';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 export interface ThinkingBlockProps {
   content: string;         // 思考过程内容
@@ -113,7 +113,7 @@ export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({
           layout={LinearTransition.duration(300)}
         >
           <View style={styles.content}>
-            <MixedRenderer content={content} />
+            <MarkdownRenderer content={content} />
           </View>
         </Animated.View>
       )}

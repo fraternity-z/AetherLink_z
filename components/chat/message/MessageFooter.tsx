@@ -11,7 +11,6 @@ import React from 'react';
 import { View, Pressable } from 'react-native';
 import { Text, useTheme, IconButton as PaperIconButton } from 'react-native-paper';
 import type { Message } from '@/storage/core';
-import { cn } from '@/utils/classnames';
 
 interface MessageFooterProps {
   message: Message;
