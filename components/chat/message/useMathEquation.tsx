@@ -1,5 +1,6 @@
 import { memo } from 'react';
-import { View, ScrollView } from 'react-native';
+import { View } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 import MathJax from 'react-native-mathjax-svg';
 
 // Memoized MathJax component to prevent unnecessary re-renders
@@ -103,12 +104,6 @@ export const useMathEquation = (equationColor: string) => {
         key={key}
         horizontal
         showsHorizontalScrollIndicator={true}
-        scrollEnabled={true}
-        nestedScrollEnabled={true}
-        directionalLockEnabled={false}
-        alwaysBounceHorizontal={false}
-        bounces={false}
-        decelerationRate="fast"
         style={{
           width: '100%',
           paddingVertical: 10
