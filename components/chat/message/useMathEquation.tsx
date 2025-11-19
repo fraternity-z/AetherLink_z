@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { View } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import MathJax from 'react-native-mathjax-svg';
 
 // Memoized MathJax component to prevent unnecessary re-renders
@@ -93,21 +93,33 @@ export const useMathEquation = (equationColor: string) => {
 
   /**
    * Render block math equation (centered, larger)
+   * Supports horizontal scrolling for long equations
    * @param content - Math equation content
    * @param key - React key for the component
    */
   const renderBlockMath = (content: string, key?: string | number) => {
     return (
-      <View
+      <ScrollView
         key={key}
+        horizontal
+        showsHorizontalScrollIndicator={true}
+        scrollEnabled={true}
+        nestedScrollEnabled={true}
+        directionalLockEnabled={false}
+        alwaysBounceHorizontal={false}
+        bounces={false}
+        decelerationRate="fast"
         style={{
           width: '100%',
+          paddingVertical: 10
+        }}
+        contentContainerStyle={{
           alignItems: 'center',
           justifyContent: 'center',
-          paddingVertical: 10
+          minWidth: '100%'
         }}>
         <MemoizedMathJax content={content} fontSize={18} color={equationColor} />
-      </View>
+      </ScrollView>
     );
   };
 
