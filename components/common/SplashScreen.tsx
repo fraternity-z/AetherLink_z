@@ -1,214 +1,346 @@
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { logger } from '@/utils/logger';
-import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
-import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system/legacy';
+import { Image } from 'expo-image';
+import { memo, useCallback, useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import Animated, {
-    Easing,
-    runOnJS,
-    useAnimatedProps,
-    useAnimatedStyle,
-    useSharedValue,
-    withDelay,
-    withTiming,
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
-import Svg, { G, Path } from 'react-native-svg';
-
-// "AetherLink" artistic signature paths
-const DEFAULT_AETHER_PATHS = [
-  // A
-  "M 40 140 Q 60 40 80 140", 
-  "M 45 110 Q 60 110 75 110",
-  // e
-  "M 80 140 Q 95 100 85 115 Q 80 125 95 140",
-  // t
-  "M 105 140 L 105 60",
-  "M 95 80 L 115 80",
-  // h
-  "M 125 140 L 125 50 L 125 110 Q 145 90 145 140",
-  // e
-  "M 150 140 Q 165 100 155 115 Q 150 125 165 140",
-  // r
-  "M 175 140 L 175 110 Q 185 100 185 110 L 185 140",
-  // L
-  "M 205 50 L 205 140 L 225 140",
-  // i
-  "M 235 110 L 235 140",
-  "M 235 90 L 235 95", // dot
-  // n
-  "M 245 140 L 245 110 Q 265 90 265 140",
-  // k
-  "M 275 50 L 275 140",
-  "M 275 120 L 295 100",
-  "M 275 120 L 295 140"
-];
-
-const LOGO_SVG_SOURCE = require('../../assets/aetherlink_logo.svg');
-// 匹配 path 元素，同时捕获 fill 和 stroke 属性
-const PATH_REGEX = /<path([^>]*)d=(?:"([^"]+)"|'([^']+)')([^>]*)>/gi;
-
-const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 interface SplashScreenProps {
   isReady: boolean;
   onAnimationFinish?: () => void;
 }
 
-interface PathWithColor {
-  d: string;
+interface ParticleProps {
+  angle: number;
+  distance: number;
+  size: number;
+  delay: number;
   color: string;
 }
 
+/**
+ * 单个粒子组件（独立组件避免 Hooks 规则错误）
+ */
+const Particle = memo(({ angle, distance, size, delay, color }: ParticleProps) => {
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0);
+
+  useEffect(() => {
+    const endX = Math.cos(angle) * distance;
+    const endY = Math.sin(angle) * distance;
+
+    opacity.value = withDelay(
+      delay,
+      withSequence(
+        withTiming(0.8, { duration: 600, easing: Easing.ease }),
+        withTiming(0, { duration: 1000, easing: Easing.ease })
+      )
+    );
+
+    scale.value = withDelay(
+      delay,
+      withSequence(
+        withSpring(1, { damping: 10, stiffness: 80 }),
+        withTiming(0, { duration: 800, easing: Easing.ease })
+      )
+    );
+
+    translateX.value = withDelay(
+      delay,
+      withTiming(endX, {
+        duration: 1600,
+        easing: Easing.out(Easing.quad),
+      })
+    );
+
+    translateY.value = withDelay(
+      delay,
+      withTiming(endY, {
+        duration: 1600,
+        easing: Easing.out(Easing.quad),
+      })
+    );
+
+    // 循环粒子动画
+    setTimeout(() => {
+      opacity.value = withRepeat(
+        withSequence(
+          withTiming(0.6, { duration: 800 }),
+          withTiming(0, { duration: 800 })
+        ),
+        -1,
+        true
+      );
+    }, delay + 1600);
+  }, [angle, delay, distance, opacity, scale, translateX, translateY]);
+
+  const particleStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        { scale: scale.value },
+      ],
+      opacity: opacity.value,
+      width: size,
+      height: size,
+    };
+  });
+
+  return <Animated.View style={[styles.particle, particleStyle, { backgroundColor: color }]} />;
+});
+
+Particle.displayName = 'Particle';
+
+/**
+ * AetherLink 炫酷开屏动画组件
+ *
+ * 动画效果：
+ * 1. Logo 缩放入场 + 360°旋转（弹性效果）
+ * 2. 霓虹灯发光效果（脉动）
+ * 3. 粒子飘散效果（随机动画）
+ * 4. 渐变背景动画
+ * 5. 丝滑退场动画
+ *
+ * 性能优化：
+ * - 使用 expo-image 硬件加速渲染 SVG
+ * - 所有动画运行在 UI 线程（Reanimated）
+ * - 粒子数量控制在 20 个以内
+ * - 启用 memo 优化粒子组件
+ */
 export default function SplashScreen({ isReady, onAnimationFinish }: SplashScreenProps) {
-  const progress = useSharedValue(0);
-  const opacity = useSharedValue(1);
-  const [aetherPaths, setAetherPaths] = useState<PathWithColor[]>(
-    DEFAULT_AETHER_PATHS.map(d => ({ d, color: '#2F5AB2' }))
-  );
+  // 动画共享值
+  const logoScale = useSharedValue(0);
+  const logoRotate = useSharedValue(0);
+  const logoOpacity = useSharedValue(0);
+  const glowOpacity = useSharedValue(0);
+  const containerOpacity = useSharedValue(1);
+  const backgroundProgress = useSharedValue(0);
+
   const [isHidden, setIsHidden] = useState(false);
+  const [isLogoEntryFinished, setIsLogoEntryFinished] = useState(false);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const backgroundColor = isDark ? '#000000' : '#FFFFFF';
+  // 粒子配置数据（纯数据，不包含 Hooks）
+  const particleColor = isDark ? '#667eea' : '#4facfe';
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadLogoPaths = async () => {
-      try {
-        const asset = Asset.fromModule(LOGO_SVG_SOURCE);
-        if (!asset.downloaded) {
-          await asset.downloadAsync();
+    // 1. Logo 入场动画（0-1.2s）
+    logoScale.value = withSpring(
+      1,
+      {
+        damping: 8,
+        stiffness: 100,
+        mass: 0.5,
+      },
+      (finished) => {
+        if (finished) {
+          runOnJS(setIsLogoEntryFinished)(true);
         }
-
-        const svgUri = asset.localUri ?? asset.uri;
-        if (!svgUri) return;
-
-        const svgContent = await FileSystem.readAsStringAsync(svgUri);
-
-        // 提取所有 path 元素及其颜色
-        const pathMatches = Array.from(svgContent.matchAll(PATH_REGEX));
-        const pathsWithColors: PathWithColor[] = pathMatches
-          .map((match) => {
-            const beforeD = match[1] || '';
-            const afterD = match[4] || '';
-            const allAttrs = beforeD + afterD;
-            const pathD = match[2] ?? match[3];
-
-            // 提取 fill 颜色
-            const fillMatch = allAttrs.match(/fill\s*=\s*["']([^"']+)["']/);
-            const fillColor = fillMatch ? fillMatch[1] : '#000000';
-
-            return pathD ? { d: pathD, color: fillColor } : null;
-          })
-          .filter((item): item is PathWithColor => item !== null)
-          // 过滤掉白色背景路径（通常是最外层的矩形框）
-          .filter((item) => {
-            const isWhite = /^#(FFFFFF|FFF|FEFEFF|F{6})$/i.test(item.color);
-            const isNone = item.color === 'none';
-            return !isWhite && !isNone;
-          })
-          .slice(0, 40); // 限制最多 40 个路径，避免性能问题
-
-        if (isMounted && pathsWithColors.length > 0) {
-          setAetherPaths(pathsWithColors);
-          logger.info(`SplashScreen: Loaded ${pathsWithColors.length} colored paths from SVG`);
-        }
-      } catch (error) {
-        logger.warn('SplashScreen: Failed to load logo SVG', { error });
       }
-    };
+    );
 
-    loadLogoPaths();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    // Start the handwriting animation
-    // 根据路径数量动态调整动画时长（每个路径约 100ms）
-    const duration = Math.max(2000, Math.min(5000, aetherPaths.length * 100));
-
-    progress.value = withTiming(1, {
-      duration,
-      easing: Easing.bezier(0.37, 0, 0.63, 1),
+    logoRotate.value = withTiming(360, {
+      duration: 1200,
+      easing: Easing.out(Easing.cubic),
     });
-  }, [aetherPaths.length]);
 
-  useEffect(() => {
-    if (isReady && progress.value === 1) {
-       fadeOut();
-    } else if (isReady) {
-        const interval = setInterval(() => {
-            if (progress.value >= 0.99) {
-                clearInterval(interval);
-                fadeOut();
-            }
-        }, 100);
-        return () => clearInterval(interval);
-    }
-  }, [isReady]);
+    logoOpacity.value = withTiming(1, {
+      duration: 600,
+      easing: Easing.ease,
+    });
+
+    // 2. 发光效果（0.8s 后开始脉动）
+    glowOpacity.value = withDelay(
+      800,
+      withRepeat(
+        withSequence(
+          withTiming(1, { duration: 1000, easing: Easing.ease }),
+          withTiming(0.5, { duration: 1000, easing: Easing.ease })
+        ),
+        -1, // 无限循环
+        true
+      )
+    );
+
+    // 3. 背景渐变动画
+    backgroundProgress.value = withRepeat(
+      withTiming(1, { duration: 3000, easing: Easing.linear }),
+      -1,
+      true
+    );
+
+    logger.info('SplashScreen: Animation started with SVG logo');
+  }, [backgroundProgress, glowOpacity, logoOpacity, logoRotate, logoScale]);
 
   const handleAnimationFinish = useCallback(() => {
     setIsHidden(true);
     onAnimationFinish?.();
+    logger.info('SplashScreen: Animation finished');
   }, [onAnimationFinish]);
 
-  const fadeOut = () => {
-    opacity.value = withDelay(500, withTiming(0, { duration: 800 }, (finished) => {
-      if (finished) {
-        runOnJS(handleAnimationFinish)();
-      }
-    }));
-  };
+  const fadeOut = useCallback(() => {
+    containerOpacity.value = withDelay(
+      300,
+      withTiming(0, { duration: 600, easing: Easing.ease }, (finished) => {
+        if (finished) {
+          runOnJS(handleAnimationFinish)();
+        }
+      })
+    );
+  }, [containerOpacity, handleAnimationFinish]);
 
-  const animatedProps = useAnimatedProps(() => {
-    // 使用较大的 strokeDasharray 以适应复杂路径
-    const length = 5000;
+  useEffect(() => {
+    if (isReady && isLogoEntryFinished) {
+      fadeOut();
+    }
+  }, [fadeOut, isLogoEntryFinished, isReady]);
+
+  // 容器样式
+  const containerStyle = useAnimatedStyle(() => {
     return {
-      strokeDashoffset: length - progress.value * length,
-      strokeDasharray: length,
+      opacity: containerOpacity.value,
+      zIndex: containerOpacity.value === 0 ? -1 : 1000,
     };
   });
 
-  const containerStyle = useAnimatedStyle(() => {
+  // 背景渐变样式
+  const backgroundStyle = useAnimatedStyle(() => {
+    const colorStart = isDark ? 0 : 255;
+    const colorEnd = isDark ? 20 : 245;
+    const color = colorStart + (colorEnd - colorStart) * backgroundProgress.value;
+
     return {
-      opacity: opacity.value,
-      zIndex: opacity.value === 0 ? -1 : 1000,
+      backgroundColor: isDark
+        ? `rgb(${color * 0.1}, ${color * 0.1}, ${color * 0.2})`
+        : `rgb(${color}, ${color}, ${color})`,
+    };
+  });
+
+  // Logo 样式
+  const logoStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: logoScale.value }, { rotate: `${logoRotate.value}deg` }],
+      opacity: logoOpacity.value,
+    };
+  });
+
+  // 发光层样式
+  const glowStyle = useAnimatedStyle(() => {
+    return {
+      opacity: glowOpacity.value * 0.6,
     };
   });
 
   if (isHidden) return null;
 
   return (
-    <Animated.View style={[styles.container, { backgroundColor }, containerStyle]}>
-      <Svg height="300" width="100%" viewBox="0 0 1024 1024" style={{ maxWidth: 600 }}>
-        <G>
-          {aetherPaths.map((pathData, index) => (
-            <AnimatedPath
-              key={index}
-              d={pathData.d}
-              stroke={pathData.color}
-              strokeWidth="3"
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              animatedProps={animatedProps}
-            />
-          ))}
-        </G>
-      </Svg>
+    <Animated.View style={[StyleSheet.absoluteFill, backgroundStyle, containerStyle]}>
+      <View style={styles.container}>
+        {/* 粒子层 */}
+        <View style={styles.particlesContainer}>
+          {Array.from({ length: 20 }, (_, i) => {
+            const angle = (i / 20) * Math.PI * 2;
+            const distance = 80 + Math.random() * 60;
+            const size = 4 + Math.random() * 6;
+            const delay = Math.random() * 800;
+
+            return (
+              <Particle
+                key={i}
+                angle={angle}
+                distance={distance}
+                size={size}
+                delay={delay}
+                color={particleColor}
+              />
+            );
+          })}
+        </View>
+
+        {/* 外层发光（霓虹灯效果） */}
+        <Animated.View style={[styles.glowContainer, glowStyle]}>
+          <View
+            style={[styles.glow, styles.glowOuter, { shadowColor: isDark ? '#667eea' : '#4facfe' }]}
+          />
+          <View
+            style={[styles.glow, styles.glowInner, { shadowColor: isDark ? '#4facfe' : '#667eea' }]}
+          />
+        </Animated.View>
+
+        {/* Logo 主体 */}
+        <Animated.View style={logoStyle}>
+          <Image
+            source={require('@/assets/aetherlink_logo.svg')}
+            style={styles.logo}
+            contentFit="contain"
+            cachePolicy="memory-disk"
+            transition={200}
+          />
+        </Animated.View>
+      </View>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logo: {
+    width: 200,
+    height: 200,
+    borderRadius: 100, // 圆形裁剪
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+  },
+  particlesContainer: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  particle: {
+    position: 'absolute',
+    borderRadius: 100,
+  },
+  glowContainer: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  glow: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
+  },
+  glowOuter: {
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 60,
+    elevation: 0, // 移除 Android elevation，避免方形边框
+  },
+  glowInner: {
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 30,
+    elevation: 0, // 移除 Android elevation，避免方形边框
   },
 });
