@@ -142,6 +142,7 @@ export const AppEvents = {
   MESSAGES_CLEARED: 'messages:cleared',
   MESSAGE_SENT: 'message:sent',
   MESSAGE_CHANGED: 'message:changed',
+  MESSAGE_STREAMING_UPDATE: 'message:streaming_update',
   MESSAGE_REGENERATE_REQUESTED: 'message:regenerate_requested', // ✨ 重新生成消息请求
   CONVERSATION_CHANGED: 'conversation:changed',
   ASSISTANT_CHANGED: 'assistant:changed',

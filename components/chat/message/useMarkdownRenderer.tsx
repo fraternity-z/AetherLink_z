@@ -145,19 +145,7 @@ class CustomRenderer extends Renderer implements RendererInterface {
    */
   heading(text: string | ReactNode[], styles?: TextStyle): ReactNode {
     if (typeof text === 'string') {
-      // 🐛 调试日志：记录标题内容
-      if (text.includes('$')) {
-        logger.debug('[CustomRenderer.heading] 检测到包含 $ 的标题', { text });
-      }
-
       const result = this.extractAllMathEquation(text);
-
-      // 🐛 调试日志：记录提取结果
-      const hasLatex = result.some(r => r.type.includes('latex'));
-      if (hasLatex) {
-        logger.debug('[CustomRenderer.heading] 标题中提取到数学公式', { result });
-      }
-
       const fragmentKey = this.getKey();
       return (
         <View key={fragmentKey} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -194,19 +182,7 @@ class CustomRenderer extends Renderer implements RendererInterface {
    */
   text(text: string | ReactNode[], styles?: TextStyle): ReactNode {
     if (typeof text === 'string') {
-      // 🐛 调试日志：记录接收到的文本内容
-      if (text.includes('$')) {
-        logger.debug('[CustomRenderer.text] 检测到包含 $ 的文本', { text });
-      }
-
       const result = this.extractAllMathEquation(text);
-
-      // 🐛 调试日志：记录提取结果
-      const hasLatex = result.some(r => r.type.includes('latex'));
-      if (hasLatex) {
-        logger.debug('[CustomRenderer.text] 提取到数学公式', { result });
-      }
-
       const fragmentKey = this.getKey();
       return (
         <React.Fragment key={fragmentKey}>

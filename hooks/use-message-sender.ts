@@ -589,12 +589,18 @@ export function useMessageSender(
           }
         },
         onDone: async () => {
-          // ✨ 清理 BlockManager（确保所有块都已写入数据库）
           try {
-            await blockManager.cleanup();
-            logger.debug('[useMessageSender] BlockManager 已清理');
+            await blockManager.persistToRepository();
           } catch (error) {
-            logger.error('[useMessageSender] 清理 BlockManager 失败', error);
+            logger.error('[useMessageSender] 持久化助手消息块失败', error);
+            throw error;
+          } finally {
+            try {
+              await blockManager.cleanup();
+              logger.debug('[useMessageSender] BlockManager 已清理');
+            } catch (cleanupError) {
+              logger.error('[useMessageSender] 清理 BlockManager 失败', cleanupError);
+            }
           }
 
           await MessageRepository.updateMessageStatus(assistant!.id, 'sent');
@@ -611,7 +617,17 @@ export function useMessageSender(
           }
         },
         onError: async (e) => {
-          // ✨ 清理 BlockManager（无论成功还是失败）
+          const userCanceled = isUserCanceled(e);
+          const cancelBlocksSnapshot = userCanceled ? blockManager.getBlocks() : undefined;
+
+          if (!userCanceled) {
+            try {
+              await blockManager.persistToRepository();
+            } catch (persistError) {
+              logger.error('[useMessageSender] 持久化失败（错误流程）', persistError);
+            }
+          }
+
           try {
             await blockManager.cleanup();
             logger.debug('[useMessageSender] BlockManager 已清理（错误处理）');
@@ -619,12 +635,10 @@ export function useMessageSender(
             logger.error('[useMessageSender] 清理 BlockManager 失败', cleanupError);
           }
 
-          // 用户主动取消，静默处理
-          if (isUserCanceled(e)) {
+          if (userCanceled) {
             logger.debug('[useMessageSender] 用户主动取消请求');
             if (assistant) {
-              // 检查TEXT块内容，如果内容很少则删除消息
-              const blocks = blockManager.getBlocks();
+              const blocks = cancelBlocksSnapshot ?? [];
               const textBlocks = blocks.filter(b => b.type === 'TEXT');
               const totalText = textBlocks.map(b => b.content).join('');
 

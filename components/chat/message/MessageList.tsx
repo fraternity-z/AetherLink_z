@@ -34,6 +34,7 @@ function MessageListComponent({ conversationId }: MessageListProps) {
   const [attachmentsMap, setAttachmentsMap] = useState<Record<string, Attachment[]>>({});
   const [thinkingChainsMap, setThinkingChainsMap] = useState<Record<string, ThinkingChain>>({});
   const [blocksMap, setBlocksMap] = useState<Record<string, MessageBlock[]>>({});
+  const [streamingBlocksMap, setStreamingBlocksMap] = useState<Record<string, MessageBlock[]>>({});
   const [thinkingRefreshTick, setThinkingRefreshTick] = useState(0);
 
   // 监听消息清空事件，立即刷新列表
@@ -42,6 +43,7 @@ function MessageListComponent({ conversationId }: MessageListProps) {
       if (clearedConversationId === conversationId) {
         // 立即重新加载消息列表
         reload();
+        setStreamingBlocksMap({});
       }
     };
 
@@ -59,6 +61,31 @@ function MessageListComponent({ conversationId }: MessageListProps) {
       appEvents.off(AppEvents.MESSAGE_CHANGED, handleMessageChanged);
     };
   }, [conversationId, reload]);
+
+  // 监听流式消息更新，直接更新内存态，避免频繁数据库查询
+  useEffect(() => {
+    const handleStreamingUpdate = (payload?: { messageId: string; blocks: MessageBlock[] }) => {
+      if (!payload || !payload.messageId) return;
+
+      setStreamingBlocksMap(prev => {
+        const next = { ...prev };
+        if (!payload.blocks || payload.blocks.length === 0) {
+          if (next[payload.messageId]) {
+            delete next[payload.messageId];
+            return next;
+          }
+          return prev;
+        }
+        next[payload.messageId] = payload.blocks;
+        return next;
+      });
+    };
+
+    appEvents.on(AppEvents.MESSAGE_STREAMING_UPDATE, handleStreamingUpdate);
+    return () => {
+      appEvents.off(AppEvents.MESSAGE_STREAMING_UPDATE, handleStreamingUpdate);
+    };
+  }, []);
 
   // 列表数据：按时间顺序（最新在底部）
   const data = useMemo(() => items, [items]);
@@ -178,7 +205,9 @@ function MessageListComponent({ conversationId }: MessageListProps) {
   const renderItem: ListRenderItem<Message> = useCallback(
     ({ item }) => {
       // 📦 从块中组合消息内容
-      const blocks = blocksMap[item.id] || [];
+      const streamingBlocks = streamingBlocksMap[item.id];
+      const persistedBlocks = blocksMap[item.id] || [];
+      const blocks = streamingBlocks ?? persistedBlocks;
       const textBlocks = blocks
         .filter(b => b.type === 'TEXT')
         .sort((a, b) => a.sortOrder - b.sortOrder);
@@ -208,7 +237,7 @@ function MessageListComponent({ conversationId }: MessageListProps) {
         />
       );
     },
-    [attachmentsMap, thinkingChainsMap, blocksMap, avatarUri, handleRegenerate] // 添加 blocksMap 和 handleRegenerate 到依赖数组
+    [attachmentsMap, thinkingChainsMap, blocksMap, streamingBlocksMap, avatarUri, handleRegenerate]
   );
 
   // 🚀 性能优化：根据消息类型返回不同的类型标识，提升回收效率
