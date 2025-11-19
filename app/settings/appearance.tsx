@@ -13,7 +13,6 @@ import {
   deleteBackgroundImage,
   checkStorageSpace,
 } from '@/services/media/ImageStorage';
-import { BackgroundPreview } from '@/components/settings/BackgroundPreview';
 import { logger } from '@/utils/logger';
 
 
@@ -343,13 +342,6 @@ export default function AppearanceSettings() {
               {backgroundSettings.imagePath ? '更换背景图片' : '选择背景图片'}
             </Button>
 
-            {/* 背景预览 */}
-            {backgroundSettings.imagePath && (
-              <BackgroundPreview
-                imagePath={backgroundSettings.imagePath}
-                opacity={backgroundSettings.opacity}
-              />
-            )}
 
             {/* 不透明度滑块 */}
             {backgroundSettings.imagePath && (
