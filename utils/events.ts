@@ -16,13 +16,13 @@ class EventEmitter {
   private events: Map<string, EventCallback[]> = new Map();
   private throttleTimers: Map<string, ThrottleData> = new Map();
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
-  private readonly THROTTLE_TTL = 60000; // 节流定时器 TTL: 1分钟无活动自动清理
+  private readonly THROTTLE_TTL = 10000; // 节流定时器 TTL: 10秒无活动自动清理（优化：从60秒缩短，避免内存泄漏）
 
   constructor() {
-    // 每分钟清理一次过期的节流定时器
+    // 每10秒清理一次过期的节流定时器（优化：匹配新的TTL）
     this.cleanupInterval = setInterval(() => {
       this.cleanupExpiredThrottles();
-    }, 60000);
+    }, 10000);
   }
 
   on(event: string, callback: EventCallback) {

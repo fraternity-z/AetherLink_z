@@ -507,7 +507,8 @@ export function useMessageSender(
               lastThinkingUpdateAt = now;
               try {
                 await ThinkingChainRepository.updateThinkingChainContent(thinkingId, thinkingContent);
-                appEvents.emit(AppEvents.MESSAGE_CHANGED);
+                // 优化：使用节流事件，避免频繁触发数据库查询（从立即触发改为 300ms 节流）
+                appEvents.emitThrottled(AppEvents.MESSAGE_CHANGED, 300);
               } catch (e) {
                 // 忽略单次失败
               }

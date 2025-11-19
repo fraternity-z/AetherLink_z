@@ -444,8 +444,13 @@ function arePropsEqual(prev: MessageBubbleProps, next: MessageBubbleProps): bool
     return false;
   }
   for (let i = 0; i < prevBlocks.length; i++) {
-    // 比较块 ID 和类型（ID 变化或类型变化都需要重新渲染）
-    if (prevBlocks[i].id !== nextBlocks[i].id || prevBlocks[i].type !== nextBlocks[i].type) {
+    // 🚀 性能优化：比较块的关键属性（ID、类型、状态、内容长度）
+    if (
+      prevBlocks[i].id !== nextBlocks[i].id ||
+      prevBlocks[i].type !== nextBlocks[i].type ||
+      prevBlocks[i].status !== nextBlocks[i].status ||
+      prevBlocks[i].content.length !== nextBlocks[i].content.length
+    ) {
       return false;
     }
   }

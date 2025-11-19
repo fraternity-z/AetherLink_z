@@ -38,8 +38,8 @@ export class BlockManager {
   /** 文本块缓冲写入定时器 */
   private textBlockFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
-  /** 文本块缓冲写入延迟（毫秒） */
-  private readonly TEXT_BLOCK_FLUSH_DELAY = 200;
+  /** 文本块缓冲写入延迟（毫秒）- 优化：从 200ms 调整到 500ms，减少数据库写入频率 */
+  private readonly TEXT_BLOCK_FLUSH_DELAY = 500;
 
   /** 待写入的块 ID 集合 */
   private pendingFlushBlockIds: Set<string> = new Set();
