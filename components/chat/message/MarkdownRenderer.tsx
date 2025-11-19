@@ -12,6 +12,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import Markdown from 'react-native-marked';
 import { useTheme } from 'react-native-paper';
+import { escapeBrackets, removeSvgEmptyLines } from '@/utils/text-formats';
 import { useMarkdownRenderer } from './useMarkdownRenderer';
 
 export interface MarkdownRendererProps {
@@ -41,11 +42,17 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
     return null;
   }
 
+  // ✨ 预处理内容：统一数学公式格式并清理 SVG 空行
+  const processedContent = React.useMemo(
+    () => removeSvgEmptyLines(escapeBrackets(content)),
+    [content]
+  );
+
   return (
     <View style={styles.container}>
       <Markdown
         theme={{ colors }}
-        value={content}
+        value={processedContent}
         renderer={renderer}
         flatListProps={{
           scrollEnabled: false,

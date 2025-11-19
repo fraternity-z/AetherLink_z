@@ -24,6 +24,7 @@ import { ExtractMathResult, useMathEquation } from './useMathEquation';
 class CustomRenderer extends Renderer implements RendererInterface {
   private isDark: boolean;
   private themeColors: any;
+  private extractInlineMathEquation: (text: string) => ExtractMathResult[];
   private extractAllMathEquation: (text: string) => ExtractMathResult[];
   private renderInlineMath: (content: string, key?: string | number) => React.JSX.Element;
   private renderBlockMath: (content: string, key?: string | number) => React.JSX.Element;
@@ -31,6 +32,7 @@ class CustomRenderer extends Renderer implements RendererInterface {
   constructor(
     isDark: boolean,
     themeColors: any,
+    extractInlineMathEquation: (text: string) => ExtractMathResult[],
     extractAllMathEquation: (text: string) => ExtractMathResult[],
     renderInlineMath: (content: string, key?: string | number) => React.JSX.Element,
     renderBlockMath: (content: string, key?: string | number) => React.JSX.Element
@@ -38,6 +40,7 @@ class CustomRenderer extends Renderer implements RendererInterface {
     super();
     this.isDark = isDark;
     this.themeColors = themeColors;
+    this.extractInlineMathEquation = extractInlineMathEquation;
     this.extractAllMathEquation = extractAllMathEquation;
     this.renderInlineMath = renderInlineMath;
     this.renderBlockMath = renderBlockMath;
@@ -59,8 +62,48 @@ class CustomRenderer extends Renderer implements RendererInterface {
 
   /**
    * 重写行内代码渲染（自定义背景色）
+   * ✨ 检测数学公式：如果行内代码包含数学公式，则渲染为公式而非代码
    */
   codespan(text: string): ReactNode {
+    // ✨ 先检测是否包含数学公式
+    const mathResult = this.extractInlineMathEquation(text);
+
+    // 如果检测到数学公式，渲染为公式
+    const hasMath = mathResult.some(item => item.type === 'inline-latex');
+    if (hasMath) {
+      return (
+        <React.Fragment key={this.getKey()}>
+          {mathResult.map(({ type, content }, index) => {
+            if (type === 'inline-latex') {
+              return this.renderInlineMath(content, `${this.getKey()}-${index}`);
+            }
+            // 其他内容按普通代码渲染
+            const backgroundColor = this.isDark
+              ? 'rgba(255, 255, 255, 0.05)'
+              : 'rgba(0, 0, 0, 0.03)';
+            const color = this.isDark ? '#5900ffff' : '#c45ae7ff';
+            return (
+              <Text
+                key={`${this.getKey()}-${index}`}
+                style={{
+                  backgroundColor,
+                  color,
+                  paddingHorizontal: 6,
+                  paddingVertical: 3,
+                  borderRadius: 5,
+                  fontFamily: 'monospace',
+                  fontSize: 14,
+                }}
+              >
+                {content}
+              </Text>
+            );
+          })}
+        </React.Fragment>
+      );
+    }
+
+    // 没有数学公式，按普通行内代码渲染
     const backgroundColor = this.isDark
       ? 'rgba(255, 255, 255, 0.05)'
       : 'rgba(0, 0, 0, 0.03)';
@@ -97,11 +140,73 @@ class CustomRenderer extends Renderer implements RendererInterface {
   }
 
   /**
+   * ✨ 重写标题渲染，处理标题中的数学公式
+   * 这是修复 "标题中的行内公式无法渲染" 问题的关键方法
+   */
+  heading(text: string | ReactNode[], styles?: TextStyle): ReactNode {
+    if (typeof text === 'string') {
+      // 🐛 调试日志：记录标题内容
+      if (text.includes('$')) {
+        logger.debug('[CustomRenderer.heading] 检测到包含 $ 的标题', { text });
+      }
+
+      const result = this.extractAllMathEquation(text);
+
+      // 🐛 调试日志：记录提取结果
+      const hasLatex = result.some(r => r.type.includes('latex'));
+      if (hasLatex) {
+        logger.debug('[CustomRenderer.heading] 标题中提取到数学公式', { result });
+      }
+
+      const fragmentKey = this.getKey();
+      return (
+        <View key={fragmentKey} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
+          {result.map(({ type, content }, index) => {
+            if (type === 'block-latex') {
+              return this.renderBlockMath(content, `${this.getKey()}-${index}`);
+            }
+            if (type === 'inline-latex') {
+              return this.renderInlineMath(content, `${this.getKey()}-${index}`);
+            }
+            return (
+              <Text
+                key={`${this.getKey()}-${index}`}
+                style={styles}
+              >
+                {content}
+              </Text>
+            );
+          })}
+        </View>
+      );
+    }
+
+    // 如果是 ReactNode 数组，使用 View 包裹（支持内联公式）
+    return (
+      <View key={this.getKey()} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
+        <Text style={styles}>{text}</Text>
+      </View>
+    );
+  }
+
+  /**
    * 重写文本渲染，处理数学公式
    */
   text(text: string | ReactNode[], styles?: TextStyle): ReactNode {
     if (typeof text === 'string') {
+      // 🐛 调试日志：记录接收到的文本内容
+      if (text.includes('$')) {
+        logger.debug('[CustomRenderer.text] 检测到包含 $ 的文本', { text });
+      }
+
       const result = this.extractAllMathEquation(text);
+
+      // 🐛 调试日志：记录提取结果
+      const hasLatex = result.some(r => r.type.includes('latex'));
+      if (hasLatex) {
+        logger.debug('[CustomRenderer.text] 提取到数学公式', { result });
+      }
+
       const fragmentKey = this.getKey();
       return (
         <React.Fragment key={fragmentKey}>
@@ -137,19 +242,20 @@ class CustomRenderer extends Renderer implements RendererInterface {
 export function useMarkdownRenderer(isDark: boolean) {
   const theme = useTheme();
   const equationColor = isDark ? theme.colors.onSurface : theme.colors.onSurface;
-  
-  const { extractAllMathEquation, renderInlineMath, renderBlockMath } = useMathEquation(equationColor);
+
+  const { extractInlineMathEquation, extractAllMathEquation, renderInlineMath, renderBlockMath } = useMathEquation(equationColor);
 
   const renderer = useMemo(() => {
     logger.info('[useMarkdownRenderer] Creating CustomRenderer with Math support', { isDark });
     return new CustomRenderer(
       isDark,
       theme.colors,
+      extractInlineMathEquation,
       extractAllMathEquation,
       renderInlineMath,
       renderBlockMath
     );
-  }, [isDark, theme.colors, extractAllMathEquation, renderInlineMath, renderBlockMath]);
+  }, [isDark, theme.colors, extractInlineMathEquation, extractAllMathEquation, renderInlineMath, renderBlockMath]);
 
   return { renderer };
 }

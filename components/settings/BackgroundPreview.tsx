@@ -16,46 +16,48 @@ export function BackgroundPreview({ imagePath, opacity }: BackgroundPreviewProps
 
   return (
     <Card style={styles.previewCard}>
-      {/* 背景图片层 */}
-      <Image
-        source={{ uri: imagePath }}
-        style={[styles.backgroundImage, { opacity }]}
-        resizeMode="cover"
-      />
+      <View style={styles.previewContent}>
+        {/* 背景图片层 */}
+        <Image
+          source={{ uri: imagePath }}
+          style={[StyleSheet.absoluteFillObject, styles.backgroundImage, { opacity }]}
+          resizeMode="cover"
+        />
 
-      {/* 模拟聊天气泡 */}
-      <View style={styles.mockChat}>
-        <Card
-          style={[
-            styles.userBubble,
-            { backgroundColor: theme.colors.primaryContainer },
-          ]}
-        >
-          <Card.Content>
-            <Text
-              variant="bodyMedium"
-              style={{ color: theme.colors.onPrimaryContainer }}
-            >
-              这是预览效果
-            </Text>
-          </Card.Content>
-        </Card>
+        {/* 模拟聊天气泡 */}
+        <View style={styles.mockChat}>
+          <Card
+            style={[
+              styles.userBubble,
+              { backgroundColor: theme.colors.primaryContainer },
+            ]}
+          >
+            <Card.Content>
+              <Text
+                variant="bodyMedium"
+                style={{ color: theme.colors.onPrimaryContainer }}
+              >
+                这是预览效果
+              </Text>
+            </Card.Content>
+          </Card>
 
-        <Card
-          style={[
-            styles.aiBubble,
-            { backgroundColor: theme.colors.secondaryContainer },
-          ]}
-        >
-          <Card.Content>
-            <Text
-              variant="bodyMedium"
-              style={{ color: theme.colors.onSecondaryContainer }}
-            >
-              背景看起来不错！
-            </Text>
-          </Card.Content>
-        </Card>
+          <Card
+            style={[
+              styles.aiBubble,
+              { backgroundColor: theme.colors.secondaryContainer },
+            ]}
+          >
+            <Card.Content>
+              <Text
+                variant="bodyMedium"
+                style={{ color: theme.colors.onSecondaryContainer }}
+              >
+                背景看起来不错！
+              </Text>
+            </Card.Content>
+          </Card>
+        </View>
       </View>
 
       {/* 提示文字 */}
@@ -76,10 +78,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     elevation: 2,
   },
+  previewContent: {
+    flex: 1,
+    overflow: 'hidden',
+  },
   backgroundImage: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
+    borderRadius: 12,
   },
   mockChat: {
     flex: 1,
