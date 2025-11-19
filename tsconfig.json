@@ -8,6 +8,8 @@
     // 允许从 CommonJS 包进行默认导入（修复对 react 的默认导入报错）
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
+    // 启用降级迭代支持，确保 Map/Set 等可迭代对象在所有环境下正常工作
+    "downlevelIteration": true,
     "paths": {
       "@/*": [
         "./*"
