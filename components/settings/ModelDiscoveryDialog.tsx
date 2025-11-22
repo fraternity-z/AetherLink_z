@@ -1,13 +1,15 @@
 /**
  * 🔍 模型发现对话框组件（基于 UnifiedDialog）
+ * 
+ * 样式优化：统一卡片风格、复选框样式
  */
 
-import React, { useState, useMemo, useCallback, memo } from 'react';
-import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
-import { Text, useTheme, Searchbar, ActivityIndicator } from 'react-native-paper';
-import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
-import type { DiscoveredModel } from '@/services/ai';
 import { UnifiedDialog } from '@/components/common/UnifiedDialog';
+import type { DiscoveredModel } from '@/services/ai';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Searchbar, Text, useTheme } from 'react-native-paper';
 
 interface ModelGroup {
   title: string;
@@ -29,24 +31,41 @@ interface ModelItemProps {
   isLast: boolean;
   onToggle: (id: string) => void;
   primaryColor: string;
+  theme: any;
 }
 
-const ModelItem = memo(({ model, isSelected, isLast, onToggle, primaryColor }: ModelItemProps) => {
+const ModelItem = memo(({ model, isSelected, isLast, onToggle, primaryColor, theme }: ModelItemProps) => {
   return (
-    <Pressable onPress={() => onToggle(model.id)} style={[styles.modelItem, !isLast && { borderBottomWidth: 1, borderBottomColor: '#F0F0F0' }] }>
+    <Pressable
+      onPress={() => onToggle(model.id)}
+      style={({ pressed }) => [
+        styles.modelItem,
+        {
+            borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
+            borderBottomColor: theme.colors.outlineVariant,
+            backgroundColor: pressed ? theme.colors.surfaceVariant : theme.colors.surface,
+        }
+      ]}
+    >
       <View style={styles.modelInfo}>
-        <Text variant="bodyMedium" style={{ fontWeight: '500', color: '#000' }}>
+        <Text variant="bodyLarge" style={{ fontWeight: isSelected ? '600' : '400', color: theme.colors.onSurface }}>
           {model.label || model.id}
         </Text>
         {model.label && model.label !== model.id && (
-          <Text variant="bodySmall" style={{ color: '#666', marginTop: 2 }}>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
             {model.id}
           </Text>
         )}
       </View>
 
       {/* 圆形勾选框 - 纯 CSS */}
-      <View style={[styles.checkbox, isSelected && [styles.checkboxChecked, { backgroundColor: primaryColor, borderColor: primaryColor }]]}>
+      <View
+        style={[
+            styles.checkbox,
+            { borderColor: isSelected ? primaryColor : theme.colors.outline },
+            isSelected && { backgroundColor: primaryColor }
+        ]}
+      >
         {isSelected && <Icon name="check" size={14} color="#FFF" />}
       </View>
     </Pressable>
@@ -87,7 +106,7 @@ export function ModelDiscoveryDialog({ visible, loading, models, onDismiss, onCo
     });
   }, []);
 
-  // 全选/取消全选（合并为一个切换按钮，避免两个动作贴在一起）
+  // 全选/取消全选
   const selectAll = useCallback(() => setSelectedIds(new Set(models.map((m) => m.id))), [models]);
   const deselectAll = useCallback(() => setSelectedIds(new Set()), []);
   const allSelected = selectedIds.size > 0 && selectedIds.size === models.length;
@@ -107,72 +126,98 @@ export function ModelDiscoveryDialog({ visible, loading, models, onDismiss, onCo
     <UnifiedDialog
       visible={visible}
       onClose={onDismiss}
-      title="从接口获取的模型"
+      title="发现模型"
       icon="download"
       iconColor={theme.colors.primary}
       actions={[
-        { text: allSelected ? '取消全选' : '全选', onPress: toggleSelectAll, type: 'cancel' },
-        { text: `确定添加 (${selectedCount})`, type: 'primary', onPress: handleConfirm, disabled: loading || selectedCount === 0 },
+        { text: allSelected ? '取消全选' : '全选', onPress: toggleSelectAll, type: 'neutral' },
+        { text: `添加 (${selectedCount})`, type: 'primary', onPress: handleConfirm, disabled: loading || selectedCount === 0 },
       ]}
       maxHeight={'80%'}
     >
-      {/* 搜索栏 */}
-      {!loading && models.length > 0 && (
-        <View style={styles.searchContainer}>
-          <Searchbar
-            placeholder="搜索模型 ID 或名称"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={{ elevation: 0, backgroundColor: '#F5F5F5' }}
-            inputStyle={{ fontSize: 14 }}
-          />
-        </View>
-      )}
-
-      {/* 内容区 */}
-      <ScrollView style={styles.scrollArea}>
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator />
-            <Text style={styles.loadingText}>正在获取模型列表...</Text>
+      <View style={{ flex: 1 }}>
+        {/* 搜索栏 */}
+        {!loading && models.length > 0 && (
+          <View style={styles.searchContainer}>
+            <Searchbar
+              placeholder="搜索模型 ID 或名称"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}
+              inputStyle={styles.searchInput}
+              iconColor={theme.colors.onSurfaceVariant}
+              placeholderTextColor={theme.colors.onSurfaceVariant}
+            />
           </View>
-        ) : models.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text>未获取到任何模型</Text>
-          </View>
-        ) : (
-          groups.map((group) => (
-            <View key={group.title} style={{ marginBottom: 12 }}>
-              {/* 卡片式分组 */}
-              <View style={styles.groupCard}>
-                <View style={styles.groupHeader}>
-                  <Text style={{ fontWeight: '600' }}>{group.title}</Text>
-                  <View style={styles.groupBadge}>
-                    <Text style={styles.groupBadgeText}>{group.models.length}</Text>
-                  </View>
-                </View>
-                <View style={styles.modelList}>
-                  {group.models.map((m, idx) => (
-                    <ModelItem key={m.id} model={m} isSelected={selectedIds.has(m.id)} isLast={idx === group.models.length - 1} onToggle={toggleModel} primaryColor={theme.colors.primary} />
-                  ))}
-                </View>
-              </View>
-            </View>
-          ))
         )}
-      </ScrollView>
+
+        {/* 内容区 */}
+        <View style={styles.scrollContainer}>
+            <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
+            {loading ? (
+                <View style={styles.loadingContainer}>
+                <ActivityIndicator color={theme.colors.primary} size="large" />
+                <Text style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>正在获取模型列表...</Text>
+                </View>
+            ) : models.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                <Icon name="robot-confused" size={48} color={theme.colors.outline} />
+                <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>未获取到任何模型</Text>
+                </View>
+            ) : (
+                groups.map((group) => (
+                <View key={group.title} style={{ marginBottom: 16 }}>
+                    {/* 卡片式分组 */}
+                    <View style={[styles.groupCard, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surface }]}>
+                    <View style={[styles.groupHeader, { backgroundColor: theme.colors.surfaceVariant, borderBottomColor: theme.colors.outlineVariant }]}>
+                        <Text style={{ fontWeight: '600', color: theme.colors.onSurface, textTransform: 'uppercase' }}>{group.title}</Text>
+                        <View style={[styles.groupBadge, { backgroundColor: theme.colors.secondaryContainer }]}>
+                        <Text style={[styles.groupBadgeText, { color: theme.colors.onSecondaryContainer }]}>{group.models.length}</Text>
+                        </View>
+                    </View>
+                    <View style={styles.modelList}>
+                        {group.models.map((m, idx) => (
+                        <ModelItem
+                            key={m.id}
+                            model={m}
+                            isSelected={selectedIds.has(m.id)}
+                            isLast={idx === group.models.length - 1}
+                            onToggle={toggleModel}
+                            primaryColor={theme.colors.primary}
+                            theme={theme}
+                        />
+                        ))}
+                    </View>
+                    </View>
+                </View>
+                ))
+            )}
+            </ScrollView>
+        </View>
+      </View>
     </UnifiedDialog>
   );
 }
 
 const styles = StyleSheet.create({
   searchContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 12,
+  },
+  searchBar: {
+      elevation: 0,
+      height: 44,
+      borderRadius: 12,
+  },
+  searchInput: {
+      fontSize: 14,
+      minHeight: 0, // Fix for some RN versions
+  },
+  scrollContainer: {
+      flex: 1,
+      marginHorizontal: -24, // 抵消 UnifiedDialog 的 padding
   },
   scrollArea: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
   },
   loadingContainer: {
     padding: 40,
@@ -188,10 +233,8 @@ const styles = StyleSheet.create({
   },
   // 卡片式分组容器
   groupCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
     overflow: 'hidden',
   },
   groupHeader: {
@@ -199,32 +242,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#F9FAFB',
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   groupBadge: {
-    backgroundColor: '#E5E7EB',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
   },
   groupBadgeText: {
     fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   modelList: {
-    backgroundColor: '#FFF',
+    // backgroundColor: 'white', // Controlled by theme
   },
   modelItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFF',
+    paddingVertical: 14,
   },
   modelInfo: {
     flex: 1,
@@ -232,16 +270,11 @@ const styles = StyleSheet.create({
   },
   // 自定义勾选框 - 圆形
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#FFF',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  checkboxChecked: {
-    borderWidth: 0,
   },
 });

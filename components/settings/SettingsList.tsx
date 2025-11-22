@@ -3,14 +3,15 @@
  *
  * 功能：
  * - 显示分组的设置选项列表
- * - 参考 AetherLink 的设置菜单结构
- * - Material Design 卡片式列表
+ * - 使用 UnifiedCard 和 UnifiedListItem 保持风格统一
+ * - 优化视觉层次
  */
 
-import { ScrollView, View } from 'react-native';
-import { Text, useTheme, List } from 'react-native-paper';
-import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { UnifiedCard } from '@/components/common/UnifiedCard';
+import { UnifiedListItem } from '@/components/common/UnifiedListItem';
 import { router } from 'expo-router';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Text, useTheme } from 'react-native-paper';
 
 // 设置项数据结构
 interface SettingItem {
@@ -161,69 +162,61 @@ export function SettingsList() {
 
   return (
     <ScrollView
-      className="flex-1"
-      style={{ backgroundColor: theme.colors.background }}
-      contentContainerStyle={{ paddingVertical: 12 }}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={false}
     >
       {SETTINGS_GROUPS.map((group, groupIndex) => (
-        <View key={groupIndex} className="mb-6 px-4">
+        <View key={groupIndex} style={styles.groupContainer}>
           {/* 分组标题 */}
           <Text
-            variant="labelSmall"
-            className="px-2 mb-2 font-medium"
-            style={{ color: theme.colors.onSurfaceVariant }}
+            variant="labelMedium"
+            style={[styles.groupTitle, { color: theme.colors.primary }]}
           >
             {group.title}
           </Text>
 
-          {/* 列表项容器 - 圆角方框包裹 */}
-          <View
-            style={{
-              backgroundColor: theme.colors.surface,
-              borderRadius: 12,
-              overflow: 'hidden',
-              borderWidth: 1,
-              borderColor: theme.colors.outlineVariant,
-            }}
-          >
+          {/* 统一卡片容器 */}
+          <UnifiedCard contentStyle={styles.cardContent}>
             {group.items.map((item, idx) => (
-              <List.Item
+              <UnifiedListItem
                 key={item.id}
-                onPress={() => handleItemPress(item)}
                 title={item.title}
-                titleStyle={{ fontSize: 16, fontWeight: '500' }}
                 description={item.description}
-                descriptionStyle={{ fontSize: 13, marginTop: 2 }}
-                className="px-4 py-3"
-                style={{
-                  backgroundColor: 'transparent',
-                  borderBottomWidth: idx < group.items.length - 1 ? 0.5 : 0,
-                  borderBottomColor: theme.colors.outlineVariant,
-                }}
-                left={() => (
-                  <View className="justify-center mr-3">
-                    <Icon
-                      name={item.icon as any}
-                      size={24}
-                      color={theme.colors.onSurfaceVariant}
-                    />
-                  </View>
-                )}
-                right={() => (
-                  <View className="justify-center">
-                    <Icon
-                      name="chevron-right"
-                      size={20}
-                      color={theme.colors.onSurfaceVariant}
-                    />
-                  </View>
-                )}
+                leftIcon={item.icon}
+                leftIconColor={item.color}
+                onPress={() => handleItemPress(item)}
+                showDivider={idx < group.items.length - 1}
               />
             ))}
-          </View>
+          </UnifiedCard>
         </View>
       ))}
+      {/* 底部留白 */}
+      <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  groupContainer: {
+    marginBottom: 24,
+  },
+  groupTitle: {
+    marginLeft: 4,
+    marginBottom: 8,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    opacity: 0.9,
+  },
+  cardContent: {
+    padding: 0, // 列表卡片不需要内边距，列表项自带padding
+  },
+});

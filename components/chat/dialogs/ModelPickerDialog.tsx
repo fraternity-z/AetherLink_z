@@ -2,18 +2,17 @@
  * 🤖 AI模型选择器对话框（基于 UnifiedDialog）
  *
  * 简化版：不与话题绑定，直接通过回调更新全局模型状态
+ * 样式优化：现代化标签栏、列表项、分组显示
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
-import { useTheme, Text, ActivityIndicator, Divider } from 'react-native-paper';
-import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { UnifiedDialog } from '@/components/common/UnifiedDialog';
+import { UnifiedListItem } from '@/components/common/UnifiedListItem';
+import { CustomProvidersRepository } from '@/storage/repositories/custom-providers';
 import { ProviderModelsRepository } from '@/storage/repositories/provider-models';
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
-import { CustomProvidersRepository } from '@/storage/repositories/custom-providers';
-import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
-import { UnifiedDialog } from '@/components/common/UnifiedDialog';
-import { logger } from '@/utils/logger';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
 
 type Props = {
   visible: boolean;
@@ -127,15 +126,17 @@ export function ModelPickerDialog({ visible, onDismiss, currentModel, onModelSel
     // 4. 显示当前选择的模型（从父组件传入）
     const curProvider = currentModel?.provider || allProviders[0]?.id || 'openai';
     const curModel = currentModel?.model || allProviders[0]?.models[0]?.id || 'gpt-4o-mini';
-    logger.debug('[ModelPickerDialog] 显示当前选择的模型:', { provider: curProvider, model: curModel });
 
     setSelected({ provider: curProvider, model: curModel });
 
-    // 5. 设置默认选中的标签为当前提供商
+    // 5. 设置默认选中的标签为当前提供商 (如果不在all模式下可能需要切换)
+    // 这里默认还是保留在All或者切换到当前Provider，体验更好的是如果All里能找到就All，否则...
+    // 简单起见，初始化时如果不在All，可以切过去。但为了浏览方便，保持All也许更好？
+    // 逻辑：如果用户刚打开，可以定位到当前Provider
     setSelectedTab(curProvider);
 
     setIsLoading(false);
-  }, []);
+  }, [theme.colors.primary]);
 
   useEffect(() => {
     if (visible) {
@@ -146,13 +147,9 @@ export function ModelPickerDialog({ visible, onDismiss, currentModel, onModelSel
 
   const selectAndSave = async (provider: string, model: string) => {
     setSelected({ provider, model });
-
-    // 直接通过回调通知父组件更新全局模型状态
     onModelSelect(provider, model);
-    logger.debug('[ModelPickerDialog] 模型已选择，通知父组件更新:', {
-      provider,
-      model,
-    });
+    // 稍微延迟关闭，提供视觉反馈
+    setTimeout(onDismiss, 150);
   };
 
   // 根据选中的标签筛选模型
@@ -173,57 +170,35 @@ export function ModelPickerDialog({ visible, onDismiss, currentModel, onModelSel
     <UnifiedDialog
       visible={visible}
       onClose={onDismiss}
-      title="选择AI模型"
+      title="选择模型"
       maxHeight="80%"
-      actions={[{ text: '完成', type: 'primary', onPress: onDismiss }]}
+      actions={[{ text: '取消', type: 'neutral', onPress: onDismiss }]}
     >
-      <View style={styles.content}>
+      <View style={styles.container}>
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>加载模型列表...</Text>
+            <Text style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>
+              加载模型列表...
+            </Text>
           </View>
         ) : (
           <>
-            {/* 顶部横向滚动的标签栏 */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.tabsContainer}
-              contentContainerStyle={styles.tabsContent}
-            >
-              {/* "全部" 标签 */}
-              <Pressable
-                onPress={() => setSelectedTab('all')}
-                style={({ pressed }) => [
-                  styles.tab,
-                  selectedTab === 'all' && styles.tabActive,
-                  { backgroundColor: selectedTab === 'all' ? theme.colors.primaryContainer : 'transparent' },
-                  pressed && { opacity: 0.7 },
-                ]}
+            {/* 顶部提供商标签栏 */}
+            <View style={styles.tabsWrapper}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.tabsContent}
               >
-                <Text
-                  style={[
-                    styles.tabText,
-                    {
-                      color: selectedTab === 'all' ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant,
-                      fontWeight: selectedTab === 'all' ? '600' : '500',
-                    },
-                  ]}
-                >
-                  全部
-                </Text>
-              </Pressable>
-
-              {/* 提供商标签 */}
-              {providers.map((provider) => (
+                {/* "全部" 标签 */}
                 <Pressable
-                  key={provider.id}
-                  onPress={() => setSelectedTab(provider.id)}
+                  onPress={() => setSelectedTab('all')}
                   style={({ pressed }) => [
                     styles.tab,
-                    selectedTab === provider.id && styles.tabActive,
-                    { backgroundColor: selectedTab === provider.id ? theme.colors.primaryContainer : 'transparent' },
+                    selectedTab === 'all'
+                        ? { backgroundColor: theme.colors.onSurface }
+                        : { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.colors.outlineVariant },
                     pressed && { opacity: 0.7 },
                   ]}
                 >
@@ -231,77 +206,90 @@ export function ModelPickerDialog({ visible, onDismiss, currentModel, onModelSel
                     style={[
                       styles.tabText,
                       {
-                        color: selectedTab === provider.id ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant,
-                        fontWeight: selectedTab === provider.id ? '600' : '500',
+                        color: selectedTab === 'all'
+                          ? theme.colors.surface
+                          : theme.colors.onSurfaceVariant,
+                        fontWeight: selectedTab === 'all' ? '600' : '400',
                       },
                     ]}
                   >
-                    {provider.name.toUpperCase()}
+                    全部
                   </Text>
                 </Pressable>
-              ))}
-            </ScrollView>
 
-            <Divider />
+                {/* 提供商标签列表 */}
+                {providers.map((provider) => {
+                    const isActive = selectedTab === provider.id;
+                    return (
+                        <Pressable
+                          key={provider.id}
+                          onPress={() => setSelectedTab(provider.id)}
+                          style={({ pressed }) => [
+                            styles.tab,
+                            isActive
+                                ? { backgroundColor: theme.colors.onSurface }
+                                : { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.colors.outlineVariant },
+                            pressed && { opacity: 0.7 },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.tabText,
+                              {
+                                color: isActive ? theme.colors.surface : theme.colors.onSurfaceVariant,
+                                fontWeight: isActive ? '600' : '400',
+                              },
+                            ]}
+                          >
+                            {provider.name}
+                          </Text>
+                        </Pressable>
+                    );
+                })}
+              </ScrollView>
+            </View>
 
             {/* 模型列表 */}
-            <ScrollView style={styles.modelsContainer}>
-              {displayedModels.map((item) => {
+            <View style={styles.listContainer}>
+              {displayedModels.map((item, index) => {
                 const isSelected = selected?.provider === item.provider.id && selected?.model === item.id;
-
+                
                 return (
-                  <Pressable
-                    key={`${item.provider.id}:${item.id}`}
-                    style={({ pressed }) => [
-                      styles.modelItem,
-                      {
-                        backgroundColor: isSelected
-                          ? `${theme.colors.primary}10`
-                          : pressed
-                          ? theme.colors.surfaceVariant
-                          : 'transparent',
-                      },
-                    ]}
-                    onPress={() => selectAndSave(item.provider.id, item.id)}
-                    android_ripple={{ color: theme.colors.surfaceVariant }}
-                  >
-                    <View style={styles.modelContent}>
-                      {/* 模型信息 */}
-                      <View style={styles.modelInfo}>
-                        <Text
-                          variant="bodyLarge"
-                          style={[
-                            styles.modelLabel,
-                            {
-                              color: isSelected ? theme.colors.primary : theme.colors.onSurface,
-                              fontWeight: isSelected ? '600' : '500',
-                            },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {item.label}
-                        </Text>
-                        {selectedTab === 'all' && (
-                          <Text
-                            variant="bodySmall"
-                            style={[styles.modelProviderLabel, { color: theme.colors.onSurfaceVariant }]}
-                          >
-                            {item.provider.name}
-                          </Text>
-                        )}
-                      </View>
-
-                      {/* 选中图标 */}
-                      <Icon
-                        name={isSelected ? 'check-circle' : 'checkbox-blank-circle-outline'}
-                        size={22}
-                        color={isSelected ? theme.colors.primary : theme.colors.onSurfaceVariant}
-                      />
-                    </View>
-                  </Pressable>
+                    <UnifiedListItem
+                        key={`${item.provider.id}:${item.id}`}
+                        title={item.label}
+                        description={selectedTab === 'all' ? item.provider.name : undefined}
+                        leftIcon={item.provider.icon}
+                        leftIconColor={item.provider.color}
+                        rightIcon={isSelected ? 'check-circle' : undefined}
+                        style={{
+                            backgroundColor: theme.colors.surface,
+                            borderRadius: 12,
+                            marginBottom: 8,
+                            borderWidth: 1,
+                            borderColor: isSelected ? theme.colors.onSurface : theme.colors.outlineVariant,
+                            // 卡片式阴影效果
+                            ...Platform.select({
+                                ios: { shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 2, shadowOffset: {width: 0, height: 1} },
+                                android: { elevation: 1 }
+                            })
+                        }}
+                        titleStyle={{
+                            fontWeight: isSelected ? '600' : '400',
+                            color: theme.colors.onSurface,
+                        }}
+                        showDivider={false}
+                        onPress={() => selectAndSave(item.provider.id, item.id)}
+                    />
                 );
               })}
-            </ScrollView>
+              
+              {displayedModels.length === 0 && (
+                  <View style={styles.emptyState}>
+                      <Text style={{ color: theme.colors.onSurfaceVariant }}>暂无可用模型</Text>
+                  </View>
+              )}
+            </View>
           </>
         )}
       </View>
@@ -310,69 +298,42 @@ export function ModelPickerDialog({ visible, onDismiss, currentModel, onModelSel
 }
 
 const styles = StyleSheet.create({
-  content: {
+  container: {
     flex: 1,
   },
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
-    minHeight: 200,
+    paddingVertical: 60,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 14,
   },
-  tabsContainer: {
-    flexGrow: 0,
-    flexShrink: 0,
+  tabsWrapper: {
+    marginBottom: 12,
   },
   tabsContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 4,
+    paddingBottom: 4,
     gap: 8,
   },
   tab: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-  },
-  tabActive: {
-    // 激活状态样式由动态背景色控制
-  },
-  tabText: {
-    fontSize: 14,
-    letterSpacing: 0.5,
-  },
-  modelsContainer: {
-    flex: 1,
-    paddingTop: 8,
-  },
-  modelItem: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    marginHorizontal: 16,
-    marginBottom: 6,
-    borderRadius: 12,
-  },
-  modelContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    minHeight: 36,
   },
-  modelInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-  modelLabel: {
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  modelProviderLabel: {
+  tabText: {
     fontSize: 13,
-    lineHeight: 18,
-    marginTop: 2,
   },
+  listContainer: {
+    flex: 1,
+  },
+  emptyState: {
+      padding: 24,
+      alignItems: 'center',
+  }
 });
