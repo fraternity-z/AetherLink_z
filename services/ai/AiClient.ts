@@ -327,6 +327,12 @@ export async function streamCompletion(opts: StreamOptions) {
           // AI SDK 流开始事件，正常情况，静默处理
           // ⚡ 性能优化：移除频繁的 debug 日志
           continue;
+        } else if (part.type === 'start-step') {
+          // AI SDK 步骤开始事件（新版本），静默处理
+          continue;
+        } else if (part.type === 'text-start') {
+          // AI SDK 文本开始事件（新版本），静默处理
+          continue;
         } else if (part.type === 'text-end') {
           // SDK 会在文本输出完成后发送 text-end 事件，不需要额外处理
           // ⚡ 性能优化：移除频繁的 debug 日志
@@ -403,6 +409,10 @@ export async function streamCompletion(opts: StreamOptions) {
         } else if (part.type === 'start') {
           // AI SDK 流开始事件，正常情况，静默处理
           // ⚡ 性能优化：移除频繁的 debug 日志
+        } else if (part.type === 'start-step') {
+          // AI SDK 步骤开始事件（新版本），静默处理
+        } else if (part.type === 'text-start') {
+          // AI SDK 文本开始事件（新版本），静默处理
         } else if (part.type === 'text-end') {
           // ⚡ 性能优化：移除频繁的 debug 日志
         } else if (part.type === 'finish') {
