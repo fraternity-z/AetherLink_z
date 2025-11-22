@@ -33,6 +33,8 @@ export default function ChatScreen() {
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [quickPhrasesEnabled, setQuickPhrasesEnabled] = useState(true);
+  // 💡 当前选择的模型（全局状态，与话题解耦）
+  const [currentModel, setCurrentModel] = useState<{ provider: string; model: string } | null>(null);
   const params = useLocalSearchParams<{ cid?: string }>();
   const settingsRepo = useMemo(() => SettingsRepository(), []);
   const { withErrorHandler } = useErrorHandler();
@@ -40,6 +42,7 @@ export default function ChatScreen() {
   // ✨ 消息发送 Hook（用于重新生成功能）
   const { sendMessage } = useMessageSender(conversationId, setConversationId);
 
+  // ✨ 初始化：读取快捷短语和默认模型设置
   useEffect(() => {
     withErrorHandler(async () => {
       const stored = await settingsRepo.get<boolean>(SettingKey.QuickPhrasesEnabled);
@@ -48,6 +51,11 @@ export default function ChatScreen() {
       } else {
         setQuickPhrasesEnabled(stored);
       }
+
+      // 初始化当前模型为默认模型
+      const defaultProvider = (await settingsRepo.get<string>(SettingKey.DefaultProvider)) || 'openai';
+      const defaultModel = (await settingsRepo.get<string>(SettingKey.DefaultModel)) || 'gpt-4o-mini';
+      setCurrentModel({ provider: defaultProvider, model: defaultModel });
     }, {
       showDialog: false, // 静默失败，不打扰用户
       logError: true,
@@ -85,6 +93,7 @@ export default function ChatScreen() {
       appEvents.off(AppEvents.MESSAGE_REGENERATE_REQUESTED, handleRegenerateRequest);
     };
   }, [sendMessage]);
+
 
   const handleMenuPress = () => {
     setDrawerOpen((v) => !v);
@@ -141,6 +150,7 @@ export default function ChatScreen() {
                 ref={chatInputRef}
                 conversationId={conversationId}
                 onConversationChange={setConversationId}
+                currentModel={currentModel}
               />
             </View>
 
@@ -155,7 +165,11 @@ export default function ChatScreen() {
             <ModelPickerDialog
               visible={modelPickerOpen}
               onDismiss={() => setModelPickerOpen(false)}
-              conversationId={conversationId}
+              currentModel={currentModel}
+              onModelSelect={(provider, model) => {
+                // 直接更新当前模型（不管有没有话题ID）
+                setCurrentModel({ provider, model });
+              }}
             />
             {/* TODO: 实现消息上下文菜单（长按操作） */}
             {/* TODO: 实现消息加载更多功能 */}

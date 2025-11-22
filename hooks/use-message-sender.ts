@@ -51,6 +51,8 @@ export interface SendMessageOptions {
   onProgress?: (stage: 'creating' | 'sending' | 'streaming' | 'done') => void;
   /** 是否在本次发送中启用 MCP 工具 */
   enableMcpTools?: boolean;
+  /** 当前选择的模型（全局状态，直接使用） */
+  currentModel?: { provider: string; model: string };
 }
 
 /**
@@ -209,7 +211,7 @@ export function useMessageSender(
    * 发送消息
    */
   const sendMessage = useCallback(async (options: SendMessageOptions) => {
-    const { text, attachments, searchResults, onProgress } = options;
+    const { text, attachments, searchResults, onProgress, currentModel } = options;
 
     if (!text.trim() && attachments.length === 0) {
       return;
@@ -238,20 +240,17 @@ export function useMessageSender(
       // 获取聊天设置参数
       const sr = SettingsRepository();
 
-      // 🎯 优先级：话题级别模型选择 > 默认模型设置
+      // 🎯 模型选择：优先使用当前选择的模型，否则使用默认模型
       let provider: Provider;
       let model: string;
 
-      // 1. 尝试获取话题级别的模型选择（用户选择优先）
-      const conversationModel = cid ? await ChatRepository.getConversationModel(cid) : null;
-
-      if (conversationModel) {
-        // 使用话题级别的模型选择
-        provider = conversationModel.provider as Provider;
-        model = conversationModel.model;
-        logger.debug('[useMessageSender] 使用话题级别模型:', { provider, model });
+      if (currentModel) {
+        // 使用当前选择的模型
+        provider = currentModel.provider as Provider;
+        model = currentModel.model;
+        logger.debug('[useMessageSender] 使用当前选择的模型:', { provider, model });
       } else {
-        // 使用默认模型设置（新话题或未选择时）
+        // 使用默认模型设置
         provider = ((await sr.get<string>(SettingKey.DefaultProvider)) ?? 'openai') as Provider;
         model = (await sr.get<string>(SettingKey.DefaultModel)) ?? (
           provider === 'openai' ? 'gpt-4o-mini' :

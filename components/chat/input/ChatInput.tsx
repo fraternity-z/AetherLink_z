@@ -46,6 +46,8 @@ import { logger } from '@/utils/logger';
 export interface ChatInputProps {
   conversationId: string | null;
   onConversationChange: (id: string) => void;
+  /** 当前选择的模型（全局状态） */
+  currentModel?: { provider: string; model: string } | null;
 }
 
 /**
@@ -61,6 +63,7 @@ export interface ChatInputRef {
 const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(function ChatInput({
   conversationId,
   onConversationChange,
+  currentModel,
 }, ref) {
   const theme = useTheme();
   const { alert } = useConfirmDialog();
@@ -74,7 +77,7 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
     removeAttachment,
     resetAttachments,
   } = useAttachmentPicker();
-  const { enterToSend, currentProvider, currentModel } = useChatInputSettings();
+  const { enterToSend } = useChatInputSettings();
   const {
     attachmentMenuVisible,
     openAttachmentMenu,
@@ -181,12 +184,13 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
         attachments: userAttachments,
         searchResults,
         enableMcpTools: mcpEnabled,
+        currentModel: currentModel || undefined,
       });
     } catch (error) {
       // 错误已在 useEffect 中处理
       logger.error('[ChatInput] 发送消息失败', error);
     }
-  }, [message, selectedAttachments, isGenerating, searchEnabled, performWebSearch, sendMessage, mcpEnabled, resetAttachments]);
+  }, [message, selectedAttachments, isGenerating, searchEnabled, performWebSearch, sendMessage, mcpEnabled, resetAttachments, currentModel]);
 
   // ========== 语音输入处理 ==========
   const handleVoiceTextRecognized = React.useCallback((text: string) => {
@@ -239,8 +243,8 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
         onClearContext={clearContext}
         hasContextReset={hasContextReset}
         onOpenImageGeneration={openImageDialog}
-        provider={currentProvider}
-        model={currentModel}
+        provider={(currentModel?.provider || 'openai') as any}
+        model={currentModel?.model || 'gpt-4o-mini'}
       />
 
       {/* 图片生成对话框 */}
@@ -248,8 +252,8 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
         visible={imageDialogVisible}
         onDismiss={closeImageDialog}
         conversationId={conversationId}
-        provider={currentProvider}
-        model={currentModel}
+        provider={(currentModel?.provider || 'openai') as any}
+        model={currentModel?.model || 'gpt-4o-mini'}
       />
 
       {/* MCP 工具开关对话框 */}
