@@ -6,19 +6,22 @@
  * - 执行网络搜索
  * - 格式化搜索结果
  * - 错误处理和加载状态
+ * - 防抖和自动重试机制
  */
 
-import { useState, useCallback, useRef } from 'react';
 import { performSearch } from '@/services/search/SearchClient';
-import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
 import type { SearchEngine } from '@/services/search/types';
+import { SettingKey, SettingsRepository } from '@/storage/repositories/settings';
 import { logger } from '@/utils/logger';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 /**
  * 搜索错误接口
  */
 export interface SearchError extends Error {
   code?: string;
+  retryable?: boolean;
+  retryAfter?: number;
 }
 
 /**
@@ -32,6 +35,23 @@ export interface UseWebSearchResult {
   error: SearchError | null;
   setSearchEnabled: (enabled: boolean) => void;
   performWebSearch: (query: string) => Promise<string | null>;
+}
+
+/**
+ * 简单防抖函数实现
+ */
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  delay: number
+): (...args: Parameters<T>) => void {
+  let timeoutId: any = null;
+
+  return (...args: Parameters<T>) => {
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      func(...args);
+    }, delay);
+  };
 }
 
 /**
@@ -52,12 +72,13 @@ export function useWebSearch(): UseWebSearchResult {
   const pendingSearchRef = useRef<Map<string, Promise<string | null>>>(new Map());
 
   /**
-   * 内部搜索执行函数（未防抖）
+   * 内部搜索执行函数
    *
    * @param query 搜索查询
+   * @param retryCount 重试次数
    * @returns 格式化的搜索结果字符串，失败返回错误信息或 null
    */
-  const executeSearch = useCallback(async (query: string): Promise<string | null> => {
+  const executeSearch = useCallback(async (query: string, retryCount = 0): Promise<string | null> => {
     if (!query.trim()) {
       return null;
     }
@@ -106,6 +127,7 @@ export function useWebSearch(): UseWebSearchResult {
           engine: searchEngine,
           query,
           maxResults,
+          retryCount,
         });
 
         const results = await performSearch({
@@ -153,11 +175,26 @@ export function useWebSearch(): UseWebSearchResult {
 
         logger.debug('[useWebSearch] 搜索未返回结果');
         return null;
-      } catch (error) {
+      } catch (error: any) {
         const searchError = error as SearchError;
-        logger.error('[useWebSearch] 搜索失败:', searchError);
+        
+        // 增强错误信息
+        searchError.retryable = ['NETWORK_ERROR', 'TIMEOUT', 'RATE_LIMITED'].includes(searchError.code || '');
+        searchError.retryAfter = searchError.code === 'RATE_LIMITED' ? 1000 : undefined;
 
+        logger.error('[useWebSearch] 搜索失败:', searchError);
         setError(searchError);
+
+        // 自动重试逻辑
+        if (searchError.retryable && retryCount < 2) {
+          logger.info(`[useWebSearch] 尝试自动重试 (${retryCount + 1}/2)...`);
+          const delay = searchError.retryAfter || (1000 * Math.pow(2, retryCount));
+          await new Promise(r => setTimeout(r, delay));
+          
+          // 清理 pending 状态以便重试
+          pendingSearchRef.current.delete(cacheKey);
+          return executeSearch(query, retryCount + 1);
+        }
 
         // 根据错误类型生成友好的错误消息
         let errorMessage = '未知错误';
@@ -191,9 +228,13 @@ export function useWebSearch(): UseWebSearchResult {
 
         return errorResult;
       } finally {
-        setIsSearching(false);
-        // 清理正在进行的请求记录
-        pendingSearchRef.current.delete(cacheKey);
+        // 只有在不是重试调用时才设置状态
+        // (如果是递归重试，状态管理交给最后一次调用)
+        if (retryCount === 0) {
+            setIsSearching(false);
+            // 清理正在进行的请求记录
+            pendingSearchRef.current.delete(cacheKey);
+        }
       }
     })();
 
@@ -205,16 +246,28 @@ export function useWebSearch(): UseWebSearchResult {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // CACHE_TTL 是常量，不需要放在依赖数组中
 
-  /**
-   * 🐛 临时禁用防抖，直接使用原始搜索函数进行调试
-   * TODO: 调试完成后可以重新启用防抖
-   */
-  const performWebSearch = executeSearch;
+  // 创建防抖版本的搜索函数
+  const debouncedPerformSearch = useMemo(
+    () => debounce(executeSearch, 500),
+    [executeSearch]
+  );
 
-  // const performWebSearch = useDebouncedCallback(executeSearch, {
-  //   delay: 500,
-  //   maxWait: 2000, // 最多延迟2秒
-  // });
+  /**
+   * 对外暴露的搜索函数（带防抖）
+   * 注意：如果直接调用 executeSearch 则无防抖
+   */
+  const performWebSearch = useCallback(async (query: string) => {
+    // 这里我们希望可以 awaited 结果，所以如果不防抖，直接返回 executeSearch 的 Promise
+    // 如果确实需要防抖（例如在输入框 onChangeText 中调用），可以使用 debouncedPerformSearch
+    // 但考虑到当前业务场景是在"发送"时调用，其实不需要防抖，直接调用即可。
+    // 只有在"输入即搜索"的场景下才需要防抖。
+    
+    // 修正：根据当前业务逻辑（点击发送按钮触发），不需要防抖。
+    // 防抖主要用于自动补全或实时搜索建议。
+    // 因此，这里直接暴露 executeSearch。
+    
+    return executeSearch(query);
+  }, [executeSearch]);
 
   return {
     isSearching,

@@ -23,6 +23,7 @@ import { appEvents, AppEvents } from '@/utils/events';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useErrorHandler } from '@/hooks/use-error-handler';
 import { useMessageSender } from '@/hooks/use-message-sender';
+import { logger } from '@/utils/logger';
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
@@ -168,6 +169,7 @@ export default function ChatScreen() {
               currentModel={currentModel}
               onModelSelect={(provider, model) => {
                 // 直接更新当前模型（不管有没有话题ID）
+                logger.debug('[ChatScreen] 用户选择模型:', { provider, model });
                 setCurrentModel({ provider, model });
               }}
             />

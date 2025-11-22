@@ -19,26 +19,26 @@
  * - UI 渲染下沉到子组件
  */
 
-import React, { useState } from 'react';
-import { View, Platform } from 'react-native';
-import { useTheme } from 'react-native-paper';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { useMessageSender } from '@/hooks/use-message-sender';
 import { useWebSearch } from '@/hooks/use-web-search';
-import { ChatInputField } from './ChatInputField';
-import { ChatInputToolbar } from './ChatInputToolbar';
-import { AttachmentChips } from './AttachmentChips';
-import { AttachmentMenu } from './AttachmentMenu';
-import { MoreActionsMenu } from '../menus/MoreActionsMenu';
+import { logger } from '@/utils/logger';
+import React, { useState } from 'react';
+import { Platform, View } from 'react-native';
+import { useTheme } from 'react-native-paper';
 import { ImageGenerationDialog } from '../dialogs/ImageGenerationDialog';
-import { SearchLoadingIndicator } from '../misc/SearchLoadingIndicator';
 import { McpToolsDialog } from '../dialogs/McpToolsDialog';
 import { QuickPhrasePickerDialog } from '../dialogs/QuickPhrasePickerDialog';
+import { MoreActionsMenu } from '../menus/MoreActionsMenu';
+import { SearchLoadingIndicator } from '../misc/SearchLoadingIndicator';
+import { AttachmentChips } from './AttachmentChips';
+import { AttachmentMenu } from './AttachmentMenu';
+import { ChatInputField } from './ChatInputField';
+import { ChatInputToolbar } from './ChatInputToolbar';
 import { useAttachmentPicker } from './hooks/useAttachmentPicker';
-import { useChatInputSettings } from './hooks/useChatInputSettings';
 import { useChatDialogs } from './hooks/useChatDialogs';
+import { useChatInputSettings } from './hooks/useChatInputSettings';
 import { useConversationActions } from './hooks/useConversationActions';
-import { logger } from '@/utils/logger';
 
 /**
  * ChatInput 组件属性
@@ -147,14 +147,6 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
     const userMessage = message;
     const userAttachments = selectedAttachments;
 
-    // 🐛 调试日志：记录发送前的消息内容
-    logger.debug('[ChatInput] 准备发送消息', {
-      messageLength: userMessage.length,
-      messagePreview: userMessage.substring(0, 100),
-      hasURL: /https?:\/\//.test(userMessage),
-      searchEnabled,
-    });
-
     // 立即清空输入框和附件
     setMessage('');
     resetAttachments();
@@ -170,13 +162,6 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
           resultsLength: searchResults?.length || 0,
         });
       }
-
-      // 🐛 调试日志：发送前再次确认消息内容
-      logger.debug('[ChatInput] 调用 sendMessage', {
-        textLength: userMessage.length,
-        textPreview: userMessage.substring(0, 100),
-        hasSearchResults: !!searchResults,
-      });
 
       // 发送消息
       await sendMessage({
@@ -207,7 +192,7 @@ const ChatInputComponent = React.forwardRef<ChatInputRef, ChatInputProps>(functi
   }, [syncContextResetState, openMoreActionsMenu]);
 
   // ========== 快捷短语处理 ==========
-  const handlePhraseSelect = React.useCallback((phrase: any) => {
+  const handlePhraseSelect = React.useCallback((phrase: { id: string; title: string; content: string }) => {
     // 将短语内容追加到输入框
     setMessage((prev) => (prev ? `${prev}\n${phrase.content}` : phrase.content));
     logger.debug('[ChatInput] Quick phrase selected:', phrase.title);

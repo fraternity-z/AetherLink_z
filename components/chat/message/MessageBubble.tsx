@@ -124,9 +124,10 @@ function MessageBubbleComponent({ content, isUser, timestamp, status, attachment
       } else {
         Alert.alert('成功', `图片已保存到: ${file.uri}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : '下载图片失败';
       logger.error('[MessageBubble] 下载失败:', error);
-      Alert.alert('错误', error.message || '下载图片失败');
+      Alert.alert('错误', errorMessage);
     }
   }, []);
 

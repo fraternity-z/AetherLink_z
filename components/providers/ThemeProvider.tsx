@@ -7,10 +7,10 @@
  * - 提供统一的主题管理
  */
 
+import { paperDarkTheme, paperLightTheme } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import React from 'react';
 import { PaperProvider } from 'react-native-paper';
-import { paperLightTheme, paperDarkTheme } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAppSettings } from './SettingsProvider';
 
 interface AppThemeProviderProps {
@@ -27,8 +27,19 @@ export function AppThemeProvider({ children }: AppThemeProviderProps) {
   const ratio = Math.max(0.5, Math.min(3, fontScale / 16));
 
   const scaledFonts = React.useMemo(() => {
-    const f: any = baseTheme.fonts as any;
-    const out: any = {};
+    // 定义字体配置接口
+    interface ThemeFontConfig {
+      fontFamily?: string;
+      fontSize?: number;
+      fontWeight?: string;
+      letterSpacing?: number;
+      lineHeight?: number;
+    }
+
+    // 使用 Record<string, ThemeFontConfig> 替代 any
+    const f = baseTheme.fonts as unknown as Record<string, ThemeFontConfig>;
+    const out: Record<string, ThemeFontConfig> = {};
+    
     for (const k in f) {
       const item = f[k];
       if (item && typeof item === 'object') {

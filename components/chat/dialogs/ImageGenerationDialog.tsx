@@ -9,22 +9,25 @@ import { logger } from '@/utils/logger';
  * - 支持自定义图片参数（尺寸、质量、风格）
  */
 
-import React, { useState, useEffect } from 'react';
-import {
-    View,
-  StyleSheet,
-  Modal,
-  Animated,
-  TouchableWithoutFeedback,
-  Platform,
-  KeyboardAvoidingView,
-  ScrollView,
-} from 'react-native';
-import { useTheme, Text, TextInput, Button, ProgressBar, Portal, IconButton } from 'react-native-paper';
-import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
-import { useImageGeneration } from '@/hooks/use-image-generation';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
+import { useDialogAnimation } from '@/hooks/use-dialog-animation';
+import { useImageGeneration } from '@/hooks/use-image-generation';
 import type { Provider } from '@/services/ai/AiClient';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { useState } from 'react';
+import {
+  Animated,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TouchableWithoutFeedback,
+  View,
+} from 'react-native';
+import { Button, IconButton, Portal, Text, useTheme } from 'react-native-paper';
+import { ImageGenerationParams } from './ImageGenerationParams';
+import { ImageGenerationProgress } from './ImageGenerationProgress';
 
 interface ImageGenerationDialogProps {
   visible: boolean;
@@ -43,8 +46,7 @@ export function ImageGenerationDialog({
 }: ImageGenerationDialogProps) {
   const theme = useTheme();
   const { alert } = useConfirmDialog();
-  const scaleAnim = React.useRef(new Animated.Value(0.9)).current;
-  const opacityAnim = React.useRef(new Animated.Value(0)).current;
+  const { scaleAnim, opacityAnim } = useDialogAnimation(visible);
 
   const [prompt, setPrompt] = useState('');
   const [size, setSize] = useState<'1024x1024' | '1792x1024' | '1024x1792'>('1024x1024');
@@ -56,38 +58,6 @@ export function ImageGenerationDialog({
     provider,
     model,
   });
-
-  // 打开/关闭动画
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          useNativeDriver: true,
-          tension: 50,
-          friction: 7,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(scaleAnim, {
-          toValue: 0.9,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [opacityAnim, scaleAnim, visible]);
 
   // 重置状态
   const handleDismiss = () => {
@@ -199,131 +169,25 @@ export function ImageGenerationDialog({
                       </Text>
                     </View>
 
-                    {/* 提示词输入 */}
-                    <View style={styles.inputSection}>
-                      <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-                        描述你想要的图片 *
-                      </Text>
-                      <TextInput
-                        label="提示词"
-                        value={prompt}
-                        onChangeText={setPrompt}
-                        multiline
-                        numberOfLines={5}
-                        placeholder="例如：一只可爱的橘猫坐在月球上，背景是璀璨的星空，赛博朋克风格..."
-                        disabled={isGenerating}
-                        mode="outlined"
-                        style={styles.textInput}
-                        maxLength={4000}
-                        right={
-                          <TextInput.Affix
-                            text={`${prompt.length}/4000`}
-                            textStyle={{ fontSize: 12, color: theme.colors.onSurfaceVariant }}
-                          />
-                        }
-                      />
-                    </View>
+                    {/* 参数设置组件 */}
+                    <ImageGenerationParams
+                      prompt={prompt}
+                      setPrompt={setPrompt}
+                      size={size}
+                      setSize={setSize}
+                      quality={quality}
+                      setQuality={setQuality}
+                      style={style}
+                      setStyle={setStyle}
+                      isGenerating={isGenerating}
+                      isDallE3={isDallE3}
+                    />
 
-                    {/* DALL-E 3 高级选项 */}
-                    {isDallE3 && (
-                      <View style={styles.advancedSection}>
-                        <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-                          高级选项 (DALL-E 3)
-                        </Text>
-
-                        {/* 尺寸选择 */}
-                        <View style={styles.optionGroup}>
-                          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                            图片尺寸
-                          </Text>
-                          <View style={styles.optionButtons}>
-                            {(['1024x1024', '1792x1024', '1024x1792'] as const).map((s) => (
-                              <Button
-                                key={s}
-                                mode={size === s ? 'contained' : 'outlined'}
-                                onPress={() => setSize(s)}
-                                disabled={isGenerating}
-                                compact
-                                style={styles.optionButton}
-                              >
-                                {s}
-                              </Button>
-                            ))}
-                          </View>
-                        </View>
-
-                        {/* 质量选择 */}
-                        <View style={styles.optionGroup}>
-                          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                            图片质量
-                          </Text>
-                          <View style={styles.optionButtons}>
-                            <Button
-                              mode={quality === 'standard' ? 'contained' : 'outlined'}
-                              onPress={() => setQuality('standard')}
-                              disabled={isGenerating}
-                              compact
-                              style={styles.optionButton}
-                            >
-                              标准
-                            </Button>
-                            <Button
-                              mode={quality === 'hd' ? 'contained' : 'outlined'}
-                              onPress={() => setQuality('hd')}
-                              disabled={isGenerating}
-                              compact
-                              style={styles.optionButton}
-                            >
-                              高清 (HD)
-                            </Button>
-                          </View>
-                        </View>
-
-                        {/* 风格选择 */}
-                        <View style={styles.optionGroup}>
-                          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                            图片风格
-                          </Text>
-                          <View style={styles.optionButtons}>
-                            <Button
-                              mode={style === 'vivid' ? 'contained' : 'outlined'}
-                              onPress={() => setStyle('vivid')}
-                              disabled={isGenerating}
-                              compact
-                              style={styles.optionButton}
-                            >
-                              鲜艳 (Vivid)
-                            </Button>
-                            <Button
-                              mode={style === 'natural' ? 'contained' : 'outlined'}
-                              onPress={() => setStyle('natural')}
-                              disabled={isGenerating}
-                              compact
-                              style={styles.optionButton}
-                            >
-                              自然 (Natural)
-                            </Button>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 生成进度 */}
-                    {isGenerating && (
-                      <View style={styles.progressSection}>
-                        <View style={styles.progressHeader}>
-                          <Icon name="creation" size={20} color={theme.colors.primary} />
-                          <Text variant="bodyMedium" style={{ color: theme.colors.primary, marginLeft: 8 }}>
-                            生成中... {progress}%
-                          </Text>
-                        </View>
-                        <ProgressBar
-                          progress={progress / 100}
-                          color={theme.colors.primary}
-                          style={styles.progressBar}
-                        />
-                      </View>
-                    )}
+                    {/* 生成进度组件 */}
+                    <ImageGenerationProgress
+                      isGenerating={isGenerating}
+                      progress={progress}
+                    />
 
                     {/* 错误提示 */}
                     {error && !isGenerating && (
@@ -419,44 +283,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     marginBottom: 20,
-  },
-  inputSection: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  textInput: {
-    minHeight: 120,
-  },
-  advancedSection: {
-    marginBottom: 20,
-  },
-  optionGroup: {
-    marginTop: 16,
-  },
-  optionButtons: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-    flexWrap: 'wrap',
-  },
-  optionButton: {
-    flex: 1,
-    minWidth: 100,
-  },
-  progressSection: {
-    marginBottom: 20,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  progressBar: {
-    height: 6,
-    borderRadius: 3,
   },
   errorSection: {
     flexDirection: 'row',
