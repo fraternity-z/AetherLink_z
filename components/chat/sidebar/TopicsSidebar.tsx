@@ -380,9 +380,10 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
       '批量删除',
       `确认删除选中的 ${selectedIds.size} 个话题？删除后不可恢复。`,
       async () => {
-        for (const id of selectedIds) {
-          await ChatRepository.deleteConversation(id);
-        }
+        // 使用批量删除 API，单次数据库操作替代 N 次往返
+        const idsToDelete = Array.from(selectedIds);
+        await ChatRepository.deleteMultipleConversations(idsToDelete);
+
         setSelectedIds(new Set());
         setBatchMode(false);
         await reload();

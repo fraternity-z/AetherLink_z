@@ -90,6 +90,34 @@ export const ChatRepository = {
     });
   },
 
+  /**
+   * 批量删除多个对话（高性能版本）
+   * 使用单条 SQL 语句删除所有指定的对话，避免 N 次数据库往返
+   * @param ids 要删除的对话 ID 数组
+   * @returns 实际删除的数量
+   */
+  async deleteMultipleConversations(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+
+    return withRepositoryContext('ChatRepository', 'deleteMultipleConversations', {
+      conversationIds: ids,
+      count: ids.length,
+      table: 'conversations'
+    }, async () => {
+      // 构建 IN 子句的占位符
+      const placeholders = ids.map(() => '?').join(', ');
+
+      // ON DELETE CASCADE 会自动删除相关的 messages、attachments 等
+      await execute(
+        `DELETE FROM conversations WHERE id IN (${placeholders})`,
+        ids
+      );
+
+      // 返回删除的数量
+      return ids.length;
+    });
+  },
+
   async getContextResetAt(id: string): Promise<number | null> {
     return withRepositoryContext('ChatRepository', 'getContextResetAt', { conversationId: id, table: 'conversations' }, async () => {
       const row = await queryOne<any>(`SELECT extra FROM conversations WHERE id = ?`, [id]);
