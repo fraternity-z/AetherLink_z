@@ -2,28 +2,28 @@
  * 💬 聊天主界面（作为根页面，无底部Tabs）
  */
 
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
 import {
+  ChatBackground,
   ChatHeader,
-  MessageList,
   ChatInput,
   ChatInputRef,
   ChatSidebar,
-  TopicsSidebar,
+  MessageList,
   ModelPickerDialog,
-  ChatBackground,
+  TopicsSidebar,
 } from '@/components/chat';
-import { useLocalSearchParams } from 'expo-router';
-import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
-import { appEvents, AppEvents } from '@/utils/events';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useErrorHandler } from '@/hooks/use-error-handler';
 import { useMessageSender } from '@/hooks/use-message-sender';
+import { SettingKey, SettingsRepository } from '@/storage/repositories/settings';
+import { appEvents, AppEvents } from '@/utils/events';
 import { logger } from '@/utils/logger';
+import { useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
@@ -86,6 +86,7 @@ export default function ChatScreen() {
         attachments: payload.userMessageAttachments,
         searchResults: null,
         enableMcpTools: false,
+        currentModel: currentModel || undefined,
       });
     };
 
@@ -93,7 +94,7 @@ export default function ChatScreen() {
     return () => {
       appEvents.off(AppEvents.MESSAGE_REGENERATE_REQUESTED, handleRegenerateRequest);
     };
-  }, [sendMessage]);
+  }, [sendMessage, currentModel]);
 
 
   const handleMenuPress = () => {

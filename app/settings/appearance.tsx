@@ -1,19 +1,20 @@
 
-import React, { useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, Pressable, Modal, TouchableWithoutFeedback, Alert } from 'react-native';
-import { List, Text, useTheme, Chip, Divider, Surface, Switch, Button, ActivityIndicator } from 'react-native-paper';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Slider from '@react-native-community/slider';
-import { SettingScreen } from '@/components/settings/SettingScreen';
 import { useAppSettings } from '@/components/providers/SettingsProvider';
+import { SettingScreen } from '@/components/settings/SettingScreen';
+import { ThemeSelector } from '@/components/settings/ThemeSelector';
 import { useBackgroundSettings } from '@/hooks/use-background-settings';
 import { selectBackgroundImage } from '@/services/media/ImagePicker';
 import {
-  saveBackgroundImage,
-  deleteBackgroundImage,
   checkStorageSpace,
+  deleteBackgroundImage,
+  saveBackgroundImage,
 } from '@/services/media/ImageStorage';
 import { logger } from '@/utils/logger';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Slider from '@react-native-community/slider';
+import { useMemo, useRef, useState } from 'react';
+import { Alert, Modal, Pressable, StyleSheet, TouchableWithoutFeedback, View } from 'react-native';
+import { ActivityIndicator, Button, Chip, Divider, List, Surface, Switch, Text, useTheme } from 'react-native-paper';
 
 
 
@@ -21,7 +22,7 @@ export default function AppearanceSettings() {
   const theme = useTheme();
 
   // 状态：主题模式与字体大小
-  const { fontScale, setFontScale, themeMode, setThemeMode } = useAppSettings();
+  const { fontScale, setFontScale, themeMode, setThemeMode, themeStyle, setThemeStyle } = useAppSettings();
 
   // 状态：背景设置
   const {
@@ -155,6 +156,23 @@ export default function AppearanceSettings() {
 
   return (
     <SettingScreen title="外观设置" description="自定义应用的外观主题和全局字体大小设置">
+      {/* 主题风格 */}
+      <List.Section style={styles.section}>
+        <Text variant="titleSmall" style={styles.sectionTitle}>主题风格</Text>
+        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 12 }}>
+          选择您喜欢的界面设计风格，每种风格都有独特的色彩搭配和视觉效果
+        </Text>
+        <ThemeSelector
+          currentTheme={themeStyle}
+          onThemeChange={setThemeStyle}
+        />
+        <View style={[styles.tip, { backgroundColor: theme.colors.surfaceVariant, marginTop: 12 }]}>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+            💡 提示：主题风格会影响整个应用的色彩搭配、按钮样式和视觉效果。您可以随时在设置中更改主题风格，更改会立即生效。
+          </Text>
+        </View>
+      </List.Section>
+
       {/* 主题模式 */}
       <List.Section style={styles.section}>
         <Text variant="titleSmall" style={styles.sectionTitle}>主题模式</Text>

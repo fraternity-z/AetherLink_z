@@ -376,8 +376,8 @@ function getSearchErrorHint(code?: string): string {
 }
 
 // 🚀 性能优化：使用 React.memo 避免不必要的重渲染
-// 只在 conversationId 或 onConversationChange 改变时才重新渲染
 export const ChatInput = React.memo(ChatInputComponent, (prev, next) => {
   return prev.conversationId === next.conversationId &&
-         prev.onConversationChange === next.onConversationChange;
+         prev.onConversationChange === next.onConversationChange &&
+         prev.currentModel === next.currentModel;
 });
