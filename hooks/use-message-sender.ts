@@ -237,12 +237,30 @@ export function useMessageSender(
 
       // 获取聊天设置参数
       const sr = SettingsRepository();
-      const provider = ((await sr.get<string>(SettingKey.DefaultProvider)) ?? 'openai') as Provider;
-      const model = (await sr.get<string>(SettingKey.DefaultModel)) ?? (
-        provider === 'openai' ? 'gpt-4o-mini' :
-        provider === 'anthropic' ? 'claude-3-5-haiku-latest' :
-        'gemini-1.5-flash'
-      );
+
+      // 🎯 优先级：话题级别模型选择 > 默认模型设置
+      let provider: Provider;
+      let model: string;
+
+      // 1. 尝试获取话题级别的模型选择（用户选择优先）
+      const conversationModel = cid ? await ChatRepository.getConversationModel(cid) : null;
+
+      if (conversationModel) {
+        // 使用话题级别的模型选择
+        provider = conversationModel.provider as Provider;
+        model = conversationModel.model;
+        logger.debug('[useMessageSender] 使用话题级别模型:', { provider, model });
+      } else {
+        // 使用默认模型设置（新话题或未选择时）
+        provider = ((await sr.get<string>(SettingKey.DefaultProvider)) ?? 'openai') as Provider;
+        model = (await sr.get<string>(SettingKey.DefaultModel)) ?? (
+          provider === 'openai' ? 'gpt-4o-mini' :
+          provider === 'anthropic' ? 'claude-3-5-haiku-latest' :
+          'gemini-1.5-flash'
+        );
+        logger.debug('[useMessageSender] 使用默认模型:', { provider, model });
+      }
+
       const temperature = (await sr.get<number>(SettingKey.ChatTemperature)) ?? 0.7;
       const maxTokensEnabled = (await sr.get<boolean>(SettingKey.ChatMaxTokensEnabled)) ?? false;
       const maxTokens = maxTokensEnabled ? ((await sr.get<number>(SettingKey.ChatMaxTokens)) ?? 2048) : undefined;

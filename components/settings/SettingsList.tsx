@@ -62,9 +62,9 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         route: '/settings/default-model',
       },
       {
-        id: 'topic-naming',
-        title: '话题命名设置',
-        description: '配置话题自动命名功能',
+        id: 'default-model-settings',
+        title: '默认模型设置',
+        description: '配置对话、话题命名、翻译等默认模型',
         icon: 'tune',
         color: '#4f46e5',
         route: '/settings/topic-naming',

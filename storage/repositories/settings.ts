@@ -23,6 +23,9 @@ export enum SettingKey {
   TopicAutoNamePrompt = 'al:settings:topic_auto_name_prompt',
   TopicNamingProvider = 'al:settings:topic_naming_provider',
   TopicNamingModel = 'al:settings:topic_naming_model',
+  // 翻译模型设置
+  TranslationProvider = 'al:settings:translation_provider',
+  TranslationModel = 'al:settings:translation_model',
   // 网络搜索设置
   WebSearchEnabled = 'al:settings:web_search_enabled',
   WebSearchEngine = 'al:settings:web_search_engine',

@@ -10,9 +10,20 @@ import { ProviderModelsRepository } from '@/storage/repositories/provider-models
 import { ProvidersRepository, type ProviderId } from '@/storage/repositories/providers';
 import { CustomProvidersRepository } from '@/storage/repositories/custom-providers';
 import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
+import { ChatRepository } from '@/storage/repositories/chat';
 import { UnifiedDialog } from '@/components/common/UnifiedDialog';
+import { logger } from '@/utils/logger';
 
-type Props = { visible: boolean; onDismiss: () => void };
+type Props = {
+  visible: boolean;
+  onDismiss: () => void;
+  /**
+   * 话题 ID（必须提供）
+   * ⚠️ 此组件仅用于话题级别的模型选择，不修改全局默认设置
+   * 全局默认模型请在设置页面配置
+   */
+  conversationId: string | null;
+};
 
 // 提供商元数据（预设提供商）
 const PROVIDER_META: Record<ProviderId, { name: string; icon: string; color: string }> = {
@@ -43,7 +54,7 @@ interface ProviderInfo {
   models: { id: string; label: string }[];
 }
 
-export function ModelPickerDialog({ visible, onDismiss }: Props) {
+export function ModelPickerDialog({ visible, onDismiss, conversationId }: Props) {
   const theme = useTheme();
 
   const [selected, setSelected] = useState<{ provider: string; model: string } | null>(null);
@@ -51,7 +62,7 @@ export function ModelPickerDialog({ visible, onDismiss }: Props) {
   const [selectedTab, setSelectedTab] = useState<string>('all'); // 'all' 或提供商ID
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadModels = useCallback(async () => {
+  const loadModels = useCallback(async (cid?: string | null) => {
     const presetProviderIds: ProviderId[] = ['openai', 'anthropic', 'gemini', 'google', 'deepseek', 'volc', 'zhipu'];
     const allProviders: ProviderInfo[] = [];
 
@@ -111,9 +122,33 @@ export function ModelPickerDialog({ visible, onDismiss }: Props) {
     setProviders(allProviders);
 
     // 4. 恢复当前选中的提供商和模型
-    const sr = SettingsRepository();
-    const curProvider = (await sr.get<string>(SettingKey.DefaultProvider)) || allProviders[0].id;
-    const curModel = (await sr.get<string>(SettingKey.DefaultModel)) || allProviders[0].models[0]?.id || 'gpt-4o-mini';
+    // 优先级：话题级别模型 > 默认模型（仅用于显示初始选择）
+    let curProvider: string;
+    let curModel: string;
+
+    if (cid) {
+      // 尝试获取话题级别的模型选择
+      const conversationModel = await ChatRepository.getConversationModel(cid);
+      if (conversationModel) {
+        // 使用话题级别的模型
+        curProvider = conversationModel.provider;
+        curModel = conversationModel.model;
+        logger.debug('[ModelPickerDialog] 恢复话题级别模型:', { provider: curProvider, model: curModel });
+      } else {
+        // 话题未选择模型，显示默认模型（但不会保存到默认模型）
+        const sr = SettingsRepository();
+        curProvider = (await sr.get<string>(SettingKey.DefaultProvider)) || allProviders[0].id;
+        curModel = (await sr.get<string>(SettingKey.DefaultModel)) || allProviders[0].models[0]?.id || 'gpt-4o-mini';
+        logger.debug('[ModelPickerDialog] 话题未选择模型，显示默认模型:', { provider: curProvider, model: curModel });
+      }
+    } else {
+      // ⚠️ conversationId 为 null，使用第一个可用模型作为占位
+      // 此时用户选择模型会因为 selectAndSave 的检查而无法保存
+      curProvider = allProviders[0]?.id || 'openai';
+      curModel = allProviders[0]?.models[0]?.id || 'gpt-4o-mini';
+      logger.warn('[ModelPickerDialog] conversationId 为空，使用占位模型');
+    }
+
     setSelected({ provider: curProvider, model: curModel });
 
     // 5. 设置默认选中的标签为当前提供商
@@ -125,15 +160,26 @@ export function ModelPickerDialog({ visible, onDismiss }: Props) {
   useEffect(() => {
     if (visible) {
       setIsLoading(true);
-      void loadModels();
+      void loadModels(conversationId);
     }
-  }, [visible, loadModels]);
+  }, [visible, conversationId, loadModels]);
 
   const selectAndSave = async (provider: string, model: string) => {
     setSelected({ provider, model });
-    const sr = SettingsRepository();
-    await sr.set(SettingKey.DefaultProvider, provider);
-    await sr.set(SettingKey.DefaultModel, model);
+
+    // ⚠️ 对话页面的模型选择器只修改话题级别的模型
+    // conversationId 必须存在，否则不应该打开这个对话框
+    if (!conversationId) {
+      logger.error('[ModelPickerDialog] conversationId 为空，无法保存模型选择');
+      return;
+    }
+
+    await ChatRepository.setConversationModel(conversationId, provider, model);
+    logger.debug('[ModelPickerDialog] 模型已保存到话题级别:', {
+      conversationId,
+      provider,
+      model,
+    });
   };
 
   // 根据选中的标签筛选模型
