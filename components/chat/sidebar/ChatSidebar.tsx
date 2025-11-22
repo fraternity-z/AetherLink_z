@@ -1,20 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { Surface, Text, List, TouchableRipple, useTheme, Avatar, IconButton, Menu } from 'react-native-paper';
+import { Avatar, Surface, Text, TouchableRipple, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import { ChatSettings } from '../dialogs/ChatSettings';
-import { AssistantsRepository } from '@/storage/repositories/assistants';
-import { SettingsRepository, SettingKey } from '@/storage/repositories/settings';
-import type { Assistant } from '@/types/assistant';
-import { appEvents, AppEvents } from '@/utils/events';
-import { AssistantPickerDialog } from '../dialogs/AssistantPickerDialog';
-import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
-import { UserAvatar } from '@/components/common/UserAvatar';
-import { useUserProfile } from '@/hooks/use-user-profile';
-
-const ASSISTANTS_EVENT_SOURCE = 'chat-sidebar';
+import { AssistantsTab } from './AssistantsTab';
+import { SidebarUserProfile } from './SidebarUserProfile';
 
 type TabKey = 'assistants' | 'settings';
 
@@ -28,50 +18,9 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
   const { width } = useWindowDimensions();
   const drawerWidth = Math.min(360, Math.max(280, Math.floor(width * 0.85)));
   const insets = useSafeAreaInsets();
-  // 半透明背景：浅色提高不透明度以便在白底可见，深色保持低透明
-  const translucentBg = theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)';
 
-  const assistantsRepo = useMemo(() => AssistantsRepository(), []);
-  const settingsRepo = useMemo(() => SettingsRepository(), []);
   const translateX = useRef(new Animated.Value(-drawerWidth)).current;
   const [tab, setTab] = useState<TabKey>('assistants');
-  const [assistants, setAssistants] = useState<Assistant[]>([]);
-  const [currentAssistantId, setCurrentAssistantId] = useState<string>('default');
-  const [pickerVisible, setPickerVisible] = useState(false);
-  const { confirm } = useConfirmDialog();
-  const { avatarUri, pickImage, removeAvatar } = useUserProfile();
-  const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
-
-  // 加载助手列表和当前选中的助手（单次加载 + 事件触发时显式刷新）
-  const loadAssistants = useCallback(async () => {
-    const allAssistants = await assistantsRepo.getAll();
-    setAssistants(allAssistants);
-
-    const currentId = await settingsRepo.get<string>(SettingKey.CurrentAssistantId);
-    setCurrentAssistantId(currentId || 'default');
-  }, [assistantsRepo, settingsRepo]);
-
-  useEffect(() => {
-    loadAssistants();
-  }, [loadAssistants]);
-
-  useEffect(() => {
-    const handleAssistantsUpdated = (source?: string) => {
-      if (source === ASSISTANTS_EVENT_SOURCE) {
-        return;
-      }
-      loadAssistants();
-    };
-
-    appEvents.on(AppEvents.ASSISTANTS_UPDATED, handleAssistantsUpdated);
-    return () => {
-      appEvents.off(AppEvents.ASSISTANTS_UPDATED, handleAssistantsUpdated);
-    };
-  }, [loadAssistants]);
-
-  const notifyAssistantsUpdated = useCallback(() => {
-    appEvents.emit(AppEvents.ASSISTANTS_UPDATED, ASSISTANTS_EVENT_SOURCE);
-  }, []);
 
   useEffect(() => {
     Animated.timing(translateX, {
@@ -80,105 +29,6 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
       useNativeDriver: true,
     }).start();
   }, [visible, drawerWidth, translateX]);
-
-  // 切换助手
-  const handleSelectAssistant = useCallback(async (assistantId: string) => {
-    await settingsRepo.set(SettingKey.CurrentAssistantId, assistantId);
-    setCurrentAssistantId(assistantId);
-
-    // 发送助手切换事件
-    appEvents.emit(AppEvents.ASSISTANT_CHANGED, assistantId);
-  }, [settingsRepo]);
-
-  // 添加助手
-  const handleAddAssistant = useCallback(async (assistant: Assistant) => {
-    await assistantsRepo.enableAssistant(assistant.id);
-    // 重新加载助手列表
-    const allAssistants = await assistantsRepo.getAll();
-    setAssistants(allAssistants);
-    notifyAssistantsUpdated();
-  }, [assistantsRepo, notifyAssistantsUpdated]);
-
-  // 移除助手
-  const handleRemoveAssistant = useCallback((assistant: Assistant) => {
-    if (assistant.id === 'default') {
-      return; // 不能删除默认助手
-    }
-
-    confirm({
-      title: '移除助手',
-      message: `确定要从列表中移除「${assistant.name}」吗？\n\n这不会删除助手，你可以随时重新添加。`,
-      buttons: [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '移除',
-          style: 'destructive',
-          onPress: async () => {
-            await assistantsRepo.disableAssistant(assistant.id);
-
-            // 如果移除的是当前助手，切换到默认助手
-            if (assistant.id === currentAssistantId) {
-              await handleSelectAssistant('default');
-            }
-
-            // 重新加载助手列表
-            const allAssistants = await assistantsRepo.getAll();
-            setAssistants(allAssistants);
-            notifyAssistantsUpdated();
-          },
-        },
-      ],
-    });
-  }, [assistantsRepo, confirm, currentAssistantId, handleSelectAssistant, notifyAssistantsUpdated]);
-
-  const assistantListContentStyle = useMemo(() => ({ paddingBottom: 80 }), []);
-  const assistantKeyExtractor = useCallback((item: Assistant) => item.id, []);
-
-  const renderAssistantItem: ListRenderItem<Assistant> = useCallback(
-    ({ item: assistant }) => {
-      const isSelected = assistant.id === currentAssistantId;
-      const canRemove = assistant.id !== 'default';
-
-      return (
-        <TouchableRipple
-          onPress={() => handleSelectAssistant(assistant.id)}
-          onLongPress={() => canRemove && handleRemoveAssistant(assistant)}
-        >
-          <List.Item
-            title={assistant.name}
-            description={assistant.description}
-            left={() => (
-              <View style={{ paddingLeft: 8, paddingTop: 6 }}>
-                <Text style={{ fontSize: 24 }}>
-                  {assistant.emoji || '🤖'}
-                </Text>
-              </View>
-            )}
-            right={(props) =>
-              isSelected ? (
-                <List.Icon {...props} icon="check" color={theme.colors.primary} />
-              ) : canRemove ? (
-                <IconButton
-                  icon="close"
-                  size={16}
-                  onPress={() => handleRemoveAssistant(assistant)}
-                />
-              ) : null
-            }
-            style={[
-              styles.assistantItem,
-              isSelected && [
-                styles.assistantItemSelected,
-                { backgroundColor: theme.colors.primaryContainer, borderColor: theme.colors.primary },
-              ],
-            ]}
-          />
-        </TouchableRipple>
-      );
-    },
-    [currentAssistantId, handleRemoveAssistant, handleSelectAssistant, theme.colors.primary, theme.colors.primaryContainer],
-  );
-  
 
   return (
     <View
@@ -236,159 +86,16 @@ export function ChatSidebar({ visible, onClose }: ChatSidebarProps) {
           {/* 内容 */}
           <View style={[styles.content, { paddingBottom: insets.bottom + 96 }]}>
             {tab === 'assistants' ? (
-              <View style={{ flex: 1 }}>
-                {/* 助手列表 */}
-                <FlashList
-                  data={assistants}
-                  renderItem={renderAssistantItem}
-                  keyExtractor={assistantKeyExtractor}
-                  contentContainerStyle={assistantListContentStyle}
-                  showsVerticalScrollIndicator
-                  // @ts-expect-error FlashList 类型定义未包含 estimatedItemSize，但运行时需要配置
-                  estimatedItemSize={72}
-                />
-
-                {/* 底部添加助手按钮 */}
-                <View
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    padding: 12,
-                    backgroundColor: theme.colors.surface,
-                    borderTopWidth: StyleSheet.hairlineWidth,
-                    borderTopColor: theme.colors.outlineVariant,
-                  }}
-                >
-                  <TouchableRipple
-                    onPress={() => setPickerVisible(true)}
-                    style={{
-                      borderRadius: 8,
-                      borderWidth: 1,
-                      borderColor: theme.colors.primary,
-                      borderStyle: 'dashed',
-                    }}
-                  >
-                    <List.Item
-                      title="添加助手"
-                      titleStyle={{ color: theme.colors.primary }}
-                      left={(props) => (
-                        <List.Icon {...props} icon="plus" color={theme.colors.primary} />
-                      )}
-                    />
-                  </TouchableRipple>
-                </View>
-              </View>
+              <AssistantsTab />
             ) : (
               <ChatSettings />
             )}
           </View>
 
           {/* 底部浮动卡片：头像 + 设置 */}
-          <Surface
-            elevation={0}
-            style={[
-              styles.bottomCard,
-              {
-                backgroundColor: translucentBg,
-                left: 12,
-                right: 12,
-                bottom: Math.max(insets.bottom, 8) + 12,
-              },
-            ]}
-            // 底部卡片区域应拦截触摸
-            pointerEvents="auto"
-          >
-            <View
-              style={styles.bottomRow}
-              pointerEvents="auto"
-              onStartShouldSetResponder={() => true}
-            >
-              {/* 左侧资料区：用户头像和资料 */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                {/* 头像菜单 */}
-                <Menu
-                  visible={avatarMenuVisible}
-                  onDismiss={() => setAvatarMenuVisible(false)}
-                  anchor={
-                    <Pressable
-                      onPress={() => setAvatarMenuVisible(true)}
-                      style={{ paddingVertical: 4 }}
-                      android_ripple={{ borderless: true, radius: 24 }}
-                    >
-                      <UserAvatar size={40} uri={avatarUri} />
-                    </Pressable>
-                  }
-                >
-                  <Menu.Item
-                    leadingIcon="image"
-                    onPress={async () => {
-                      setAvatarMenuVisible(false);
-                      await pickImage();
-                    }}
-                    title="更换头像"
-                  />
-                  {avatarUri && (
-                    <Menu.Item
-                      leadingIcon="refresh"
-                      onPress={() => {
-                        setAvatarMenuVisible(false);
-                        confirm({
-                          title: '移除头像',
-                          message: '确定要移除自定义头像吗？将恢复为默认头像。',
-                          buttons: [
-                            { text: '取消', style: 'cancel' },
-                            {
-                              text: '移除',
-                              style: 'destructive',
-                              onPress: async () => {
-                                await removeAvatar();
-                              },
-                            },
-                          ],
-                        });
-                      }}
-                      title="移除头像"
-                    />
-                  )}
-                </Menu>
-
-                {/* 用户信息 */}
-                <Pressable
-                  onPress={() => {}}
-                  style={{ marginLeft: 10, flex: 1 }}
-                  android_ripple={undefined}
-                >
-                  <Text variant="labelLarge">访客</Text>
-                  <Text variant="bodySmall" style={{ opacity: 0.7 }}>guest@example.com</Text>
-                </Pressable>
-              </View>
-
-              <View pointerEvents="auto">
-                <IconButton
-                  icon="cog"
-                  size={22}
-                  onPress={() => {
-                    onClose();
-                    setTimeout(() => {
-                      router.push('/settings');
-                    }, 50);
-                  }}
-                  style={{ margin: 0 }}
-                />
-              </View>
-            </View>
-          </Surface>
+          <SidebarUserProfile onClose={onClose} />
         </Surface>
       </Animated.View>
-
-      {/* 助手选择对话框 */}
-      <AssistantPickerDialog
-        visible={pickerVisible}
-        onDismiss={() => setPickerVisible(false)}
-        onSelect={handleAddAssistant}
-      />
     </View>
   );
 }
@@ -408,20 +115,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 8,
   },
-  bottomCard: {
-    position: 'absolute',
-    borderRadius: 24,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#0000',
-    overflow: 'hidden',
-  },
-  bottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
   topTabItem: {
     flex: 1,
     alignItems: 'center',
@@ -436,19 +129,5 @@ const styles = StyleSheet.create({
   topTabLabel: {
     fontSize: 16,
     marginTop: 6,
-  },
-  // 🎨 助手列表项样式
-  assistantItem: {
-    marginVertical: 4,
-    marginHorizontal: 8,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    overflow: 'hidden',
-  },
-  // 🎨 选中状态的助手列表项
-  assistantItemSelected: {
-    borderWidth: 2,
-    // borderColor 在组件中动态设置为 theme.colors.primary
   },
 });
