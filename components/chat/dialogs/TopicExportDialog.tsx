@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import {
-  Dialog,
-  Portal,
-  Button,
   RadioButton,
   Switch,
   Text,
@@ -18,6 +15,7 @@ import Animated, {
   Easing,
   interpolate,
 } from 'react-native-reanimated';
+import { UnifiedDialog, type UnifiedDialogAction } from '@/components/common/UnifiedDialog';
 import { ExportOptions, ThinkingChainMode, ExportProgress } from '@/services/export';
 import { DEFAULT_EXPORT_OPTIONS } from '@/services/export';
 
@@ -105,7 +103,7 @@ const animatedProgressStyles = StyleSheet.create({
   container: {
     width: '100%',
     height: 10,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   track: {
     width: '100%',
@@ -141,6 +139,7 @@ interface TopicExportDialogProps {
 /**
  * 话题导出配置对话框
  *
+ * 使用 UnifiedDialog 统一弹窗样式
  * 允许用户配置导出选项并触发导出
  */
 export function TopicExportDialog({
@@ -176,149 +175,155 @@ export function TopicExportDialog({
     onConfirm(options);
   };
 
+  // 构建操作按钮
+  const actions: UnifiedDialogAction[] = isExporting
+    ? [] // 导出中不显示按钮
+    : [
+        {
+          text: '取消',
+          type: 'cancel',
+          onPress: onDismiss,
+        },
+        {
+          text: '开始导出',
+          type: 'primary',
+          onPress: handleConfirm,
+        },
+      ];
+
   return (
-    <Portal>
-      <Dialog
-        visible={visible}
-        onDismiss={isExporting ? undefined : onDismiss}
-        dismissable={!isExporting}
-        style={styles.dialog}
-      >
-        <Dialog.Title>导出话题</Dialog.Title>
+    <UnifiedDialog
+      visible={visible}
+      onClose={isExporting ? () => {} : onDismiss}
+      title="导出话题"
+      icon="file-export"
+      iconColor={theme.colors.primary}
+      actions={actions}
+      maxHeight="85%"
+    >
+      {isExporting && progress ? (
+        // 导出中：显示进度
+        <View style={styles.progressContainer}>
+          <Text style={[styles.progressText, { color: theme.colors.onSurface }]}>
+            {progress.message}
+          </Text>
+          <AnimatedProgressBar
+            progress={progress.percentage / 100}
+            color={theme.colors.primary}
+          />
+          <Text style={[styles.progressPercentage, { color: theme.colors.primary }]}>
+            {progress.percentage}%
+          </Text>
+        </View>
+      ) : (
+        // 配置界面
+        <View style={styles.optionsContainer}>
+          {/* 思考链导出模式 */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+              思考链导出模式
+            </Text>
+            <RadioButton.Group
+              onValueChange={(value) => setIncludeThinking(value as ThinkingChainMode)}
+              value={includeThinking}
+            >
+              <View style={styles.radioItem}>
+                <RadioButton.Item
+                  label="完整导出思考过程"
+                  value="full"
+                  labelStyle={[styles.radioLabel, { color: theme.colors.onSurface }]}
+                />
+              </View>
+              <View style={styles.radioItem}>
+                <RadioButton.Item
+                  label="仅导出摘要"
+                  value="summary"
+                  labelStyle={[styles.radioLabel, { color: theme.colors.onSurface }]}
+                />
+              </View>
+              <View style={styles.radioItem}>
+                <RadioButton.Item
+                  label="不导出思考链"
+                  value="none"
+                  labelStyle={[styles.radioLabel, { color: theme.colors.onSurface }]}
+                />
+              </View>
+            </RadioButton.Group>
+          </View>
 
-        <Dialog.Content>
-          {isExporting && progress ? (
-            // 导出中：显示进度
-            <View style={styles.progressContainer}>
-              <Text style={styles.progressText}>{progress.message}</Text>
-              <AnimatedProgressBar
-                progress={progress.percentage / 100}
-                color={theme.colors.primary}
+          {/* MCP 工具调用 */}
+          <View style={styles.section}>
+            <View style={styles.switchRow}>
+              <View style={styles.switchLabel}>
+                <Text style={[styles.switchTitle, { color: theme.colors.onSurface }]}>
+                  包含 MCP 工具调用
+                </Text>
+                <Text style={[styles.switchDescription, { color: theme.colors.onSurfaceVariant }]}>
+                  导出工具调用的参数和结果
+                </Text>
+              </View>
+              <Switch
+                value={includeMcpTools}
+                onValueChange={setIncludeMcpTools}
               />
-              <Text style={[styles.progressPercentage, { color: theme.colors.primary }]}>
-                {progress.percentage}%
-              </Text>
             </View>
-          ) : (
-            // 配置界面
-            <ScrollView style={styles.optionsContainer}>
-              {/* 思考链导出模式 */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>思考链导出模式</Text>
-                <RadioButton.Group
-                  onValueChange={(value) => setIncludeThinking(value as ThinkingChainMode)}
-                  value={includeThinking}
-                >
-                  <View style={styles.radioItem}>
-                    <RadioButton.Item
-                      label="完整导出思考过程"
-                      value="full"
-                      labelStyle={styles.radioLabel}
-                    />
-                  </View>
-                  <View style={styles.radioItem}>
-                    <RadioButton.Item
-                      label="仅导出摘要"
-                      value="summary"
-                      labelStyle={styles.radioLabel}
-                    />
-                  </View>
-                  <View style={styles.radioItem}>
-                    <RadioButton.Item
-                      label="不导出思考链"
-                      value="none"
-                      labelStyle={styles.radioLabel}
-                    />
-                  </View>
-                </RadioButton.Group>
-              </View>
+          </View>
 
-              {/* MCP 工具调用 */}
-              <View style={styles.section}>
-                <View style={styles.switchRow}>
-                  <View style={styles.switchLabel}>
-                    <Text style={styles.switchTitle}>包含 MCP 工具调用</Text>
-                    <Text style={styles.switchDescription}>
-                      导出工具调用的参数和结果
-                    </Text>
-                  </View>
-                  <Switch
-                    value={includeMcpTools}
-                    onValueChange={setIncludeMcpTools}
-                  />
-                </View>
+          {/* 附件信息 */}
+          <View style={styles.section}>
+            <View style={styles.switchRow}>
+              <View style={styles.switchLabel}>
+                <Text style={[styles.switchTitle, { color: theme.colors.onSurface }]}>
+                  包含附件信息
+                </Text>
+                <Text style={[styles.switchDescription, { color: theme.colors.onSurfaceVariant }]}>
+                  显示附件文件名和类型（不嵌入内容）
+                </Text>
               </View>
+              <Switch
+                value={includeAttachments}
+                onValueChange={setIncludeAttachments}
+              />
+            </View>
+          </View>
 
-              {/* 附件信息 */}
-              <View style={styles.section}>
-                <View style={styles.switchRow}>
-                  <View style={styles.switchLabel}>
-                    <Text style={styles.switchTitle}>包含附件信息</Text>
-                    <Text style={styles.switchDescription}>
-                      显示附件文件名和类型（不嵌入内容）
-                    </Text>
-                  </View>
-                  <Switch
-                    value={includeAttachments}
-                    onValueChange={setIncludeAttachments}
-                  />
-                </View>
+          {/* 敏感信息脱敏 */}
+          <View style={styles.section}>
+            <View style={styles.switchRow}>
+              <View style={styles.switchLabel}>
+                <Text style={[styles.switchTitle, { color: theme.colors.onSurface }]}>
+                  脱敏敏感数据
+                </Text>
+                <Text style={[styles.switchDescription, { color: theme.colors.onSurfaceVariant }]}>
+                  自动屏蔽 API Key、Token 等敏感信息
+                </Text>
               </View>
-
-              {/* 敏感信息脱敏 */}
-              <View style={styles.section}>
-                <View style={styles.switchRow}>
-                  <View style={styles.switchLabel}>
-                    <Text style={styles.switchTitle}>脱敏敏感数据</Text>
-                    <Text style={styles.switchDescription}>
-                      自动屏蔽 API Key、Token 等敏感信息
-                    </Text>
-                  </View>
-                  <Switch
-                    value={sanitizeSensitiveData}
-                    onValueChange={setSanitizeSensitiveData}
-                  />
-                </View>
-              </View>
-            </ScrollView>
-          )}
-        </Dialog.Content>
-
-        <Dialog.Actions>
-          {!isExporting && <Button onPress={onDismiss}>取消</Button>}
-          {!isExporting && (
-            <Button onPress={handleConfirm} mode="contained">
-              开始导出
-            </Button>
-          )}
-          {isExporting && (
-            <Button onPress={onDismiss} disabled>
-              导出中...
-            </Button>
-          )}
-        </Dialog.Actions>
-      </Dialog>
-    </Portal>
+              <Switch
+                value={sanitizeSensitiveData}
+                onValueChange={setSanitizeSensitiveData}
+              />
+            </View>
+          </View>
+        </View>
+      )}
+    </UnifiedDialog>
   );
 }
 
 const styles = StyleSheet.create({
-  dialog: {
-    maxHeight: '80%',
-  },
   optionsContainer: {
-    maxHeight: 400,
+    paddingTop: 8,
   },
   section: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     marginBottom: 8,
   },
   radioItem: {
-    marginLeft: -8,
+    marginLeft: -16,
   },
   radioLabel: {
     fontSize: 14,
@@ -327,7 +332,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
   switchLabel: {
     flex: 1,
@@ -340,19 +345,19 @@ const styles = StyleSheet.create({
   },
   switchDescription: {
     fontSize: 12,
-    color: '#666',
   },
   progressContainer: {
-    paddingVertical: 16,
+    paddingVertical: 24,
+    alignItems: 'center',
   },
   progressText: {
-    fontSize: 14,
-    marginBottom: 16,
+    fontSize: 15,
+    marginBottom: 20,
     textAlign: 'center',
   },
   progressPercentage: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     textAlign: 'center',
   },
 });
