@@ -1,288 +1,266 @@
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { logger } from '@/utils/logger';
 import { Image } from 'expo-image';
-import { memo, useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { memo, useEffect, useState } from 'react';
+import { Dimensions, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withRepeat,
   withSequence,
   withSpring,
-  withTiming,
+  withTiming
 } from 'react-native-reanimated';
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface SplashScreenProps {
   isReady: boolean;
   onAnimationFinish?: () => void;
 }
 
-interface ParticleProps {
-  angle: number;
-  distance: number;
-  size: number;
-  delay: number;
-  color: string;
-}
-
 /**
- * 单个粒子组件（独立组件避免 Hooks 规则错误）
+ * 科技感光环 - 优化版
+ * 使用 View 变换代替 SVG 属性动画，大幅提升性能
  */
-const Particle = memo(({ angle, distance, size, delay, color }: ParticleProps) => {
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const opacity = useSharedValue(0);
-  const scale = useSharedValue(0);
+const TechRings = memo(({ isDark }: { isDark: boolean }) => {
+  const outerRotation = useSharedValue(0);
+  const innerRotation = useSharedValue(0);
+  const pulse = useSharedValue(1);
+  
+  const strokeColor = isDark ? 'rgba(147, 197, 253, 0.3)' : 'rgba(59, 130, 246, 0.3)';
 
   useEffect(() => {
-    const endX = Math.cos(angle) * distance;
-    const endY = Math.sin(angle) * distance;
+    // 外圈慢速旋转
+    outerRotation.value = withRepeat(
+      withTiming(360, { duration: 20000, easing: Easing.linear }),
+      -1,
+      false
+    );
+    
+    // 内圈反向旋转
+    innerRotation.value = withRepeat(
+      withTiming(-360, { duration: 15000, easing: Easing.linear }),
+      -1,
+      false
+    );
 
-    opacity.value = withDelay(
-      delay,
+    // 呼吸效果
+    pulse.value = withRepeat(
       withSequence(
-        withTiming(0.8, { duration: 600, easing: Easing.ease }),
-        withTiming(0, { duration: 1000, easing: Easing.ease })
-      )
-    );
-
-    scale.value = withDelay(
-      delay,
-      withSequence(
-        withSpring(1, { damping: 10, stiffness: 80 }),
-        withTiming(0, { duration: 800, easing: Easing.ease })
-      )
-    );
-
-    translateX.value = withDelay(
-      delay,
-      withTiming(endX, {
-        duration: 1600,
-        easing: Easing.out(Easing.quad),
-      })
-    );
-
-    translateY.value = withDelay(
-      delay,
-      withTiming(endY, {
-        duration: 1600,
-        easing: Easing.out(Easing.quad),
-      })
-    );
-
-    // 循环粒子动画
-    setTimeout(() => {
-      opacity.value = withRepeat(
-        withSequence(
-          withTiming(0.6, { duration: 800 }),
-          withTiming(0, { duration: 800 })
-        ),
-        -1,
-        true
-      );
-    }, delay + 1600);
-  }, [angle, delay, distance, opacity, scale, translateX, translateY]);
-
-  const particleStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { translateX: translateX.value },
-        { translateY: translateY.value },
-        { scale: scale.value },
-      ],
-      opacity: opacity.value,
-      width: size,
-      height: size,
-    };
-  });
-
-  return <Animated.View style={[styles.particle, particleStyle, { backgroundColor: color }]} />;
-});
-
-Particle.displayName = 'Particle';
-
-/**
- * AetherLink 炫酷开屏动画组件
- *
- * 动画效果：
- * 1. Logo 缩放入场 + 360°旋转（弹性效果）
- * 2. 霓虹灯发光效果（脉动）
- * 3. 粒子飘散效果（随机动画）
- * 4. 渐变背景动画
- * 5. 丝滑退场动画
- *
- * 性能优化：
- * - 使用 expo-image 硬件加速渲染 SVG
- * - 所有动画运行在 UI 线程（Reanimated）
- * - 粒子数量控制在 20 个以内
- * - 启用 memo 优化粒子组件
- */
-export default function SplashScreen({ isReady, onAnimationFinish }: SplashScreenProps) {
-  // 动画共享值
-  const logoScale = useSharedValue(0);
-  const logoRotate = useSharedValue(0);
-  const logoOpacity = useSharedValue(0);
-  const glowOpacity = useSharedValue(0);
-  const containerOpacity = useSharedValue(1);
-  const backgroundProgress = useSharedValue(0);
-
-  const [isHidden, setIsHidden] = useState(false);
-  const [isLogoEntryFinished, setIsLogoEntryFinished] = useState(false);
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
-  // 粒子配置数据（纯数据，不包含 Hooks）
-  const particleColor = isDark ? '#667eea' : '#4facfe';
-
-  useEffect(() => {
-    // 1. Logo 入场动画（0-1.2s）
-    logoScale.value = withSpring(
-      1,
-      {
-        damping: 8,
-        stiffness: 100,
-        mass: 0.5,
-      },
-      (finished) => {
-        if (finished) {
-          runOnJS(setIsLogoEntryFinished)(true);
-        }
-      }
-    );
-
-    logoRotate.value = withTiming(360, {
-      duration: 1200,
-      easing: Easing.out(Easing.cubic),
-    });
-
-    logoOpacity.value = withTiming(1, {
-      duration: 600,
-      easing: Easing.ease,
-    });
-
-    // 2. 发光效果（0.8s 后开始脉动）
-    glowOpacity.value = withDelay(
-      800,
-      withRepeat(
-        withSequence(
-          withTiming(1, { duration: 1000, easing: Easing.ease }),
-          withTiming(0.5, { duration: 1000, easing: Easing.ease })
-        ),
-        -1, // 无限循环
-        true
-      )
-    );
-
-    // 3. 背景渐变动画
-    backgroundProgress.value = withRepeat(
-      withTiming(1, { duration: 3000, easing: Easing.linear }),
+        withTiming(1.05, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+      ),
       -1,
       true
     );
+  }, [innerRotation, outerRotation, pulse]);
 
-    logger.info('SplashScreen: Animation started with SVG logo');
-  }, [backgroundProgress, glowOpacity, logoOpacity, logoRotate, logoScale]);
+  const outerStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${outerRotation.value}deg` }, { scale: pulse.value }],
+  }));
 
-  const handleAnimationFinish = useCallback(() => {
-    setIsHidden(true);
-    onAnimationFinish?.();
-    logger.info('SplashScreen: Animation finished');
-  }, [onAnimationFinish]);
+  const innerStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${innerRotation.value}deg` }],
+  }));
 
-  const fadeOut = useCallback(() => {
-    containerOpacity.value = withDelay(
-      300,
-      withTiming(0, { duration: 600, easing: Easing.ease }, (finished) => {
-        if (finished) {
-          runOnJS(handleAnimationFinish)();
-        }
-      })
-    );
-  }, [containerOpacity, handleAnimationFinish]);
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {/* 外圈 */}
+      <Animated.View style={[StyleSheet.absoluteFill, styles.centerContent, outerStyle]}>
+        <Svg height="400" width="400" viewBox="0 0 400 400">
+          <Circle
+            cx="200"
+            cy="200"
+            r="130"
+            stroke={strokeColor}
+            strokeWidth="1"
+            strokeDasharray="20, 40"
+            strokeOpacity="0.8"
+            fill="none"
+          />
+          <Circle
+            cx="200"
+            cy="200"
+            r="125"
+            stroke={strokeColor}
+            strokeWidth="0.5"
+            strokeOpacity="0.4"
+            fill="none"
+          />
+        </Svg>
+      </Animated.View>
+
+      {/* 内圈 */}
+      <Animated.View style={[StyleSheet.absoluteFill, styles.centerContent, innerStyle]}>
+        <Svg height="400" width="400" viewBox="0 0 400 400">
+          <Circle
+            cx="200"
+            cy="200"
+            r="110"
+            stroke={strokeColor}
+            strokeWidth="1"
+            strokeDasharray="4, 10"
+            strokeOpacity="0.5"
+            fill="none"
+          />
+        </Svg>
+      </Animated.View>
+    </View>
+  );
+});
+
+TechRings.displayName = 'TechRings';
+
+/**
+ * 背景光晕 - 静态 SVG，仅做简单的 View 缩放动画
+ */
+const BackgroundGlow = memo(({ isDark }: { isDark: boolean }) => {
+  const scale = useSharedValue(1);
+  
+  const colors = isDark 
+    ? { center: '#3B82F6', mid: '#1E3A8A', edge: '#0F172A' }
+    : { center: '#DBEAFE', mid: '#EFF6FF', edge: '#FFFFFF' };
 
   useEffect(() => {
-    if (isReady && isLogoEntryFinished) {
-      fadeOut();
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.1, { duration: 4000, easing: Easing.inOut(Easing.quad) }),
+        withTiming(1, { duration: 4000, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      true
+    );
+  }, [scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]}>
+      <Svg height="100%" width="100%" style={StyleSheet.absoluteFill}>
+        <Defs>
+          <RadialGradient
+            id="grad"
+            cx="50%"
+            cy="50%"
+            rx="50%"
+            ry="50%"
+            fx="50%"
+            fy="50%"
+            gradientUnits="userSpaceOnUse"
+          >
+            <Stop offset="0" stopColor={colors.center} stopOpacity="0.15" />
+            <Stop offset="0.6" stopColor={colors.mid} stopOpacity="0.05" />
+            <Stop offset="1" stopColor={colors.edge} stopOpacity="0" />
+          </RadialGradient>
+        </Defs>
+        <Circle
+          cx={SCREEN_WIDTH / 2}
+          cy={SCREEN_HEIGHT / 2}
+          r={SCREEN_WIDTH}
+          fill="url(#grad)"
+        />
+      </Svg>
+    </Animated.View>
+  );
+});
+
+BackgroundGlow.displayName = 'BackgroundGlow';
+
+/**
+ * AetherLink 极速版开屏动画 (v2.1 - Performance Optimized)
+ * 
+ * 优化策略：
+ * 1. 移除所有 JS 驱动的 SVG 属性动画，全部替换为 Native View Transforms
+ * 2. 移除粒子系统 (Particle System)，减少大量视图节点
+ * 3. 简化阴影效果，使用透明度叠加代替 heavy shadows
+ * 4. 保持视觉核心：光环 + 呼吸感 + 流畅进出场
+ */
+export default function SplashScreen({ isReady, onAnimationFinish }: SplashScreenProps) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  const logoScale = useSharedValue(0.8);
+  const logoOpacity = useSharedValue(0);
+  const containerOpacity = useSharedValue(1);
+  
+  const [isHidden, setIsHidden] = useState(false);
+  const [hasEntered, setHasEntered] = useState(false);
+
+  // 入场
+  useEffect(() => {
+    logoScale.value = withSpring(1, {
+      damping: 15,
+      stiffness: 90,
+    });
+
+    logoOpacity.value = withTiming(1, {
+      duration: 500,
+      easing: Easing.out(Easing.quad),
+    }, (finished) => {
+      if (finished) {
+        runOnJS(setHasEntered)(true);
+      }
+    });
+    
+    logger.info('SplashScreen: Animation started');
+  }, [logoOpacity, logoScale]);
+
+  // 退场
+  useEffect(() => {
+    if (isReady && hasEntered) {
+      containerOpacity.value = withTiming(0, {
+        duration: 400,
+        easing: Easing.out(Easing.quad),
+      }, (finished) => {
+        if (finished) {
+          runOnJS(setIsHidden)(true);
+          if (onAnimationFinish) runOnJS(onAnimationFinish)();
+        }
+      });
     }
-  }, [fadeOut, isLogoEntryFinished, isReady]);
+  }, [isReady, hasEntered, containerOpacity, onAnimationFinish]);
 
-  // 容器样式
-  const containerStyle = useAnimatedStyle(() => {
-    return {
-      opacity: containerOpacity.value,
-      zIndex: containerOpacity.value === 0 ? -1 : 1000,
-    };
-  });
+  const containerStyle = useAnimatedStyle(() => ({
+    opacity: containerOpacity.value,
+  }));
 
-  // 背景渐变样式
-  const backgroundStyle = useAnimatedStyle(() => {
-    const colorStart = isDark ? 0 : 255;
-    const colorEnd = isDark ? 20 : 245;
-    const color = colorStart + (colorEnd - colorStart) * backgroundProgress.value;
+  const logoStyle = useAnimatedStyle(() => ({
+    opacity: logoOpacity.value,
+    transform: [{ scale: logoScale.value }],
+  }));
 
-    return {
-      backgroundColor: isDark
-        ? `rgb(${color * 0.1}, ${color * 0.1}, ${color * 0.2})`
-        : `rgb(${color}, ${color}, ${color})`,
-    };
-  });
-
-  // Logo 样式
-  const logoStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: logoScale.value }, { rotate: `${logoRotate.value}deg` }],
-      opacity: logoOpacity.value,
-    };
-  });
-
-  // 发光层样式
-  const glowStyle = useAnimatedStyle(() => {
-    return {
-      opacity: glowOpacity.value * 0.6,
-    };
-  });
+  const backgroundColor = isDark ? '#0F172A' : '#F8FAFC'; 
 
   if (isHidden) return null;
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, backgroundStyle, containerStyle]}>
-      <View style={styles.container}>
-        {/* 粒子层 */}
-        <View style={styles.particlesContainer}>
-          {Array.from({ length: 20 }, (_, i) => {
-            const angle = (i / 20) * Math.PI * 2;
-            const distance = 80 + Math.random() * 60;
-            const size = 4 + Math.random() * 6;
-            const delay = Math.random() * 800;
+    <Animated.View 
+      style={[
+        StyleSheet.absoluteFill, 
+        styles.container, 
+        { backgroundColor }, 
+        containerStyle
+      ]}
+      pointerEvents="none" // 避免拦截触摸事件
+    >
+      <BackgroundGlow isDark={isDark} />
 
-            return (
-              <Particle
-                key={i}
-                angle={angle}
-                distance={distance}
-                size={size}
-                delay={delay}
-                color={particleColor}
-              />
-            );
-          })}
-        </View>
+      <View style={styles.centerContent}>
+        <TechRings isDark={isDark} />
 
-        {/* 外层发光（霓虹灯效果） */}
-        <Animated.View style={[styles.glowContainer, glowStyle]}>
-          <View
-            style={[styles.glow, styles.glowOuter, { shadowColor: isDark ? '#667eea' : '#4facfe' }]}
-          />
-          <View
-            style={[styles.glow, styles.glowInner, { shadowColor: isDark ? '#4facfe' : '#667eea' }]}
-          />
-        </Animated.View>
-
-        {/* Logo 主体 */}
-        <Animated.View style={logoStyle}>
+        <Animated.View style={[styles.logoWrapper, logoStyle]}>
+          {/* 模拟辉光 - 使用 View 而不是 shadow */}
+          <View style={[
+            styles.logoGlow, 
+            { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(147, 197, 253, 0.4)' }
+          ]} />
+          
           <Image
             source={require('@/assets/aetherlink_logo.svg')}
             style={styles.logo}
@@ -298,49 +276,31 @@ export default function SplashScreen({ isReady, onAnimationFinish }: SplashScree
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    zIndex: 9999,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  centerContent: {
+    width: 400,
+    height: 400,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 160,
+    height: 160,
   },
   logo: {
-    width: 200,
-    height: 200,
-    borderRadius: 100, // 圆形裁剪
-    overflow: 'hidden',
-    backgroundColor: 'transparent',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
   },
-  particlesContainer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  particle: {
+  logoGlow: {
     position: 'absolute',
-    borderRadius: 100,
-  },
-  glowContainer: {
-    position: 'absolute',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  glow: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'transparent',
-    overflow: 'hidden',
-  },
-  glowOuter: {
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 60,
-    elevation: 0, // 移除 Android elevation，避免方形边框
-  },
-  glowInner: {
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 30,
-    elevation: 0, // 移除 Android elevation，避免方形边框
+    width: 150,
+    height: 150,
+    borderRadius: 75,
   },
 });
