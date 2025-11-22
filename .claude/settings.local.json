@@ -45,7 +45,8 @@
       "Bash(node:*)",
       "Bash(xargs ls:*)",
       "Bash(cp:*)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

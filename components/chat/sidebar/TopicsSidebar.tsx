@@ -1,12 +1,15 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { Animated, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { Surface, Text, List, TouchableRipple, useTheme, Button, IconButton, Searchbar, Checkbox } from 'react-native-paper';
+import { Surface, Text, List, TouchableRipple, useTheme, Button, IconButton, Searchbar, Checkbox, Menu, Snackbar } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import { useConversations } from '@/hooks/use-conversations';
 import { ChatRepository } from '@/storage/repositories/chat';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
+import { useTopicExport } from '@/hooks/use-topic-export';
+import { TopicExportDialog } from '@/components/chat/dialogs/TopicExportDialog';
 import { Conversation } from '@/storage/core';
+import type { ExportOptions } from '@/services/export';
 
 interface TopicsSidebarProps {
   visible: boolean;
@@ -27,7 +30,11 @@ interface TopicItemProps {
   onLongPress: (id: string) => void;
   onRename: (conversation: Conversation) => void;
   onDelete: (id: string) => void;
+  onExport: (conversation: Conversation) => void;
   onToggleSelection: (id: string) => void;
+  menuVisible: boolean;
+  onMenuOpen: (id: string) => void;
+  onMenuClose: () => void;
   themeColors: {
     primary: string;
     primaryContainer: string;
@@ -58,7 +65,11 @@ const TopicItem = React.memo<TopicItemProps>(({
   onLongPress,
   onRename,
   onDelete,
+  onExport,
   onToggleSelection,
+  menuVisible,
+  onMenuOpen,
+  onMenuClose,
   themeColors,
 }) => {
   const isSelected = selectedIds.has(conversation.id);
@@ -100,21 +111,44 @@ const TopicItem = React.memo<TopicItemProps>(({
         }
         right={(p) =>
           !batchMode ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <IconButton
-                {...p}
-                icon="pencil-outline"
-                size={20}
-                onPress={() => onRename(conversation)}
+            <Menu
+              visible={menuVisible}
+              onDismiss={onMenuClose}
+              anchor={
+                <IconButton
+                  {...p}
+                  icon="dots-vertical"
+                  size={20}
+                  onPress={() => onMenuOpen(conversation.id)}
+                />
+              }
+            >
+              <Menu.Item
+                leadingIcon="pencil-outline"
+                onPress={() => {
+                  onMenuClose();
+                  onRename(conversation);
+                }}
+                title="重命名"
               />
-              <IconButton
-                {...p}
-                icon="delete-outline"
-                size={20}
-                iconColor={themeColors.error}
-                onPress={() => onDelete(conversation.id)}
+              <Menu.Item
+                leadingIcon="export-variant"
+                onPress={() => {
+                  onMenuClose();
+                  onExport(conversation);
+                }}
+                title="导出话题"
               />
-            </View>
+              <Menu.Item
+                leadingIcon="delete-outline"
+                onPress={() => {
+                  onMenuClose();
+                  onDelete(conversation.id);
+                }}
+                title="删除"
+                titleStyle={{ color: themeColors.error }}
+              />
+            </Menu>
           ) : undefined
         }
       />
@@ -129,6 +163,7 @@ const TopicItem = React.memo<TopicItemProps>(({
     prevProps.isCurrentTopic === nextProps.isCurrentTopic &&
     prevProps.batchMode === nextProps.batchMode &&
     prevProps.selectedIds.has(prevProps.conversation.id) === nextProps.selectedIds.has(nextProps.conversation.id) &&
+    prevProps.menuVisible === nextProps.menuVisible &&
     prevProps.themeColors.primary === nextProps.themeColors.primary &&
     prevProps.themeColors.primaryContainer === nextProps.themeColors.primaryContainer &&
     prevProps.themeColors.error === nextProps.themeColors.error
@@ -175,6 +210,14 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
   const [searchVisible, setSearchVisible] = useState(false);
   const [batchMode, setBatchMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // 导出功能状态
+  const { exportAndShare, isExporting, progress, error, reset } = useTopicExport();
+  const [exportDialogVisible, setExportDialogVisible] = useState(false);
+  const [exportingConversation, setExportingConversation] = useState<Conversation | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   // 搜索过滤
   const filteredItems = useMemo(() => {
@@ -291,6 +334,45 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
     );
   }, [confirmAction, reload]);
 
+  // 🚀 性能优化：缓存话题导出处理函数
+  const handleExportTopicPress = useCallback((conversation: Conversation) => {
+    setExportingConversation(conversation);
+    setExportDialogVisible(true);
+  }, []);
+
+  // 处理导出确认
+  const handleExportConfirm = useCallback(async (options: ExportOptions) => {
+    if (!exportingConversation) return;
+
+    try {
+      await exportAndShare(exportingConversation.id, options);
+      setSnackbarMessage('导出成功！');
+      setSnackbarVisible(true);
+      setExportDialogVisible(false);
+    } catch (err: any) {
+      setSnackbarMessage(err?.message || '导出失败');
+      setSnackbarVisible(true);
+    }
+  }, [exportingConversation, exportAndShare]);
+
+  // 处理导出对话框关闭
+  const handleExportDialogDismiss = useCallback(() => {
+    if (!isExporting) {
+      setExportDialogVisible(false);
+      setExportingConversation(null);
+      reset();
+    }
+  }, [isExporting, reset]);
+
+  // 菜单打开/关闭处理
+  const handleMenuOpen = useCallback((id: string) => {
+    setOpenMenuId(id);
+  }, []);
+
+  const handleMenuClose = useCallback(() => {
+    setOpenMenuId(null);
+  }, []);
+
   const deleteSelected = async () => {
     if (selectedIds.size === 0) return;
 
@@ -335,7 +417,11 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
         onLongPress={handleTopicLongPress}
         onRename={handleRenameTopicPress}
         onDelete={handleDeleteTopicPress}
+        onExport={handleExportTopicPress}
         onToggleSelection={toggleSelection}
+        menuVisible={openMenuId === conversation.id}
+        onMenuOpen={handleMenuOpen}
+        onMenuClose={handleMenuClose}
         themeColors={themeColors}
       />
     );
@@ -344,8 +430,12 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
     currentTopicId,
     handleDeleteTopicPress,
     handleRenameTopicPress,
+    handleExportTopicPress,
     handleTopicLongPress,
     handleTopicPress,
+    handleMenuOpen,
+    handleMenuClose,
+    openMenuId,
     selectedIds,
     theme.colors.onSurfaceVariant,
     themeColors,
@@ -358,8 +448,9 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
     batchMode,
     selectedIds,
     currentTopicId,
+    openMenuId,
     themeColors,
-  }), [batchMode, selectedIds, currentTopicId, themeColors]);
+  }), [batchMode, selectedIds, currentTopicId, openMenuId, themeColors]);
 
   const renderEmptyTopics = useCallback(() => (
     <View style={{ padding: 24, alignItems: 'center' }}>
@@ -496,6 +587,25 @@ export function TopicsSidebar({ visible, onClose, onSelectTopic, currentTopicId 
           </View>
         </Surface>
       </Animated.View>
+
+      {/* 导出对话框 */}
+      <TopicExportDialog
+        visible={exportDialogVisible}
+        onDismiss={handleExportDialogDismiss}
+        onConfirm={handleExportConfirm}
+        progress={progress}
+        isExporting={isExporting}
+      />
+
+      {/* 消息提示 */}
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={3000}
+        style={{ marginBottom: insets.bottom + 16 }}
+      >
+        {snackbarMessage}
+      </Snackbar>
     </View>
   );
 }
