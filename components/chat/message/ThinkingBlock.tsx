@@ -142,16 +142,8 @@ const MarqueePreview: React.FC<{
   const fixedHeight = 48; // 固定高度，确保宽度一致
 
   if (!isStreaming || messages.length === 0) {
-    return (
-      <View style={{ height: fixedHeight, width: '100%', justifyContent: 'center' }}>
-        <Text
-          style={[styles.previewText, { color: textColor, opacity: 0.5 }]}
-          numberOfLines={2}
-        >
-          点击展开查看思考内容
-        </Text>
-      </View>
-    );
+    // 不显示任何内容
+    return null;
   }
 
   return (
@@ -367,8 +359,6 @@ const styles = StyleSheet.create({
   previewContainer: {
     width: '100%',
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    minHeight: 40,
   },
   previewText: {
     fontSize: 13,
