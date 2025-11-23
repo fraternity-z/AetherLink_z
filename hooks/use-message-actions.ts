@@ -14,6 +14,7 @@ import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
 import type { Message } from '@/storage/core';
 import { logger } from '@/utils/logger';
+import { MessageBlocksRepository } from '@/storage/repositories/message-blocks';
 
 interface UseMessageActionsProps {
   message?: Message;
@@ -40,18 +41,48 @@ export function useMessageActions({
       // 触觉反馈
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      // 复制到剪贴板（使用实际显示的内容）
-      await Clipboard.setStringAsync(content || '');
+      let textToCopy = content;
+
+      // 🐛 修复：如果 content 为空，从数据库重新获取 blocks 组合文本
+      if (!textToCopy || textToCopy.trim() === '') {
+        if (message) {
+          logger.debug('[useMessageActions] content 为空，尝试从 blocks 重新获取', {
+            messageId: message.id,
+            contentLength: content.length,
+          });
+
+          const blocks = await MessageBlocksRepository.getBlocksByMessageId(message.id);
+          const textBlocks = blocks
+            .filter((b) => b.type === 'TEXT')
+            .sort((a, b) => a.sortOrder - b.sortOrder);
+
+          if (textBlocks.length > 0) {
+            textToCopy = textBlocks.map((b) => b.content).join('');
+            logger.debug('[useMessageActions] 从 blocks 获取到文本', {
+              length: textToCopy.length,
+            });
+          } else {
+            // 最后的 fallback：使用 message.text（兼容旧数据）
+            textToCopy = message.text || '';
+            logger.debug('[useMessageActions] 使用 message.text 作为 fallback', {
+              length: textToCopy.length,
+            });
+          }
+        }
+      }
+
+      // 复制到剪贴板
+      await Clipboard.setStringAsync(textToCopy);
 
       // ✨ 图标状态变化：显示成功图标
       setCopyState('success');
       setTimeout(() => setCopyState('idle'), 1500); // 1.5秒后恢复
 
-      logger.debug('[useMessageActions] 复制成功', { length: content.length });
+      logger.debug('[useMessageActions] 复制成功', { length: textToCopy.length });
     } catch (error: any) {
       logger.error('[useMessageActions] 复制失败:', error);
     }
-  }, [content]);
+  }, [content, message]);
 
   /**
    * 分享消息内容
@@ -68,18 +99,48 @@ export function useMessageActions({
         return;
       }
 
-      // 分享消息内容（使用实际显示的内容）
-      await Clipboard.setStringAsync(content || '');
+      let textToShare = content;
+
+      // 🐛 修复：如果 content 为空，从数据库重新获取 blocks 组合文本
+      if (!textToShare || textToShare.trim() === '') {
+        if (message) {
+          logger.debug('[useMessageActions] content 为空，尝试从 blocks 重新获取', {
+            messageId: message.id,
+            contentLength: content.length,
+          });
+
+          const blocks = await MessageBlocksRepository.getBlocksByMessageId(message.id);
+          const textBlocks = blocks
+            .filter((b) => b.type === 'TEXT')
+            .sort((a, b) => a.sortOrder - b.sortOrder);
+
+          if (textBlocks.length > 0) {
+            textToShare = textBlocks.map((b) => b.content).join('');
+            logger.debug('[useMessageActions] 从 blocks 获取到文本', {
+              length: textToShare.length,
+            });
+          } else {
+            // 最后的 fallback：使用 message.text（兼容旧数据）
+            textToShare = message.text || '';
+            logger.debug('[useMessageActions] 使用 message.text 作为 fallback', {
+              length: textToShare.length,
+            });
+          }
+        }
+      }
+
+      // 分享消息内容（复制到剪贴板）
+      await Clipboard.setStringAsync(textToShare);
 
       // ✨ 图标状态变化：显示成功图标
       setShareState('success');
       setTimeout(() => setShareState('idle'), 1500); // 1.5秒后恢复
 
-      logger.debug('[useMessageActions] 分享成功', { length: content.length });
+      logger.debug('[useMessageActions] 分享成功', { length: textToShare.length });
     } catch (error: any) {
       logger.error('[useMessageActions] 分享失败:', error);
     }
-  }, [content]);
+  }, [content, message]);
 
   /**
    * 重新生成 AI 回答
