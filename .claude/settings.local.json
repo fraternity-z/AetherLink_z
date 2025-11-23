@@ -46,7 +46,8 @@
       "Bash(xargs ls:*)",
       "Bash(cp:*)",
       "Bash(where:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []

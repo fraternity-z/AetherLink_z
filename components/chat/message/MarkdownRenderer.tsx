@@ -6,13 +6,14 @@
  * - 支持代码块和语法高亮
  * - 适配应用主题（明暗模式）
  * - 集成数学公式渲染 (SVG)
+ * - 自动清理不支持的 HTML 标签（保留 SVG）
  */
 
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import Markdown from 'react-native-marked';
 import { useTheme } from 'react-native-paper';
-import { escapeBrackets, removeSvgEmptyLines } from '@/utils/text-formats';
+import { escapeBrackets, removeSvgEmptyLines, removeUnsupportedHtml } from '@/utils/text-formats';
 import { useMarkdownRenderer } from './useMarkdownRenderer';
 
 export interface MarkdownRendererProps {
@@ -42,9 +43,9 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
     return null;
   }
 
-  // ✨ 预处理内容：统一数学公式格式并清理 SVG 空行
+  // ✨ 预处理内容：移除 HTML → 统一数学公式 → 清理 SVG 空行
   const processedContent = React.useMemo(
-    () => removeSvgEmptyLines(escapeBrackets(content)),
+    () => removeSvgEmptyLines(escapeBrackets(removeUnsupportedHtml(content))),
     [content]
   );
 

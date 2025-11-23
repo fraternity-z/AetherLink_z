@@ -16,7 +16,8 @@ interface MessageFooterProps {
   message: Message;
   isUser: boolean;
   onCopy: () => void;
-  onRegenerate?: () => void;
+  onRegenerate?: () => void; // ✨ 仅助手消息
+  onResend?: () => void; // ✨ 仅用户消息
   onShare: () => void;
   copyState?: 'idle' | 'success';
   shareState?: 'idle' | 'success';
@@ -27,25 +28,21 @@ function MessageFooterComponent({
   isUser,
   onCopy,
   onRegenerate,
+  onResend,
   onShare,
   copyState = 'idle',
   shareState = 'idle',
 }: MessageFooterProps) {
   const theme = useTheme();
 
-  // 提取 Token 使用统计
+  // 提取 Token 使用统计（仅助手消息）
   const usage = message.extra?.usage;
-  const hasUsage = usage && (usage.inputTokens || usage.outputTokens);
-
-  // 仅助手消息显示工具栏
-  if (isUser) {
-    return null;
-  }
+  const hasUsage = !isUser && usage && (usage.inputTokens || usage.outputTokens);
 
   return (
     <View className="px-3 pb-2 pt-1">
-      <View className="flex-row items-center justify-between">
-        {/* 左侧按钮组 */}
+      <View className={`flex-row items-center ${isUser ? 'justify-end' : 'justify-between'}`}>
+        {/* 按钮组 */}
         <View className="flex-row gap-4">
           {/* 复制按钮 - 成功时显示勾选图标 */}
           <Pressable
@@ -80,6 +77,25 @@ function MessageFooterComponent({
             >
               <PaperIconButton
                 icon="refresh"
+                size={18}
+                iconColor={theme.colors.onSurfaceVariant}
+                style={{ margin: 0 }}
+              />
+            </Pressable>
+          )}
+
+          {/* 重新发送按钮（仅用户消息） */}
+          {isUser && onResend && (
+            <Pressable
+              onPress={onResend}
+              hitSlop={10}
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.6 : 1,
+                transform: pressed ? [{ scale: 0.95 }] : [{ scale: 1 }],
+              })}
+            >
+              <PaperIconButton
+                icon="send"
                 size={18}
                 iconColor={theme.colors.onSurfaceVariant}
                 style={{ margin: 0 }}
