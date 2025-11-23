@@ -99,7 +99,8 @@ const MarqueePreview: React.FC<{
     }
   };
 
-  const NEXT_CONTENT_COUNT = 30;
+  // 增加单行字符数以填充宽度，避免右侧大片空白
+  const NEXT_CONTENT_COUNT = 60;
   const startOutputQueue = () => {
     if (processedLengthRef.current === 0) return;
 
@@ -148,7 +149,7 @@ const MarqueePreview: React.FC<{
 
   return (
     <View
-      style={{ height: fixedHeight, minWidth: 50, position: 'relative' }}
+      style={{ height: fixedHeight, minWidth: 50, position: 'relative', width: '100%' }}
     >
       {/* 💡用于撑开宽度的隐形文本，解决绝对定位导致宽度塌陷的问题 */}
       <View style={{ opacity: 0, height: '100%', justifyContent: 'flex-end', paddingBottom: 4 }}>
@@ -302,6 +303,16 @@ export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({
               isStreaming={isStreaming || false}
               textColor={textColor}
             />
+            {/* 💡 隐形占位，用于保持宽度与展开时一致 (使用完整内容以确保宽度计算准确) */}
+            <View
+              style={{ height: 0, overflow: 'hidden' }}
+              accessibilityElementsHidden={true}
+              importantForAccessibility="no-hide-descendants"
+            >
+              <Text style={{ opacity: 0, fontSize: 15, lineHeight: 24 }} numberOfLines={1000}>
+                {content}
+              </Text>
+            </View>
           </View>
         )}
 
